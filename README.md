@@ -1,7 +1,7 @@
 # aa-stats
 
 The code behind All Advancements No Reset stats websites, such as
-[Zesskyo's](https://zesskyo.github.io/aa-no-reset-zesskyo-log/).
+[Zesskyo's](https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/).
 
 **Want your own website?** Go to [aa-stats-template](https://github.com/zesskyo/aa-stats-template)
 and follow the steps there. You never need to touch this repository.
@@ -23,7 +23,7 @@ here first. Websites use the `main` branch, so check that it's green after pushi
 Run the build against any site folder (Node 20, nothing to install):
 
 ```
-node build.mjs ../aa-no-reset-zesskyo-log    # writes ../aa-no-reset-zesskyo-log/dist/index.html
+node build.mjs ../aa-stats-no-reset-zesskyo-log    # writes ../aa-stats-no-reset-zesskyo-log/dist/index.html
 node build.mjs example                       # the small example site in this repository
 ```
 

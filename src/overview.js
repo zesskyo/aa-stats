@@ -8,12 +8,12 @@ function renderOverview() {
   const best = SPLITS.map((p, i) => { const b = fastest(r => derive(r).splits[i].dur); return b.r ? {dur: b.v, run: b.r} : null; });
   const sobParts = FASTEST_SPLITS.map(i => best[i]);
   const sumOfBest = sobParts.every(Boolean) ? sobParts.reduce((a, b) => a + b.dur, 0) : null;
-  const totalPlay = RUNS.reduce((a, r) => a + r.finalIgt, 0);
+  const totalPlay = RUNS.reduce((a, r) => a + (r.finalIgt || 0), 0);
   const avgTime = average(valid.map(r => r.finalIgt));
   $("#pbCard").innerHTML = pb ? `
     <div style="display:flex;flex-direction:column;gap:8px">
       <span class="label">${esc(T.pb)}</span>
-      <span class="big">${fmt(pb.finalIgt)}</span>
+      <span class="big">${runTime(pb)}</span>
       <button type="button" class="linkbtn" style="align-self:flex-start;padding:0" data-open="${esc(pb.id)}">${esc(runTitle(pb))}</button>
     </div>
     <div class="stats2">
@@ -51,19 +51,19 @@ function renderOverview() {
   renderRunsTable(pb);
 }
 
-const hundred = c => c === "Thunderful" ? T.hundredYes : c === "Thunderless" ? T.hundredNo : T.hundredInvalid;
+const hundred = c => c === "Thunderful" ? T.hundredYes : c === "Thunderless" ? T.hundredNo : c === "Unknown" ? T.hundredUnknown : T.hundredInvalid;
 
 function renderRunsTable(pb) {
   const tbl = $("#runsTable");
   if (!RUNS.length) { tbl.innerHTML = `<div class="empty">${esc(T.noRunsYet)}</div>`; return; }
 
   // Sorting: click a heading to sort by it, click again to reverse
-  const HUNDRED_ORDER = {Thunderful: 0, Thunderless: 1, Invalid: 2};
+  const HUNDRED_ORDER = {Thunderful: 0, Thunderless: 1, Invalid: 2, Unknown: 3};
   const sortKeys = {
     num: runNum,
     date: dayNumber,
     hundred: r => HUNDRED_ORDER[derive(r).category],
-    igt: r => r.finalIgt,
+    igt: r => r.finalIgt ?? Infinity,
   };
   SPLIT_CARDS.forEach(i => { sortKeys["p" + i] = r => { const v = splitMark(derive(r).splits[i], i); return v == null ? Infinity : v; }; });
   if (!sortKeys[state.sort.key]) state.sort = {key: "num", dir: 1};
@@ -79,7 +79,7 @@ function renderRunsTable(pb) {
   const row = r => {
     const d = derive(r);
     return `<tr class="runrow" data-open="${esc(r.id)}" tabindex="0" aria-label="${esc(runTitle(r))}">
-      <td style="white-space:nowrap"><span class="runno">${esc(runNum(r))}</span>${videoLink(r)}${pb === r ? `<span class="badge">${esc(T.pb)}</span>` : ""}</td>
+      <td style="white-space:nowrap"><span class="runno">${esc(runNum(r))}</span>${videoLink(r)}${shotLink(r)}${pb === r ? `<span class="badge">${esc(T.pb)}</span>` : ""}</td>
       <td class="mono">${fmt(r.finalIgt, 0)}</td>
       <td>${esc(hundred(d.category))}</td>
       <td style="white-space:nowrap">${esc(runDay(r))}${r.meta && r.meta.seed ? `<div class="note mono">${esc(r.meta.seed)}</div>` : ""}</td>

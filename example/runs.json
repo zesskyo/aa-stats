@@ -1,1 +1,4 @@
-{"1": {"notes": "Example run, so the build is tested with real data."}}
+{
+  "1": {"notes": "Example run with a log, so the build is tested with real data."},
+  "2": {"time": "3:50:00", "date": "2026-09-01", "hundred": false, "splits": {"Any%": "0:30:00", "Midgame": "1:00:00"}, "notes": "Example run without a log."}
+}

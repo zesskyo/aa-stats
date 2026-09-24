@@ -43,8 +43,8 @@ function mountRunBar(run, d) {
     : `<div class="runbar-inner">
         <button type="button" class="pg arrow" id="rbPrev" ${i > 0 ? "" : "disabled"} aria-label="${esc(T.previousRun)}">‹</button>
         <span class="runbar-title">${esc(runTitle(run))}</span>
-        <span class="cat ${d.category.toLowerCase()}">${d.category}</span>
-        <span class="mono runbar-time">${fmt(run.finalIgt)}</span>
+        ${catPill(d)}
+        <span class="mono runbar-time">${runTime(run)}</span>
         <button type="button" class="pg arrow" id="rbNext" ${i < list.length - 1 ? "" : "disabled"} aria-label="${esc(T.nextRun)}">›</button>
         <button type="button" class="runbar-hide" id="rbToggle" aria-expanded="true" title="${esc(T.minimise)}">▴</button>
       </div>`;

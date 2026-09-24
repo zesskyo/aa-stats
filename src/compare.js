@@ -107,14 +107,9 @@ function renderCompare() {
     </div>`;
   };
 
-  el.innerHTML = `
-    <section class="card" style="display:flex;flex-direction:column;gap:12px">
-      <div class="cmp-slots">${slot(0)}${slot(1)}</div>
-      <input type="file" id="cmpFile" accept=".log,.txt,.jsonl,.json" hidden>
-      ${cmpStatus || UPLOADED.length ? `<div class="cmp-foot">${cmpStatus ? `<span class="cmp-status" role="status">${esc(cmpStatus)}</span>` : "<span></span>"}${UPLOADED.length ? `<button type="button" class="linkbtn" id="cmpForget">${esc(T.cmpForget)}</button>` : ""}</div>` : ""}
-    </section>
-    ${list.length ? `
-    <section class="card tablewrap" style="padding:0">${cmpSplitsTable(list)}</section>
+  // Graphs (left out when neither run has a log)
+  const withLog = list.some(c => !c.run.manual);
+  const graphs = !withLog ? "" : `
     <section class="card chartcard" id="cmpCard" style="display:flex;flex-direction:column;gap:14px">
       <div class="head-row" style="align-items:center">
         <h2>${esc(T.progressTitle)}</h2>
@@ -125,12 +120,22 @@ function renderCompare() {
       </div>
       <div class="keys">${T.cmpKeysHelp}</div>
       ${list.map((c, i) => `<div class="cmp-graph">
-        <div class="cmp-graphhead"><span class="swatch" style="background:${c.color}"></span><b>${esc(c.label)}</b><span class="cat ${c.d.category.toLowerCase()}">${esc(c.d.category)}</span><span class="mono muted">${fmt(c.run.finalIgt, 0)}</span></div>
-        <div class="chartbox" id="cmpTop${i}"></div><div class="chartbox" id="cmpRes${i}"></div>
+        <div class="cmp-graphhead"><span class="swatch" style="background:${c.color}"></span><b>${esc(c.label)}</b>${catPill(c.d)}<span class="mono muted">${fmt(c.run.finalIgt, 0)}</span></div>
+        ${c.run.manual ? `<p class="muted" style="margin:4px 0 8px">${esc(T.noLogNote)}</p>` : `<div class="chartbox" id="cmpTop${i}"></div><div class="chartbox" id="cmpRes${i}"></div>`}
       </div>`).join("")}
       <div class="legend"><span><i style="background:var(--ow)"></i>${esc(T.overworld)}</span><span><i style="background:var(--ne)"></i>${esc(T.nether)}</span><span><i style="background:var(--en)"></i>${esc(T.theEnd)}</span></div>
+    </section>`;
+
+  el.innerHTML = `
+    <section class="card" style="display:flex;flex-direction:column;gap:12px">
+      <div class="cmp-slots">${slot(0)}${slot(1)}</div>
+      <input type="file" id="cmpFile" accept=".log,.txt,.jsonl,.json" hidden>
+      ${cmpStatus || UPLOADED.length ? `<div class="cmp-foot">${cmpStatus ? `<span class="cmp-status" role="status">${esc(cmpStatus)}</span>` : "<span></span>"}${UPLOADED.length ? `<button type="button" class="linkbtn" id="cmpForget">${esc(T.cmpForget)}</button>` : ""}</div>` : ""}
     </section>
-    <section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}`;
+    ${list.length ? `
+    <section class="card tablewrap" style="padding:0">${cmpSplitsTable(list)}</section>
+    ${graphs}
+    ${withLog ? `<section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}` : ""}`;
 
   // controls
   let uploadSlot = 1;
@@ -146,15 +151,15 @@ function renderCompare() {
   });
 
   cmpKeys = null;
-  if (list.length) drawCompare(list);
+  if (withLog) drawCompare(list);
 }
 
 // ---------- Graphs: each run's own progress graph (same as its Stats page), one under the other ----------
 // They share the time axis, zoom and hover line, so the same moment lines up. Full screen fits both on the screen.
 let cmpKeys = null, cmpResize = null;
 function drawCompare(list) {
-  const endT = Math.max(...list.map(c => c.run.finalIgt));
-  const parts = list.map(c => progressParts(c.run, c.d));
+  const endT = Math.max(...list.filter(c => !c.run.manual).map(c => c.run.finalIgt));
+  const parts = list.map(c => c.run.manual ? null : progressParts(c.run, c.d));   // no graph for a run without a log
   const card = $("#cmpCard");
   if (state.cmpZoomKey !== state.cmp.join()) { state.cmpZoom = null; state.cmpZoomKey = state.cmp.join(); }
   const current = () => state.cmpZoom || [0, endT];
@@ -176,7 +181,7 @@ function drawCompare(list) {
     const shared = {xmin: za, xmaxFix: zb, fitY: !!state.cmpZoom, W, onBrush: setZoom,
       onWheel: (t, f) => { const [a, b] = current(); setZoom(t - (t - a) * f, t + (b - t) * f); }, wheelActive: () => card.classList.contains("fs")};
     const ctls = [];
-    parts.forEach((pp, i) => { ctls[i] = mountProgress({...pp, hoverText: cmpHover(list, parts, i)}, $("#cmpTop" + i), $("#cmpRes" + i), shared, Htop, Hres, t => ctls.forEach((c, k) => { if (k !== i && c) c.showLine(t); })); });
+    parts.forEach((pp, i) => { if (pp) ctls[i] = mountProgress({...pp, hoverText: cmpHover(list, parts, i)}, $("#cmpTop" + i), $("#cmpRes" + i), shared, Htop, Hres, t => ctls.forEach((c, k) => { if (k !== i && c) c.showLine(t); })); });
   }
   draw();
 
@@ -212,12 +217,13 @@ function drawCompare(list) {
 // Hover text: every run at the same moment (advancements, each multi-criteria line, TNT and gold),
 // with the run under the mouse in bold
 function cmpHover(list, parts, me) {
-  const val = (pp, key, t) => { const s = [...pp.top, ...pp.res].find(x => x.key === key); if (!s) return null; const l = lastBefore(s.points, t); return l ? l[1] : 0; };
+  const val = (pp, key, t) => { if (!pp) return null; const s = [...pp.top, ...pp.res].find(x => x.key === key); if (!s) return null; const l = lastBefore(s.points, t); return l ? l[1] : 0; };
   const orDash = v => v == null ? "—" : v;
   const rows = [
-    {name: T.hoverAdv, color: MCOL.adv, v: (c, pp, t) => val(pp, "adv", t)},
+    {name: T.hoverAdv, color: MCOL.adv, v: (c, pp, t) => orDash(val(pp, "adv", t))},
     ...Object.keys(MULTI).map(id => ({name: MULTI[id], color: MCOL[id], v: (c, pp, t) => {
       const m = c.d.multis.find(q => q.id === id);
+      if (c.run.manual) return "—";
       if (!m) return "0/" + REQ[id];
       return m.done != null && t >= m.done ? "✓" : val(pp, id, t) + "/" + m.tot;
     }})),
@@ -225,7 +231,7 @@ function cmpHover(list, parts, me) {
     {name: T.hoverTnt, color: "var(--bad)", v: (c, pp, t) => orDash(val(pp, "tnt", t))},
     {name: T.hoverGold, color: "var(--gold)", v: (c, pp, t) => orDash(val(pp, "gold", t))},
   ];
-  const splitAt = (c, t) => { if (t > c.run.finalIgt) return T.cmpFinished; const p = c.d.splits.find(q => q.segs.some(g => t >= g[0] && t <= g[1])); return p ? p.name : ""; };
+  const splitAt = (c, t) => { if (c.run.manual) return ""; if (t > c.run.finalIgt) return T.cmpFinished; const p = c.d.splits.find(q => q.segs.some(g => t >= g[0] && t <= g[1])); return p ? p.name : ""; };
   const cls = k => k === me ? ` class="me"` : "";
   return t => `<div class="thead"><span class="mono">${fmt(t, 0)}</span></div><table class="cmp-tip">
     <thead><tr><th></th>${list.map((c, k) => `<th${cls(k)}><span class="swatch" style="background:${c.color}"></span> ${esc(c.label)}</th>`).join("")}</tr></thead>
@@ -244,7 +250,7 @@ const cmpDelta = (v, ref, prev) => {
   const seg = prev != null ? d - prev : null, pale = seg != null && (d < 0 ? seg > 0 : seg < 0);
   return `<span class="delta ${d > 0 ? "pos" : "neg"}${pale ? " pale" : ""}"${seg != null ? ` title="${esc(T.cmpSegment)} ${Math.abs(seg) < 1000 ? "±0" : cmpSigned(seg)}"` : ""}>${cmpSigned(d)}</span>`;
 };
-const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>${list.map(c => `<th scope="col"><span class="swatch" style="background:${c.color};margin-right:8px"></span>${esc(c.label)} <span class="cat ${c.d.category.toLowerCase()}" style="margin-left:6px">${esc(c.d.category)}</span></th>`).join("")}</tr></thead>`;
+const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>${list.map(c => `<th scope="col"><span class="swatch" style="background:${c.color};margin-right:8px"></span>${esc(c.label)} ${catPill(c.d, "margin-left:6px")}</th>`).join("")}</tr></thead>`;
 
 // Splits: the time on the clock at each split (like LiveSplit; same splits and times as the Overview table),
 // and how far ahead or behind the other run

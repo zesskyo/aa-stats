@@ -305,3 +305,5 @@ th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:block}
 .tip .cmp-tip tr.split td{color:var(--muted);padding-bottom:4px}
 .tip .cmp-tip tr.sep td{border-top:1px solid var(--line);padding:0;height:4px}
 .tip .cmp-tip .swatch{width:10px}
+.shot{display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg);max-width:100%}
+.shot img{display:block;max-width:100%;height:auto;margin:0 auto}

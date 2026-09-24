@@ -2,7 +2,8 @@
  * stats.js — everything the site calculates about a run. derive(run) does it once per run and remembers it.
  *
  * What derive() returns:
- *   category     "Thunderful" (80/80), "Thunderless" (79/80, only Very Very Frightening missing) or "Invalid"
+ *   category     "Thunderful" (80/80), "Thunderless" (79/80, only Very Very Frightening missing) or "Invalid";
+ *                runs without a log use "hundred" from runs.json, or "Unknown"
  *   splits       see splits.js
  *   deaths       [{t, dim, intentional, i}]  (deaths after The End... Again... count as intentional unless runs.json says otherwise)
  *   multis       progress of each multi-criteria advancement
@@ -17,6 +18,7 @@
  */
 function derive(run) {
   if (run._d) return run._d;
+  if (run.manual) return run._d = deriveManual(run);
   const st = run.st || {};
   const comp = run.events.filter(e => e[4]);                    // completed advancements
   const doneSet = new Set(comp.map(e => e[2]));
@@ -121,8 +123,23 @@ function findRareBiomes(run) {
   });
 }
 
+// A run with no log: just what runs.json says (time, 100%, splits). Everything else is empty.
+function deriveManual(run) {
+  const meta = run.meta || {}, marks = meta.splits || {};
+  const category = meta.hundred === true ? "Thunderful" : meta.hundred === false ? "Thunderless" : "Unknown";
+  // Any% (and Outer End) are shown by when they ended, the others by when they started (see splitMark)
+  const splits = SPLITS.map((p, i) => {
+    const t = marks[i] ?? null;
+    return {name: p.name, icon: p.icon, segs: [], dur: null, start: i <= 1 ? (t != null ? 0 : null) : t, end: i <= 1 ? t : null};
+  });
+  return {comp: [], missing: [], category, splits, deaths: [], multis: [], skullRate: {skulls: 0, kills: 0}, debrisSplit: splits[4],
+    tntD: 0, debD: 0, tntPer: null, gold: [], lanes: {trident: [], skull: [], nautilus: []}, skullSplit: null, rare: [], thunder: null, riptide: []};
+}
+
 // ---------- Across all runs ----------
-const isValid = r => derive(r).category !== "Invalid";
+const hasLog = r => !r.manual;
+const logRuns = () => RUNS.filter(hasLog);
+const isValid = r => derive(r).category !== "Invalid" && r.finalIgt != null;
 const validRuns = () => RUNS.filter(isValid);
 const pbRun = () => validRuns().sort((a, b) => a.finalIgt - b.finalIgt)[0] || null;
 const nonIntentionalDeaths = r => derive(r).deaths.filter(d => !d.intentional).length;

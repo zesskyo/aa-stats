@@ -9,6 +9,7 @@ function renderRunPage() {
   state.runId = run.id;
   const d = derive(run), meta = run.meta || {};
 
+  if (run.manual) return renderManualRun(el, run, d);
   el.innerHTML = `
     <div class="pagerwrap">${pager(run)}</div>
     ${runHeader(run, d)}
@@ -21,6 +22,7 @@ function renderRunPage() {
       ${miniCard(T.skullsTitle, d.skullSplit ? d.skullSplit.dur : null, d.skullSplit ? "skullChart" : null, T.noSkulls)}
       ${rareCard(d.rare)}
     </div>
+    ${shotCard(run)}
     ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">${esc(T.notesTitle)}</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}`;
 
   drawProgress(run, d);
@@ -30,21 +32,42 @@ function renderRunPage() {
   mountRunBar(run, d);
 }
 
+// ---------- A run with no log: title, splits (if any), screenshot, notes ----------
+function renderManualRun(el, run, d) {
+  const meta = run.meta || {};
+  const anySplit = SPLIT_CARDS.some(i => splitMark(d.splits[i], i) != null);
+  el.innerHTML = `
+    <div class="pagerwrap">${pager(run)}</div>
+    ${runHeader(run, d)}
+    ${anySplit ? splitsCard(d) : ""}
+    ${shotCard(run)}
+    ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">${esc(T.notesTitle)}</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}
+    <div class="card"><b>${esc(T.noLogTitle)}</b> <span class="muted">${esc(T.noLogNote)}</span></div>`;
+  bindPager(el);
+  mountRunBar(run, d);
+}
+
+// ---------- Screenshot of the run (proof), if there is one ----------
+const shotCard = run => shotUrl(run) ? `<section class="card" style="display:flex;flex-direction:column;gap:12px">
+    <h2>${esc(T.screenshot)}</h2>
+    <a href="${esc(shotUrl(run))}" target="_blank" rel="noopener noreferrer" class="shot"><img src="${esc(shotUrl(run))}" alt="${esc(T.screenshot + " · " + runTitle(run))}" loading="lazy"></a>
+  </section>` : "";
+
 // ---------- Title area: "Run 11", video button, Thunderless/Thunderful, date, seed, time ----------
 function runHeader(run, d) {
   const meta = run.meta || {};
   return `
     <div class="head-row">
       <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1 id="runH1">${esc(runTitle(run))}</h1>${videoLink(run, true)}</div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1 id="runH1">${esc(runTitle(run))}</h1>${videoLink(run, true)}${shotLink(run, true)}</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <span class="cat ${d.category.toLowerCase()}">${d.category}</span>
-          <span class="muted">${esc(runDay(run))}</span>
+          ${catPill(d)}
+          ${runDay(run) !== "—" ? `<span class="muted">${esc(runDay(run))}</span>` : ""}
           ${meta.seed ? `<span class="muted">· ${esc(T.seedLabel)} <span class="mono">${esc(meta.seed)}</span></span>` : ""}
         </div>
       </div>
       <div class="times">
-        <div><span class="label">${esc(T.timeLabel)}</span><span class="mono" style="font-size:34px;font-weight:600;color:var(--accent)">${fmt(run.finalIgt)}</span></div>
+        <div><span class="label">${esc(T.timeLabel)}</span><span class="mono" style="font-size:34px;font-weight:600;color:var(--accent)">${runTime(run)}</span></div>
       </div>
     </div>`;
 }
@@ -57,13 +80,13 @@ function splitsCard(d) {
     const w = (g[1] - g[0]) / total;
     return w > 0 ? `<div class="tipped" style="flex:${w};background:${SCOL[i]}" data-tip="${esc(p.name)} · ${fmtShort(p.dur)}">${ic(p.icon)}${w > .1 ? `<span>${esc(p.name)}</span>` : ""}</div>` : "";
   }).join("");
-  const cards = SPLIT_CARDS.filter(i => i !== 6 || d.splits[6].dur != null).map(i => {
+  const cards = SPLIT_CARDS.filter(i => i !== 6 || splitMark(d.splits[6], 6) != null).map(i => {
     const p = d.splits[i], v = splitMark(p, i);
     return `<div class="splitcard"><div style="display:flex;align-items:center;gap:8px">${ic(p.icon)}<span class="label">${esc(p.name)}</span></div><span class="t">${v != null ? fmt(v, 0) : "—"}</span></div>`;
   }).join("");
   return `<section class="card" style="display:flex;flex-direction:column;gap:14px">
       <h2>${esc(T.splitsTitle)}</h2>
-      <div class="splitbar" role="img" aria-label="${esc(T.splitsTitle)}">${bar}</div>
+      ${bar ? `<div class="splitbar" role="img" aria-label="${esc(T.splitsTitle)}">${bar}</div>` : ""}
       <div class="grid-splits">${cards}</div>
     </section>`;
 }

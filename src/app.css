@@ -332,3 +332,4 @@ input.field:disabled{opacity:.6}
 .edshot{max-width:min(100%,480px);border:1px solid var(--line);border-radius:8px}
 .btn.danger{color:var(--bad);border-color:var(--bad)}
 .cmp-status.bad{color:var(--bad)}
+.welcome{display:flex;flex-direction:column;gap:12px;border-color:var(--accent)}

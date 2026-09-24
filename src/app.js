@@ -15,6 +15,7 @@ document.getElementById("app").innerHTML = `
   <span class="ownerbox" id="ownerBox"></span>
 </header>
 <main id="view-runs">
+  <div id="welcome" style="display:contents"></div>
   <section class="card" id="pbCard"></section>
   <section style="display:flex;flex-direction:column;gap:14px">
     <h2>${esc(T.fastestSplits)}</h2>

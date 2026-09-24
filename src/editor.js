@@ -12,6 +12,7 @@
  *   runs/<N>.json        otherwise, the run as read from the log (much smaller)
  *   screenshots/<N>.png  the screenshot
  *   runs.json            date, seed, video, notes, deaths, and for runs without a log: time, 100%, splits
+ *   site.json            the site's title and subtitle ("Site settings", and the setup card on a new site)
  */
 
 // ---------- Which repository this site is (build.mjs gets it from GitHub Actions) ----------
@@ -42,11 +43,12 @@ const utf8ToB64 = s => { const b = new TextEncoder().encode(s); let x = ""; for 
 const b64ToUtf8 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c => c.charCodeAt(0)));
 const fileToB64 = f => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => bad(r.error); r.readAsDataURL(f); });
 
-// The repository's runs.json as it is right now ({} if there isn't one)
-async function readRunsJson() {
-  try { const f = await gh(`/contents/runs.json?ref=${encodeURIComponent(GH.branch)}`); return JSON.parse(b64ToUtf8(f.content)) || {}; }
+// A JSON file in the repository as it is right now ({} if there isn't one)
+async function readJsonFile(path) {
+  try { const f = await gh(`/contents/${path}?ref=${encodeURIComponent(GH.branch)}`); return JSON.parse(b64ToUtf8(f.content)) || {}; }
   catch (e) { if (e.status === 404) return {}; throw e; }
 }
+const readRunsJson = () => readJsonFile("runs.json");
 
 // One commit with all the changes. files: [{path, text} | {path, b64} | {remove: path or RegExp}]
 async function ghCommit(message, files) {
@@ -72,22 +74,35 @@ async function ghCommit(message, files) {
 
 // ---------- Owner controls in the header and footer ----------
 function mountOwnerControls() {
-  const box = $("#ownerBox"), foot = $("#siteFoot");
-  if (!GH) { box.innerHTML = ""; foot.innerHTML = ""; return; }
+  const box = $("#ownerBox"), foot = $("#siteFoot"), welcome = $("#welcome");
+  if (!GH) { box.innerHTML = ""; foot.innerHTML = ""; welcome.innerHTML = ""; return; }
   box.innerHTML = signedIn() ? `<button type="button" class="btn primary" id="addRunBtn">+ ${esc(T.edAddRun)}</button>` : "";
   foot.innerHTML = signedIn()
-    ? `<span class="muted">${esc(T.edSignedIn(GH.full))}</span> <button type="button" class="linkbtn" id="signOutBtn">${esc(T.edSignOut)}</button>`
+    ? `<span class="muted">${esc(T.edSignedIn(GH.full))}</span> <button type="button" class="linkbtn" id="siteSetBtn">${esc(T.edSiteSettings)}</button><span class="muted">·</span><button type="button" class="linkbtn" id="signOutBtn">${esc(T.edSignOut)}</button>`
     : `<button type="button" class="linkbtn" id="signInBtn">${esc(T.edOwnerSignIn)}</button>`;
+  // A brand-new site (no runs yet): a card that walks the owner through naming it and adding the first run
+  welcome.innerHTML = RUNS.length ? "" : `<section class="card welcome">
+      <h2>${esc(T.welcomeTitle)}</h2>
+      <p class="muted" style="margin:0">${esc(signedIn() ? T.welcomeTextIn : T.welcomeText)}</p>
+      <div class="actions">${signedIn()
+        ? `<button type="button" class="btn" data-owner="name">${esc(T.welcomeName)}</button><button type="button" class="btn primary" data-owner="add">+ ${esc(T.welcomeFirstRun)}</button>`
+        : `<button type="button" class="btn primary" data-owner="setup">${esc(T.welcomeSetup)}</button>`}</div>
+    </section>`;
   if ($("#addRunBtn")) $("#addRunBtn").addEventListener("click", () => openEditor(null));
-  if ($("#signInBtn")) $("#signInBtn").addEventListener("click", openSignIn);
+  if ($("#signInBtn")) $("#signInBtn").addEventListener("click", () => openSignIn());
+  if ($("#siteSetBtn")) $("#siteSetBtn").addEventListener("click", openSiteSettings);
   if ($("#signOutBtn")) $("#signOutBtn").addEventListener("click", () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} mountOwnerControls(); if (state.view === "edit") go("runs"); else render(); });
+  welcome.querySelectorAll("[data-owner]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.owner;
+    if (k === "setup") openSignIn(openSiteSettings); else if (k === "name") openSiteSettings(); else openEditor(null);
+  }));
 }
 // "Edit" button on a run's page (only when signed in)
 const editButton = run => signedIn() ? `<button type="button" class="btn" data-edit-run="${esc(run.id)}">${esc(T.edEdit)}</button>` : "";
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-edit-run]"); if (b) openEditor(findRun(b.dataset.editRun)); });
 
 // ---------- Sign in ----------
-function openSignIn() {
+function openSignIn(then) {
   const m = document.createElement("div");
   m.className = "modal"; m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); m.setAttribute("aria-labelledby", "signTitle");
   m.innerHTML = `<div class="modal-card">
@@ -112,6 +127,7 @@ function openSignIn() {
       await gh(`/contents/?ref=${encodeURIComponent(GH.branch)}`, {}, tok);   // the token can read this repository
       try { localStorage.setItem(TOKEN_KEY, tok); } catch { throw new Error(T.edNoStorage); }
       close(); mountOwnerControls(); render();
+      if (typeof then === "function") then();
     } catch (e) { $("#signMsg").textContent = e.message; $("#signMsg").classList.add("bad"); }
   };
   $("#signGo").addEventListener("click", submit);
@@ -122,7 +138,7 @@ function openSignIn() {
 let ED = null;   // what the form is working on
 
 function openEditor(run) {
-  if (!signedIn()) return openSignIn();
+  if (!signedIn()) return openSignIn(() => openEditor(run));
   const meta = (run && run.meta) || {};
   const nextNum = RUNS.reduce((a, r) => Math.max(a, runNum(r)), 0) + 1;
   ED = {
@@ -378,23 +394,65 @@ async function edDelete() {
 
 // ---------- After saving: follow the site's build ----------
 function edDone(sha) {
-  const actions = `https://github.com/${GH.full}/actions`;
-  edMsg(`${esc(T.edSaved)} <a href="${esc(actions)}" target="_blank" rel="noopener noreferrer">${esc(T.edSeeBuild)}</a>`);
   const form = $("#edForm"); if (form) form.querySelectorAll("input, textarea, select, button").forEach(x => { if (x.id !== "edCancel") x.disabled = true; });
   if ($("#edCancel")) $("#edCancel").textContent = T.edClose;
+  watchBuild(sha, edMsg, () => !!ED);
+}
+
+// Follows the site's build for commit `sha`, telling say(html, bad) how it's going, while alive() is true
+function watchBuild(sha, say, alive) {
+  const actions = `https://github.com/${GH.full}/actions`;
+  const link = url => ` <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(T.edSeeBuild)}</a>`;
+  say(esc(T.edSaved) + link(actions));
   const started = Date.now();
   const poll = async () => {
-    if (!ED || Date.now() - started > 8 * 60000) return;
+    if (!alive() || Date.now() - started > 8 * 60000) return;
     try {
-      const runs = (await gh(`/actions/runs?head_sha=${sha}&per_page=5`)).workflow_runs || [];
-      const r = runs[0];
+      const r = ((await gh(`/actions/runs?head_sha=${sha}&per_page=5`)).workflow_runs || [])[0];
       if (r && r.status === "completed") {
-        if (r.conclusion === "success") return edMsg(`${esc(T.edLive)} <button type="button" class="linkbtn" id="edReload">${esc(T.edReload)}</button>`), $("#edReload").addEventListener("click", () => location.reload());
-        return edMsg(`${esc(T.edBuildFailed)} <a href="${esc(r.html_url)}" target="_blank" rel="noopener noreferrer">${esc(T.edSeeBuild)}</a>`, true);
+        if (r.conclusion === "success") return say(`${esc(T.edLive)} <button type="button" class="linkbtn" data-reload>${esc(T.edReload)}</button>`);
+        return say(esc(T.edBuildFailed) + link(r.html_url), true);
       }
-      if (r) edMsg(`${esc(T.edBuilding)} <a href="${esc(r.html_url)}" target="_blank" rel="noopener noreferrer">${esc(T.edSeeBuild)}</a>`);
-    } catch (e) { if (e.status === 403 || e.status === 404) return edMsg(`${esc(T.edSavedNoWatch)} <a href="${esc(actions)}" target="_blank" rel="noopener noreferrer">${esc(T.edSeeBuild)}</a>`); }
+      if (r) say(esc(T.edBuilding) + link(r.html_url));
+    } catch (e) { if (e.status === 403 || e.status === 404) return say(esc(T.edSavedNoWatch) + link(actions)); }
     setTimeout(poll, 5000);
   };
   setTimeout(poll, 4000);
+}
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("[data-reload]")) location.reload(); });
+
+// ---------- Site settings: the title and subtitle (saved in site.json) ----------
+function openSiteSettings() {
+  if (!signedIn()) return openSignIn(openSiteSettings);
+  const m = document.createElement("div");
+  m.className = "modal"; m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); m.setAttribute("aria-labelledby", "siteSetTitle");
+  m.innerHTML = `<form class="modal-card" id="siteSetForm">
+    <h2 id="siteSetTitle">${esc(RUNS.length ? T.edSiteSettings : T.welcomeName)}</h2>
+    <label class="fld"><span class="label">${esc(T.edSiteTitle)}</span><input class="field" type="text" id="siteTitleIn" value="${esc(T.siteTitle)}" maxlength="80"></label>
+    <label class="fld"><span class="label">${esc(T.edSiteSubtitle)}</span><input class="field" type="text" id="siteSubIn" value="${esc(T.siteSubtitle)}" maxlength="80" placeholder="${esc(T.edSiteSubtitleHint)}"></label>
+    <p class="note" style="margin:0">${esc(T.edSiteNote)}</p>
+    <p class="cmp-status" id="siteSetMsg" role="status" aria-live="polite"></p>
+    <div class="actions"><span style="flex:1"></span><button type="button" class="btn" id="siteSetClose">${esc(T.edCancel)}</button><button type="submit" class="btn primary" id="siteSetSave">${esc(T.edSave)}</button></div>
+  </form>`;
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  const say = (html, bad) => { const x = m.querySelector("#siteSetMsg"); x.innerHTML = html; x.classList.toggle("bad", !!bad); };
+  m.addEventListener("click", e => { if (e.target === m) close(); });
+  m.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  m.querySelector("#siteSetClose").addEventListener("click", close);
+  m.querySelector("#siteTitleIn").focus();
+  m.querySelector("#siteSetForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const title = m.querySelector("#siteTitleIn").value.trim(), sub = m.querySelector("#siteSubIn").value.trim();
+    if (!title) return say(esc(T.edSiteNeedTitle), true);
+    m.querySelectorAll("input, #siteSetSave").forEach(x => { x.disabled = true; });
+    say(esc(T.edSaving));
+    try {
+      const site = await readJsonFile("site.json");
+      site.siteTitle = title; site.siteSubtitle = sub;
+      const sha = await ghCommit(T.edCommitName, [{path: "site.json", text: JSON.stringify(site, null, 2) + "\n"}]);
+      m.querySelector("#siteSetClose").textContent = T.edClose;
+      watchBuild(sha, say, () => m.isConnected);
+    } catch (x) { m.querySelectorAll("input, #siteSetSave").forEach(y => { y.disabled = false; }); say(esc(x.message || String(x)), true); }
+  });
 }

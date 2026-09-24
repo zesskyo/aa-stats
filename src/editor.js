@@ -152,8 +152,9 @@ function openEditor(run) {
     elytraStart: meta.elytraCm != null ? +(meta.elytraCm / 100000).toFixed(2) : null,
     busy: false, msg: "", msgBad: false,
   };
-  if (run && !run.manual) ED.deaths = derive(run).deaths.map(x => x.intentional);
+  if (run && !run.manual) { ED.deaths = derive(run).deaths.map(x => x.intentional); ED.causes = derive(run).deaths.map(x => x.cause); }
   ED.deathsStart = ED.deaths ? ED.deaths.join() : null;   // deaths are only written if a tick changes
+  ED.causesStart = ED.causes ? ED.causes.join("\n") : null;   // …or a cause is changed
   go("edit");
 }
 
@@ -161,9 +162,9 @@ function openEditor(run) {
 function edDeaths() {
   const src = ED.log ? ED.log.run : ED.run && !ED.run.manual ? ED.run : null;
   if (!src) return {list: [], defaults: []};
-  const plain = {...src, meta: {...(src.meta || {}), intent: undefined}, _d: undefined};   // deaths without runs.json's choices
+  const plain = {...src, meta: {...(src.meta || {}), intent: undefined, deathCauses: undefined}, _d: undefined};   // without runs.json's choices
   const list = derive(plain).deaths;
-  return {list, defaults: list.map(x => x.intentional)};
+  return {list, defaults: list.map(x => x.intentional), autoCauses: list.map(x => x.cause)};
 }
 
 const tIn = t => t == null ? "" : fmt(t, t % 1000 ? 3 : 0);
@@ -174,6 +175,7 @@ function renderEditor() {
   const lr = ED.log && ED.log.run, ld = lr ? derive(lr) : null;
   const {list: deaths} = edDeaths();
   if (!ED.deaths || ED.deaths.length !== deaths.length) ED.deaths = deaths.map(x => x.intentional);
+  if (!ED.causes || ED.causes.length !== deaths.length) ED.causes = deaths.map(x => x.cause);
   // the screenshot already uploaded to the site (a link is shown in its own box instead)
   const shotLocal = !ED.removeShot && run && !okUrl(meta.screenshot) && shotUrl(run);
   const splitVal = i => meta.splits && meta.splits[i] != null ? tIn(meta.splits[i]) : "";
@@ -221,7 +223,10 @@ function renderEditor() {
 
       ${deaths.length ? `<fieldset class="edsec"><legend>${esc(T.edDeaths)}</legend>
         <p class="note" style="margin:0 0 6px">${esc(T.edDeathsNote)}</p>
-        ${deaths.map((x, k) => `<label class="check"><input type="checkbox" data-death="${k}"${ED.deaths[k] ? " checked" : ""}> ${esc(T.deathMarker(k + 1, deaths.length))} · <span class="mono">${fmt(x.t, 0)}</span> · ${esc(dimName[x.dim] || "")}</label>`).join("")}
+        ${deaths.map((x, k) => `<div class="eddeath">
+          <label class="check"><input type="checkbox" data-death="${k}"${ED.deaths[k] ? " checked" : ""}> ${esc(T.deathMarker(k + 1, deaths.length))} · <span class="mono">${fmt(x.t, 0)}</span> · ${esc(dimName[x.dim] || "")}</label>
+          <input class="field" type="text" data-cause="${k}" value="${esc(ED.causes[k])}" maxlength="120" aria-label="${esc(T.edDeathCause(k + 1))}">
+        </div>`).join("")}
       </fieldset>` : ""}
 
       <fieldset class="edsec"><legend>${esc(T.statElytra)}</legend>
@@ -277,6 +282,7 @@ function renderEditor() {
   $("#edPick").addEventListener("change", e => openEditor(e.target.value ? findRun(e.target.value) : null));
   if ($("#edKeep")) $("#edKeep").addEventListener("change", e => { ED.keepLog = e.target.checked; });
   el.querySelectorAll("[data-death]").forEach(c => c.addEventListener("change", () => { ED.deaths[+c.dataset.death] = c.checked; }));
+  el.querySelectorAll("[data-cause]").forEach(c => c.addEventListener("input", () => { ED.causes[+c.dataset.cause] = c.value; }));
   el.querySelectorAll("[data-drop]").forEach(z => {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
@@ -311,7 +317,7 @@ async function edPickLog(file) {
   try {
     const run = parseLog(await file.text(), file.name);
     run.id = runKey(run); run.meta = {};
-    ED.log = {file, run}; ED.deaths = null;
+    ED.log = {file, run}; ED.deaths = null; ED.causes = null;
     if (ED.draft && !ED.draft.date) ED.draft.date = null;   // let the log's date fill in
     ED.msg = ""; renderEditor(); edRestore();
   } catch (e) { edMsg(esc(e.message || String(e)), true); }
@@ -364,6 +370,12 @@ async function edSave() {
       const on = [], off = [];
       (ED.deaths || []).forEach((v, k) => { if (v !== defaults[k]) (v ? on : off).push(k + 1); });
       put("intentionalDeaths", on.length ? on : null); put("notIntentionalDeaths", off.length ? off : null);
+    }
+    // death causes: only the ones written differently from what the log says
+    if (ED.log || (ED.causes ? ED.causes.join("\n") : null) !== ED.causesStart) {
+      const {autoCauses} = edDeaths(), dc = {};
+      (ED.causes || []).forEach((c, k) => { c = (c || "").trim(); if (c && c !== autoCauses[k]) dc[k + 1] = c; });
+      put("deathCauses", Object.keys(dc).length ? dc : null);
     }
 
     // elytra distance (only if it was changed here)

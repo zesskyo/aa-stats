@@ -5,7 +5,7 @@
  * A run looks like:
  *   events  – every advancement criterion: [igt, rta, advancement id, criterion, completed 1/0]
  *   dims    – dimension changes: [igt, "o" | "n" | "e"]
- *   deaths  – [igt, dimension]
+ *   deaths  – [igt, dimension, cause] (cause: see deathCause below)
  *   st      – timelines of stats (TNT used, debris mined, skulls picked up, gold blocks held, …)
  *   tot     – final totals (creepers killed, shulker boxes opened, …)
  */
@@ -15,6 +15,7 @@ function parseLog(text, filename) {
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
   const tot = {};
   const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0;
+  let killedBy = null; const hits = [];   // for working out how each death happened
   const TRACK = {
     "minecraft.used:minecraft.tnt": "tnt", "minecraft.mined:minecraft.ancient_debris": "debris",
     "minecraft.picked_up:minecraft.wither_skeleton_skull": "skulls", "minecraft.killed:minecraft.wither_skeleton": "ws",
@@ -54,7 +55,9 @@ function parseLog(text, filename) {
       const k = d.stat, diff = Math.max(1, d.diff || 1);
       if (TOT[k]) tot[TOT[k]] = d.value;
       if (TRACK[k]) for (let i = 0; i < diff; i++) st[TRACK[k]].push(igt);
-      if (k === "minecraft.custom:minecraft.deaths") deaths.push([igt, dim]);
+      if (k === "minecraft.custom:minecraft.damage_taken") { hits.push([igt, d.diff || 0]); if (hits.length > 12) hits.shift(); }
+      if (k.startsWith("minecraft.killed_by:")) killedBy = [igt, k.slice(k.indexOf(":") + 1).replace(/^minecraft\./, "")];
+      if (k === "minecraft.custom:minecraft.deaths") { deaths.push([igt, dim, deathCause(igt, dim, killedBy, hits)]); killedBy = null; hits.length = 0; }
       let g = 0;
       if (k === "minecraft.mined:minecraft.gold_block" || k === "minecraft.crafted:minecraft.gold_block") g = diff;
       else if (k === "minecraft.used:minecraft.gold_block") g = -diff;
@@ -85,6 +88,26 @@ function parseLog(text, filename) {
   const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
   return {start: start || Date.now(), player: player || "Unknown", mc: mc || "", finalIgt: last[0], finalRta: last[1],
     critCount: seen.size, events, dims, deaths, st, tot, meta: {}, addedAt: Date.now()};
+}
+
+/*
+ * How a death happened. The log names the mob when a mob did it ("killed_by"); otherwise it's a best guess
+ * from the damage taken just before (damage is in tenths of a heart-half, so 10 = half a heart):
+ *   "mob:<id>"  killed by that mob
+ *   "fire"      several hits of exactly 10 in a row (burning)
+ *   "void"      several hits of 20–45 in a row, in the End (falling out of the world)
+ *   "lava"      the same, anywhere else
+ *   "impact"    one big hit (10+ damage): a fall or an explosion
+ *   ""          can't tell
+ * runs.json can say it better for any death ("deathCauses").
+ */
+function deathCause(t, dim, killedBy, hits) {
+  if (killedBy && t - killedBy[0] < 1000) return "mob:" + killedBy[1];
+  const recent = hits.filter(h => t - h[0] < 6000).map(h => h[1]), tail = recent.slice(-3);
+  if (tail.length === 3 && tail.every(x => x === 10)) return "fire";
+  if (tail.length === 3 && tail.every(x => x >= 20 && x <= 45)) return dim === "e" ? "void" : "lava";
+  if (recent.length && recent[recent.length - 1] >= 100) return "impact";
+  return "";
 }
 
 // A stable id for a run (based on when the world was started)

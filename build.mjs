@@ -90,6 +90,12 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   (d.intentionalDeaths || []).forEach(k => { intent[k - 1] = true; });
   (d.notIntentionalDeaths || []).forEach(k => { intent[k - 1] = false; });
   if (Object.keys(intent).length) meta.intent = intent;
+  // how deaths happened, where the log's guess isn't right: {"2": "Jumped into lava"}
+  if (d.deathCauses && typeof d.deathCauses === "object") {
+    const causes = {};
+    for (const [k, v] of Object.entries(d.deathCauses)) if (/^\d+$/.test(k) && typeof v === "string" && v.trim()) causes[+k - 1] = v.trim().slice(0, 120);
+    if (Object.keys(causes).length) meta.deathCauses = causes;
+  }
   if (d.elytraKm != null) meta.elytraCm = Math.round(Number(d.elytraKm) * 100000);
   // proof: a screenshot in this site's folder (copied next to the page) or a link to one
   if (d.screenshot != null && d.screenshot !== "") {

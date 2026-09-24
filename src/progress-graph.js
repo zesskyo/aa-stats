@@ -51,7 +51,7 @@ function progressParts(run, d) {
     // each finished multi-criteria line ends on its icon
     ...d.multis.filter(m => m.done != null).map(m => ({t: m.done, v: m.tot, icon: MICON[m.id], color: MCOL[m.id], end: true, text: T.multiComplete(advName(m.id)), sub: T.multiLast(critName(m.last))})),
   ];
-  const deaths = d.deaths.filter(x => !x.intentional).map((x, k, all) => ({...x, text: T.deathMarker(k + 1, all.length)}));
+  const deaths = d.deaths.filter(x => !x.intentional).map((x, k, all) => ({...x, text: T.deathMarker(k + 1, all.length) + " · " + x.cause}));
   const thunder = d.thunder != null ? [{t: d.thunder, text: T.thunderMarker}] : [];
   const riptide = d.riptide.map(r => ({...r, text: T.riptideMarker(r.uses, fmtShort(r.end - r.start))}));
 

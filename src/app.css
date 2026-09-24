@@ -337,3 +337,5 @@ input.field:disabled{opacity:.6}
 .edpick{min-width:220px}
 .hint{border-bottom:1px dotted currentColor;cursor:help}
 .hint.tipped:hover::after,.hint.tipped:focus-visible::after{white-space:normal;width:max-content;max-width:300px;left:0;transform:none;font-family:var(--body);font-weight:500;font-size:13px;line-height:1.45}
+.eddeath{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 14px;align-items:center}
+@media (max-width:700px){.eddeath{grid-template-columns:minmax(0,1fr)}}

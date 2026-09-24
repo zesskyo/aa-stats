@@ -148,7 +148,8 @@ const T = {
   edKeepLog: "Keep the full log in the repository (so future site updates can read it again)",
   edNoLogDetails: "Without a log",
   edDeaths: "Deaths",
-  edDeathsNote: "Tick the deaths that were on purpose. They don't count as deaths.",
+  edDeathsNote: "Tick the deaths that were on purpose; they don't count as deaths. You can change how each one happened.",
+  edDeathCause: k => `How death ${k} happened`,
   edStatsPick: "Read it from the world's stats file…",
   edStatsNone: "No elytra distance in that file (it's the world's stats/<uuid>.json).",
   edProof: "Proof",
@@ -191,6 +192,9 @@ const T = {
   nautilusMarker: (k, n) => `${k}/${n} Nautilus Shells`,
   godAppleMarker: "First God Apple",
   deathMarker: (k, n) => `Death ${k}/${n}`,
+  // How a death happened (see deathCause in parse-log.js)
+  deathCause: c => !c ? "Died" : c.startsWith("mob:") ? "Killed by " + titleCase(c.slice(4).replace(/_/g, " ")) :
+    ({fire: "Burned to death", lava: "Died in lava", void: "Fell out of the world", impact: "Fall or explosion"})[c] || c,
   thunderMarker: "Thunder! (Very Very Frightening)",
   riptideMarker: (uses, dur) => `Riptide · ${uses} uses · ${dur}`,
   hoverRiptide: "Riptide",

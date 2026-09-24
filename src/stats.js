@@ -5,7 +5,8 @@
  *   category     "Thunderful" (80/80), "Thunderless" (79/80, only Very Very Frightening missing) or "Invalid";
  *                runs without a log use "hundred" from runs.json, or "Unknown"
  *   splits       see splits.js
- *   deaths       [{t, dim, intentional, i}]  (deaths after The End... Again... count as intentional unless runs.json says otherwise)
+ *   deaths       [{t, dim, intentional, i, cause}]  (deaths after The End... Again... count as intentional unless runs.json
+ *                says otherwise; cause is the text for how it happened, from the log or runs.json's "deathCauses")
  *   multis       progress of each multi-criteria advancement
  *   skullRate    skulls picked up, and wither skeletons killed up to the last skull (Any% kills don't count)
  *   skullSplit   time spent actively farming skulls (see findSkullSplit)
@@ -29,9 +30,10 @@ function derive(run) {
 
   // Deaths: runs.json can mark any death as intentional or not ("intent"); otherwise deaths after
   // The End... Again... are intentional and everything else isn't.
-  const intent = (run.meta && run.meta.intent) || {};
+  const intent = (run.meta && run.meta.intent) || {}, causes = (run.meta && run.meta.deathCauses) || {};
   const deaths = (run.deaths || []).map((d, i) => ({t: d[0], dim: d[1], i,
-    intentional: intent[i] != null ? !!intent[i] : endAgain != null && d[0] >= endAgain}));
+    intentional: intent[i] != null ? !!intent[i] : endAgain != null && d[0] >= endAgain,
+    cause: causes[i] || T.deathCause(d[2] || "")}));
 
   // Multi-criteria advancements
   const multis = Object.keys(MULTI).map(id => {

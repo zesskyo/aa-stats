@@ -1,0 +1,24 @@
+name: Check the build
+
+# Builds an empty site and a site with one run, so a mistake in the code shows up here
+# before any website picks it up (websites build from this repository's main branch).
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build an empty site
+        run: |
+          mkdir -p "$RUNNER_TEMP/empty"
+          echo '{}' > "$RUNNER_TEMP/empty/runs.json"
+          node build.mjs "$RUNNER_TEMP/empty"
+      - name: Build the example site
+        run: node build.mjs example

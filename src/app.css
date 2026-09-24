@@ -307,3 +307,28 @@ th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:block}
 .tip .cmp-tip .swatch{width:10px}
 .shot{display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg);max-width:100%}
 .shot img{display:block;max-width:100%;height:auto;margin:0 auto}
+
+/* Owner: sign in and the add/edit form (editor.js) */
+.ownerbox{justify-self:end;display:flex;gap:8px}
+.foot{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 16px 32px;font-size:13px}
+.foot .linkbtn{font-size:13px;color:var(--muted);font-weight:500}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;max-width:560px;width:100%;max-height:calc(100vh - 32px);overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal-card .steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.modal-card a,.cmp-status a{color:var(--accent)}
+input.field,textarea.field{min-height:44px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--text);width:100%;max-width:100%}
+textarea.field{resize:vertical;font:inherit}
+input.field:disabled{opacity:.6}
+.fld{display:flex;flex-direction:column;gap:6px;min-width:0}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.edform{display:flex;flex-direction:column;gap:18px}
+.edgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.edsec{border:1px solid var(--line);border-radius:10px;padding:12px 14px 14px;margin:0;display:flex;flex-direction:column;gap:10px;min-width:0}
+.edsec legend{font-size:13px;font-weight:600;color:var(--muted);padding:0 6px}
+.edfile{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-radius:8px;transition:background .15s}
+.edfile.over{background:var(--surface2);outline:2px dashed var(--accent)}
+.check{display:flex;align-items:center;gap:10px;min-height:36px;font-size:14px}
+.check input{width:18px;height:18px;accent-color:var(--accent);flex:none}
+.edshot{max-width:min(100%,480px);border:1px solid var(--line);border-radius:8px}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.cmp-status.bad{color:var(--bad)}

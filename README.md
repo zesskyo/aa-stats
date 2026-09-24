@@ -36,5 +36,6 @@ Then open `dist/index.html` in a browser.
 | `src/parse-log.js` | Reads a Hermes `play.log` (the build and the Compare page both use it) |
 | `src/stats.js`, `src/splits.js` | Everything worked out about a run |
 | `src/overview.js`, `src/run-page.js`, `src/compare.js` | The three tabs |
+| `src/editor.js` | The owner adding, editing and deleting runs from the website (saves to the site's repository through GitHub's API) |
 | `src/charts.js`, `src/progress-graph.js` | The graphs |
 | `icons/` | Built-in icons; a site's own `icons/` folder can add or replace them |

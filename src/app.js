@@ -12,7 +12,7 @@ document.getElementById("app").innerHTML = `
     <button data-view="run">${esc(T.tabStats)}</button>
     <button data-view="compare">${esc(T.tabCompare)}</button>
   </nav>
-  <span></span>
+  <span class="ownerbox" id="ownerBox"></span>
 </header>
 <main id="view-runs">
   <section class="card" id="pbCard"></section>
@@ -28,17 +28,19 @@ document.getElementById("app").innerHTML = `
   </section>
 </main>
 <main id="view-run" class="hidden"></main>
-<main id="view-compare" class="hidden"></main>`;
+<main id="view-compare" class="hidden"></main>
+<main id="view-edit" class="hidden"></main>
+<footer class="foot" id="siteFoot"></footer>`;
 
-// Switch tab ("runs" = Overview, "run" = Stats, "compare" = Compare), optionally opening a particular run
+// Switch tab ("runs" = Overview, "run" = Stats, "compare" = Compare, "edit" = adding/editing a run), optionally opening a particular run
 function go(view, runId) {
   state.view = view; if (runId) state.runId = runId;
   const bar = $("#runbar"); if (bar) bar.classList.remove("show");
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
-  ["runs", "run", "compare"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== view));
+  ["runs", "run", "compare", "edit"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== view));
   render(); window.scrollTo(0, 0);
 }
-const render = () => state.view === "runs" ? renderOverview() : state.view === "compare" ? renderCompare() : renderRunPage();
+const render = () => state.view === "runs" ? renderOverview() : state.view === "compare" ? renderCompare() : state.view === "edit" ? renderEditor() : renderRunPage();
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
 
 // Clicking (or pressing Enter on) a row in the runs table opens that run
@@ -60,4 +62,5 @@ document.addEventListener("keydown", e => {
 });
 
 cmpLoad();
+mountOwnerControls();
 render();

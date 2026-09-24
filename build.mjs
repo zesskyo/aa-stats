@@ -23,7 +23,7 @@ const read = p => fs.readFileSync(p, "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "run-switcher.js", "compare.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
 ];
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n") + "\n})();\n";
 const appCss = read(inCode("src/app.css"));
@@ -141,7 +141,9 @@ const head = `<meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 `;
-const json = JSON.stringify({runs: out, icons, text}).replace(/</g, "\\u003c");
+// Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
+const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
+const json = JSON.stringify({runs: out, icons, text, repo}).replace(/</g, "\\u003c");
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);

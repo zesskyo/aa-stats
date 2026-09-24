@@ -109,7 +109,7 @@ function openSignIn(then) {
     <h2 id="signTitle">${esc(T.edSignInTitle)}</h2>
     <p class="muted" style="margin:0">${esc(T.edSignInIntro(GH.full))}</p>
     <ol class="steps">${T.edSignInSteps(GH.full).map(s => `<li>${s}</li>`).join("")}</ol>
-    <label class="fld"><span class="label">${esc(T.edToken)}</span><input class="field" type="password" id="tokenIn" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></label>
+    <label class="fld"><span class="label">${esc(T.edToken)}</span><input class="field" type="password" id="tokenIn" autocomplete="off" spellcheck="false"></label>
     <p class="note" style="margin:0">${esc(T.edTokenNote)}</p>
     <p class="cmp-status" id="signMsg" role="status"></p>
     <div class="actions"><button type="button" class="btn" id="signCancel">${esc(T.edCancel)}</button><button type="button" class="btn primary" id="signGo">${esc(T.edSignIn)}</button></div>
@@ -146,6 +146,7 @@ function openEditor(run) {
     log: null,                              // {file, run} when a log was picked
     keepLog: true,
     hasLog: !!(run && !run.manual),         // the run already has a log on the site
+    proof: meta.screenshot ? "shot" : "video",   // a run has a video or a screenshot, never both
     shot: null, removeShot: false,          // new screenshot file / remove the current one
     deaths: null,                           // intentional ticks, filled from the log or the run
     elytraStart: meta.elytraCm != null ? +(meta.elytraCm / 100000).toFixed(2) : null,
@@ -173,13 +174,20 @@ function renderEditor() {
   const lr = ED.log && ED.log.run, ld = lr ? derive(lr) : null;
   const {list: deaths} = edDeaths();
   if (!ED.deaths || ED.deaths.length !== deaths.length) ED.deaths = deaths.map(x => x.intentional);
-  const shotNow = !ED.removeShot && run && shotUrl(run);
+  // the screenshot already uploaded to the site (a link is shown in its own box instead)
+  const shotLocal = !ED.removeShot && run && !okUrl(meta.screenshot) && shotUrl(run);
   const splitVal = i => meta.splits && meta.splits[i] != null ? tIn(meta.splits[i]) : "";
   const dimName = {o: T.overworld, n: T.nether, e: T.theEnd};
   const logDate = lr ? new Date(lr.start).toLocaleDateString("en-CA") : "";
 
   el.innerHTML = `
-    <div class="head-row"><h1>${esc(ED.isNew ? T.edAddRun : T.edEditRun(ED.num))}</h1></div>
+    <div class="head-row" style="align-items:center">
+      <h1>${esc(ED.isNew ? T.edAddRun : T.edEditRun(ED.num))}</h1>
+      <label class="fld edpick"><span class="label">${esc(T.edPickRun)}</span><select class="field" id="edPick">
+        <option value=""${ED.isNew ? " selected" : ""}>${esc(T.edNewRun)}</option>
+        ${byNumber().slice().reverse().map(r => `<option value="${esc(r.id)}"${run === r ? " selected" : ""}>${esc(runTitle(r))} · ${r.finalIgt != null ? fmt(r.finalIgt, 0) : "—"}</option>`).join("")}
+      </select></label>
+    </div>
     <form class="card edform" id="edForm" novalidate>
       <div class="edgrid">
         <label class="fld"><span class="label">${esc(T.edRunNumber)}</span>
@@ -188,8 +196,6 @@ function renderEditor() {
           <input class="field" type="date" id="edDate" value="${esc(meta.date || logDate)}"></label>
         <label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span>
           <input class="field mono" type="text" id="edSeed" value="${esc(meta.seed || "")}" autocomplete="off"></label>
-        <label class="fld"><span class="label">${esc(T.video)}</span>
-          <input class="field" type="url" id="edVideo" value="${esc(meta.video || "")}" placeholder="https://youtu.be/…"></label>
       </div>
 
       <fieldset class="edsec"><legend>${esc(T.edLog)}</legend>
@@ -204,14 +210,12 @@ function renderEditor() {
 
       ${withLog ? "" : `<fieldset class="edsec"><legend>${esc(T.edNoLogDetails)}</legend>
         <div class="edgrid">
-          <label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run ? tIn(run.finalIgt) : "")}" placeholder="3:41:22"></label>
+          <label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run ? tIn(run.finalIgt) : "")}"></label>
           <label class="fld"><span class="label">${esc(T.colHundred)}</span><select class="field" id="edHundred">
-            <option value=""${meta.hundred == null ? " selected" : ""}>${esc(T.edUnknown)}</option>
             <option value="yes"${meta.hundred === true ? " selected" : ""}>${esc(T.hundredYes)}</option>
-            <option value="no"${meta.hundred === false ? " selected" : ""}>${esc(T.hundredNo)}</option></select></label>
-          ${SPLIT_CARDS.map(i => `<label class="fld"><span class="label">${esc(SPLITS[i].name)}</span><input class="field mono" type="text" data-split="${i}" value="${esc(splitVal(i))}" placeholder="${i <= 1 ? "0:38:13" : "1:02:49"}"></label>`).join("")}
+            <option value="no"${meta.hundred !== true ? " selected" : ""}>${esc(T.hundredNo)}</option></select></label>
+          ${SPLIT_CARDS.map(i => `<label class="fld"><span class="label">${esc(SPLITS[i].name)}</span><input class="field mono" type="text" data-split="${i}" value="${esc(splitVal(i))}"></label>`).join("")}
         </div>
-        <p class="note" style="margin:0">${esc(T.edSplitsNote)}</p>
       </fieldset>`}
 
       ${deaths.length ? `<fieldset class="edsec"><legend>${esc(T.edDeaths)}</legend>
@@ -221,20 +225,29 @@ function renderEditor() {
 
       <fieldset class="edsec"><legend>${esc(T.statElytra)}</legend>
         <div class="edfile">
-          <input class="field mono" type="number" min="0" step="0.1" id="edElytra" value="${esc(ED.elytraStart ?? "")}" placeholder="km" style="max-width:140px">
+          <input class="field mono" type="number" min="0" step="0.1" id="edElytra" value="${esc(ED.elytraStart ?? "")}" style="max-width:140px">
           <span class="note">km</span>
           <button type="button" class="btn" id="edStatsBtn">${esc(T.edStatsPick)}</button>
           <input type="file" id="edStatsFile" accept=".json" hidden>
         </div>
       </fieldset>
 
-      <fieldset class="edsec"><legend>${esc(T.screenshot)}</legend>
+      <fieldset class="edsec"><legend>${esc(T.edProof)}</legend>
+        <div class="edradio" role="radiogroup" aria-label="${esc(T.edProof)}">
+          <label class="check"><input type="radio" name="edProof" value="video"${ED.proof === "video" ? " checked" : ""}> ${esc(T.video)}</label>
+          <label class="check"><input type="radio" name="edProof" value="shot"${ED.proof === "shot" ? " checked" : ""}> ${esc(T.screenshot)}</label>
+        </div>
+        ${ED.proof === "video" ? `<label class="fld"><span class="label">${esc(T.edVideoLink)}</span>
+          <input class="field" type="url" id="edVideo" value="${esc(meta.video || "")}"></label>` : `
+        <label class="fld"><span class="label">${esc(T.edShotLink)}</span>
+          <input class="field" type="url" id="edShotLink" value="${esc(ED.shot || !okUrl(meta.screenshot) ? "" : meta.screenshot)}"></label>
         <div class="edfile" data-drop="shot">
-          <button type="button" class="btn" id="edShotBtn">${esc(ED.shot || shotNow ? T.edShotReplace : T.edShotPick)}</button>
-          ${ED.shot || shotNow ? `<button type="button" class="linkbtn" id="edShotRemove">${esc(T.edShotRemove)}</button>` : ""}
+          <span class="note">${esc(T.edShotOr)}</span>
+          <button type="button" class="btn" id="edShotBtn">${esc(ED.shot || shotLocal ? T.edShotReplace : T.edShotPick)}</button>
+          ${ED.shot || shotLocal ? `<button type="button" class="linkbtn" id="edShotRemove">${esc(T.edShotRemove)}</button>` : ""}
           <input type="file" id="edShotFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
         </div>
-        ${ED.shot ? `<img class="edshot" src="${ED.shot.url}" alt="">` : shotNow ? `<img class="edshot" src="${esc(shotNow)}" alt="">` : ""}
+        ${ED.shot ? `<img class="edshot" src="${ED.shot.url}" alt="">` : shotLocal ? `<img class="edshot" src="${esc(shotLocal)}" alt="">` : ""}`}
       </fieldset>
 
       <label class="fld"><span class="label">${esc(T.notesTitle)}</span><textarea class="field" id="edNotes" rows="5">${esc(meta.notes || "")}</textarea></label>
@@ -251,20 +264,23 @@ function renderEditor() {
   // keep what's typed when the form redraws (after picking a file)
   const keep = () => { ED.draft = edRead(); };
   const pick = (btn, input, onFile) => {
+    if (!$(btn)) return;   // (not every part of the form is always shown)
     $(btn).addEventListener("click", () => $(input).click());
     $(input).addEventListener("change", e => { const f = e.target.files[0]; if (f) onFile(f); });
   };
   pick("#edLogBtn", "#edLogFile", edPickLog);
   pick("#edStatsBtn", "#edStatsFile", edPickStats);
-  pick("#edShotBtn", "#edShotFile", f => { keep(); if (!/^image\//.test(f.type)) return edMsg(T.edShotBad, true); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; renderEditor(); edRestore(); });
+  pick("#edShotBtn", "#edShotFile", f => { keep(); if (!/^image\//.test(f.type)) return edMsg(T.edShotBad, true); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; if (ED.draft) ED.draft.shotLink = ""; renderEditor(); edRestore(); });
   if ($("#edShotRemove")) $("#edShotRemove").addEventListener("click", () => { keep(); ED.shot = null; ED.removeShot = true; renderEditor(); edRestore(); });
+  el.querySelectorAll('[name="edProof"]').forEach(r => r.addEventListener("change", () => { keep(); ED.proof = r.value; renderEditor(); edRestore(); }));
+  $("#edPick").addEventListener("change", e => openEditor(e.target.value ? findRun(e.target.value) : null));
   if ($("#edKeep")) $("#edKeep").addEventListener("change", e => { ED.keepLog = e.target.checked; });
   el.querySelectorAll("[data-death]").forEach(c => c.addEventListener("change", () => { ED.deaths[+c.dataset.death] = c.checked; }));
   el.querySelectorAll("[data-drop]").forEach(z => {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
     z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over"); const f = e.dataTransfer.files[0]; if (!f) return;
-      if (z.dataset.drop === "log") edPickLog(f); else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; renderEditor(); edRestore(); } });
+      if (z.dataset.drop === "log") edPickLog(f); else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); } });
   });
   $("#edCancel").addEventListener("click", () => { const r = ED.run; ED = null; r ? go("run", r.id) : go("runs"); });
   $("#edForm").addEventListener("submit", e => { e.preventDefault(); edSave(); });
@@ -275,13 +291,13 @@ function renderEditor() {
 function edRead() {
   const v = id => { const x = $(id); return x ? x.value.trim() : null; };
   return {num: v("#edNum"), date: v("#edDate"), seed: v("#edSeed"), video: v("#edVideo"), notes: $("#edNotes") ? $("#edNotes").value.replace(/\s+$/, "") : "",
-    time: v("#edTime"), hundred: v("#edHundred"), elytra: v("#edElytra"),
+    time: v("#edTime"), hundred: v("#edHundred"), elytra: v("#edElytra"), shotLink: v("#edShotLink"),
     splits: [...document.querySelectorAll("[data-split]")].map(x => [+x.dataset.split, x.value.trim()])};
 }
 function edRestore() {
   const d = ED.draft; if (!d) return;
   const set = (id, val) => { const x = $(id); if (x && val != null) x.value = val; };
-  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edElytra", d.elytra);
+  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edElytra", d.elytra); set("#edShotLink", d.shotLink);
   if (d.date || !ED.log) set("#edDate", d.date);
   d.splits.forEach(([i, val]) => { const x = document.querySelector(`[data-split="${i}"]`); if (x) x.value = val; });
 }
@@ -314,7 +330,9 @@ async function edSave() {
   const err = m => edMsg(esc(m), true);
   if (!(num >= 1)) return err(T.edBadNumber);
   if (ED.isNew && RUNS.some(r => runNum(r) === num)) return err(T.edNumberTaken(num));
-  if (f.video && !/^https?:\/\/\S+$/i.test(f.video)) return err(T.edBadVideo);
+  const isLink = s => /^https?:\/\/\S+$/i.test(s);
+  if (ED.proof === "video" && f.video && !isLink(f.video)) return err(T.edBadVideo);
+  if (ED.proof === "shot" && f.shotLink && !isLink(f.shotLink)) return err(T.edBadShotLink);
   const withLog = !!ED.log || ED.hasLog;
   const timeOk = s => !s || /^(\d+:)?\d{1,2}:\d{2}(\.\d{1,3})?$/.test(s);
   if (!withLog && !timeOk(f.time)) return err(T.edBadTime(T.timeLabel));
@@ -326,14 +344,14 @@ async function edSave() {
     const details = await readRunsJson(), key = String(num);
     const e = {...(details[key] || {})};
     const put = (k, v) => { if (v == null || v === "") delete e[k]; else e[k] = v; };
-    put("date", f.date); put("seed", f.seed); put("video", f.video); put("notes", f.notes);
+    put("date", f.date); put("seed", f.seed); put("notes", f.notes);
     const files = [];
 
     // runs without a log: time, 100%, splits
     if (withLog) { delete e.time; delete e.hundred; delete e.splits; }
     else {
       put("time", f.time);
-      put("hundred", f.hundred === "yes" ? true : f.hundred === "no" ? false : null);
+      put("hundred", f.hundred === "yes");
       const sp = {}; f.splits.forEach(([i, s]) => { if (s) sp[SPLITS[i].name] = s; });
       put("splits", Object.keys(sp).length ? sp : null);
     }
@@ -357,15 +375,27 @@ async function edSave() {
       else { files.push({path: `runs/${num}.json`, text: JSON.stringify(encodeRun(ED.log.run))}, {remove: `logs/${num}.log`}); }
     }
 
-    // the screenshot
+    // proof: a video or a screenshot (a link, or an image uploaded next to the site), never both
     const oldShot = typeof e.screenshot === "string" && !/^https?:/i.test(e.screenshot) ? e.screenshot : null;
-    if (ED.shot) {
+    if (ED.proof === "video") {
+      put("video", f.video);
+      if (oldShot) files.push({remove: oldShot});
+      delete e.screenshot;
+    } else if (f.shotLink) {
+      delete e.video;
+      if (oldShot) files.push({remove: oldShot});
+      e.screenshot = f.shotLink;
+    } else if (ED.shot) {
+      delete e.video;
       const ext = (/\.(png|jpe?g|webp|gif)$/i.exec(ED.shot.file.name) || [, (ED.shot.file.type.split("/")[1] || "png")])[1].toLowerCase().replace("jpeg", "jpg");
       const path = `screenshots/${num}.${ext}`;
       files.push({path, b64: await fileToB64(ED.shot.file)});
       if (oldShot && oldShot !== path) files.push({remove: oldShot});
       e.screenshot = path;
-    } else if (ED.removeShot) { if (oldShot) files.push({remove: oldShot}); delete e.screenshot; }
+    } else {
+      delete e.video;
+      if (ED.removeShot || !oldShot) { if (oldShot) files.push({remove: oldShot}); delete e.screenshot; }
+    }
 
     // runs.json: keep an entry for every run without a log, and for runs with a log only if there's something in it
     if (Object.keys(e).length || !withLog) details[key] = e; else delete details[key];
@@ -429,7 +459,7 @@ function openSiteSettings() {
   m.innerHTML = `<form class="modal-card" id="siteSetForm">
     <h2 id="siteSetTitle">${esc(RUNS.length ? T.edSiteSettings : T.welcomeName)}</h2>
     <label class="fld"><span class="label">${esc(T.edSiteTitle)}</span><input class="field" type="text" id="siteTitleIn" value="${esc(T.siteTitle)}" maxlength="80"></label>
-    <label class="fld"><span class="label">${esc(T.edSiteSubtitle)}</span><input class="field" type="text" id="siteSubIn" value="${esc(T.siteSubtitle)}" maxlength="80" placeholder="${esc(T.edSiteSubtitleHint)}"></label>
+    <label class="fld"><span class="label">${esc(T.edSiteSubtitle)}</span><input class="field" type="text" id="siteSubIn" value="${esc(T.siteSubtitle)}" maxlength="80"></label>
     <p class="note" style="margin:0">${esc(T.edSiteNote)}</p>
     <p class="cmp-status" id="siteSetMsg" role="status" aria-live="polite"></p>
     <div class="actions"><span style="flex:1"></span><button type="button" class="btn" id="siteSetClose">${esc(T.edCancel)}</button><button type="submit" class="btn primary" id="siteSetSave">${esc(T.edSave)}</button></div>

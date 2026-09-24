@@ -48,10 +48,16 @@ function renderManualRun(el, run, d) {
 }
 
 // ---------- Screenshot of the run (proof), if there is one ----------
-const shotCard = run => shotUrl(run) ? `<section class="card" style="display:flex;flex-direction:column;gap:12px">
+// (a link to a page rather than an image file, e.g. an Imgur page, is shown as a button to open it)
+const shotCard = run => {
+  const u = shotUrl(run); if (!u) return "";
+  const isImage = !okUrl(run.meta.screenshot) || /\.(png|jpe?g|webp|gif)([?#].*)?$/i.test(u);
+  return `<section class="card" style="display:flex;flex-direction:column;gap:12px">
     <h2>${esc(T.screenshot)}</h2>
-    <a href="${esc(shotUrl(run))}" target="_blank" rel="noopener noreferrer" class="shot"><img src="${esc(shotUrl(run))}" alt="${esc(T.screenshot + " · " + runTitle(run))}" loading="lazy"></a>
-  </section>` : "";
+    ${isImage ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" class="shot"><img src="${esc(u)}" alt="${esc(T.screenshot + " · " + runTitle(run))}" loading="lazy"></a>`
+      : `<a class="btn" style="align-self:flex-start" href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(T.openScreenshot)}</a>`}
+  </section>`;
+};
 
 // ---------- Title area: "Run 11", video button, Thunderless/Thunderful, date, seed, time ----------
 function runHeader(run, d) {

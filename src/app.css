@@ -333,3 +333,5 @@ input.field:disabled{opacity:.6}
 .btn.danger{color:var(--bad);border-color:var(--bad)}
 .cmp-status.bad{color:var(--bad)}
 .welcome{display:flex;flex-direction:column;gap:12px;border-color:var(--accent)}
+.edradio{display:flex;gap:20px;flex-wrap:wrap}
+.edpick{min-width:220px}

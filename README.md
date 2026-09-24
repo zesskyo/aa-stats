@@ -1,7 +1,7 @@
 # aa-stats
 
-The code behind All Advancements No Reset stats websites, such as
-[Zesskyo's](https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/).
+The code behind 1.16 All Advancements Stats websites, such as
+[Zesskyo's AA No Reset Log](https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/).
 
 **Want your own website?** Go to [aa-stats-template](https://github.com/zesskyo/aa-stats-template)
 and follow the steps there. You never need to touch this repository.

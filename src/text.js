@@ -60,6 +60,7 @@ const T = {
   invalidRun: "Invalid run.",
   invalidRunMissing: "Missing",
   invalidRunNote: "It's left out of PBs and bests.",
+  andMore: n => `and ${n} more`,
   splitsTitle: "Splits",
   progressTitle: "Progress over IGT",
   fullScreen: "Full screen",

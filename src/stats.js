@@ -142,6 +142,11 @@ const logRuns = () => RUNS.filter(hasLog);
 const isValid = r => derive(r).category !== "Invalid" && r.finalIgt != null;
 const validRuns = () => RUNS.filter(isValid);
 const pbRun = () => validRuns().sort((a, b) => a.finalIgt - b.finalIgt)[0] || null;
+// "Missing A, B, C and 4 more": the advancements an Invalid run didn't get
+const missingText = (d, max = 5) => {
+  const names = d.missing.map(advName);
+  return T.invalidRunMissing + " " + names.slice(0, max).join(", ") + (names.length > max ? " " + T.andMore(names.length - max) : "");
+};
 const nonIntentionalDeaths = r => derive(r).deaths.filter(d => !d.intentional).length;
 const average = xs => { xs = xs.filter(x => x != null && !isNaN(x)); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
 // Fastest value of f(run) among valid runs: {v, r}

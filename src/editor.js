@@ -205,6 +205,7 @@ function renderEditor() {
             : ED.hasLog ? esc(T.edLogOnSite) : esc(T.edLogNone)}</span>
           <input type="file" id="edLogFile" accept=".log,.txt,.jsonl" hidden>
         </div>
+        ${ld && ld.category === "Invalid" ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
         ${ED.log ? `<label class="check"><input type="checkbox" id="edKeep"${ED.keepLog ? " checked" : ""}> ${esc(T.edKeepLog)}</label>` : ""}
       </fieldset>
 

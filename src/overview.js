@@ -81,7 +81,7 @@ function renderRunsTable(pb) {
     return `<tr class="runrow" data-open="${esc(r.id)}" tabindex="0" aria-label="${esc(runTitle(r))}">
       <td style="white-space:nowrap"><span class="runno">${esc(runNum(r))}</span>${videoLink(r)}${shotLink(r)}${pb === r ? `<span class="badge">${esc(T.pb)}</span>` : ""}</td>
       <td class="mono">${fmt(r.finalIgt, 0)}</td>
-      <td>${esc(hundred(d.category))}</td>
+      <td>${d.category === "Invalid" ? `<span class="tipped hint" tabindex="0" data-tip="${esc(missingText(d))}">${esc(hundred(d.category))}</span>` : esc(hundred(d.category))}</td>
       <td style="white-space:nowrap">${esc(runDay(r))}${r.meta && r.meta.seed ? `<div class="note mono">${esc(r.meta.seed)}</div>` : ""}</td>
       ${SPLIT_CARDS.map(i => { const v = splitMark(d.splits[i], i); return `<td class="mono">${v != null ? fmt(v, 0) : "—"}</td>`; }).join("")}
     </tr>`;

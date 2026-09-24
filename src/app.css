@@ -335,3 +335,5 @@ input.field:disabled{opacity:.6}
 .welcome{display:flex;flex-direction:column;gap:12px;border-color:var(--accent)}
 .edradio{display:flex;gap:20px;flex-wrap:wrap}
 .edpick{min-width:220px}
+.hint{border-bottom:1px dotted currentColor;cursor:help}
+.hint.tipped:hover::after,.hint.tipped:focus-visible::after{white-space:normal;width:max-content;max-width:300px;left:0;transform:none;font-family:var(--body);font-weight:500;font-size:13px;line-height:1.45}

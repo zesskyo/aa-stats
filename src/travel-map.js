@@ -3,6 +3,7 @@
  * build.mjs turns logs/<N>.ghost into paths/<N>.json (columns t, d, x, z, y, h — see ghost.mjs); this draws it:
  * one map per dimension, the path coloured by split, where each advancement, death and portal happened, and a
  * timeline that moves together with the progress graph (hover the graph and the player moves on the map).
+ * With the run's seed, the real biomes and structures of the world are drawn underneath (see seed-map.js).
  */
 const travelCache = {};             // run id -> loaded path
 let travelFollow = null;            // the progress graph calls this with the time under the mouse
@@ -83,13 +84,38 @@ function travelMount(run, d, P, body) {
   }
 
   let dim = "o", t = endT, view = null, playing = false, hot = [];
+  // the world from the seed: biomes underneath, structures on top (both can be turned off; remembered)
+  const world = seedWorld(run);
+  let layers = {bio: true, str: true};
+  try { layers = {...layers, ...JSON.parse(localStorage.getItem("aa-tv-layers") || "{}")}; } catch {}
+  let redraw = 0;
+  if (world) world.onReady = () => { if (!redraw && card.isConnected) redraw = requestAnimationFrame(() => { redraw = 0; draw(); }); };
+  // where the path went, for "went here" on structures: within about 64 blocks of the path (cells of 16 blocks),
+  // and the big squares the path crosses (so only those are searched for structures the player visited)
+  const visitedCells = {}, pathSquares = {};
+  for (const k of "one") {
+    const s = visitedCells[k] = new Set(), q = pathSquares[k] = new Set();
+    P.pieces[k].forEach(pc => pc.forEach(p => { s.add(Math.floor(p[2] / 16) + "," + Math.floor(p[3] / 16)); q.add(Math.floor(p[2] / STRUCT_TILE) + "," + Math.floor(p[3] / STRUCT_TILE)); }));
+  }
+  const wasNear = (k, x, z) => { const cx = Math.floor(x / 16), cz = Math.floor(z / 16); for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) if (i * i + j * j <= 16 && visitedCells[k].has((cx + i) + "," + (cz + j))) return true; return false; };
+  // structures of one kind that the player went to (searched only where the path goes)
+  const visitedOf = (k, kind) => {
+    const found = [];
+    for (const sq of pathSquares[k]) {
+      const [sx, sz] = sq.split(",").map(Number);
+      for (const [x, z] of world.structures(k, kind, sx * STRUCT_TILE, sz * STRUCT_TILE, sx * STRUCT_TILE + STRUCT_TILE - 1, sz * STRUCT_TILE + STRUCT_TILE - 1) || [])
+        if (wasNear(k, x, z)) found.push([x, z]);
+    }
+    return found;
+  };
   body.innerHTML = `
     <div class="tvtop">
       <div class="tabs-inline" id="tvTabs">${"one".split("").filter(k => P.pieces[k].length).map(k => `<button type="button" data-d="${k}">${esc(DIMS[k])}</button>`).join("")}</div>
+      ${world ? `<div class="tvlayers"><label class="check"><input type="checkbox" id="tvBio"${layers.bio ? " checked" : ""}> ${esc(T.travelBiomes)}</label><label class="check"><input type="checkbox" id="tvStr"${layers.str ? " checked" : ""}> ${esc(T.travelStructures)}</label></div>` : ""}
       <div class="tvstats" id="tvStats"></div>
     </div>
     <div class="tvgrid">
-      <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><div class="tip" id="tvTip"></div>
+      <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><div class="tip" id="tvTip"></div><span class="tvhover mono" id="tvHover"></span>
         <div class="tvover"><span class="mono" id="tvWhere"></span>${run.meta.seed ? `<a class="btn" id="tvChunk" target="_blank" rel="noopener noreferrer">${esc(T.travelChunkbase)} ↗</a>` : ""}</div></div>
       <ol class="tvlist" id="tvList">${events.map((e, i) => `<li><button type="button" data-ev="${i}" class="${e.k}${e.faded ? " faded" : ""}"><span class="mono">${fmt(e.t, 0)}</span><span class="tvdot ${e.k}"></span><span>${esc(e.text)}</span></button></li>`).join("")}</ol>
     </div>
@@ -101,6 +127,7 @@ function travelMount(run, d, P, body) {
     <div class="legend">${d.splits.map((p, i) => p.segs.length ? `<span><i style="background:${SCOL[i]}"></i>${esc(p.name)}</span>` : "").join("")}
       <span><i class="tvdot adv"></i>${esc(T.travelAdv)}</span><span><i class="tvdot death"></i>${esc(T.travelDeath)}</span><span><i class="tvdot portal"></i>${esc(T.travelPortal)}</span>
       <span><i class="tvfast"></i>${esc(T.travelFast)}</span></div>
+    <div class="legend" id="tvStructLegend"></div>
     <div class="keys"><span>${esc(T.travelKeys)}</span></div>`;
 
   const cv = $("#tvCanvas"), ctx = cv.getContext("2d"), tip = $("#tvTip");
@@ -137,9 +164,58 @@ function travelMount(run, d, P, body) {
     for (let z = Math.ceil(z0 / step) * step; z <= z1; z += step) { const [, sz] = toS(0, z); ctx.beginPath(); ctx.moveTo(0, sz); ctx.lineTo(r.width, sz); ctx.stroke(); if (sz > 30) ctx.fillText((z || 0).toLocaleString(), 4, sz - 4); }
     ctx.globalAlpha = 1;
   }
+  // biomes: tiles at the detail that suits the zoom, with coarser ones underneath while those are worked out
+  const SCALES = [4, 16, 64, 256];
+  const bioScale = () => SCALES.find(s => s * view.s >= 1) || 256;
+  function drawBiomes() {
+    const r = box(), want = bioScale(), [x0, z0] = toW(0, 0), [x1, z1] = toW(r.width, r.height), keys = new Set();
+    ctx.imageSmoothingEnabled = false; ctx.globalAlpha = .8;
+    for (const s of SCALES.filter(s => s >= want).reverse()) {
+      const span = TILE * s;
+      for (let tx = Math.floor(x0 / span); tx <= Math.floor(x1 / span); tx++) for (let tz = Math.floor(z0 / span); tz <= Math.floor(z1 / span); tz++) {
+        if (s === want) keys.add(`${dim}|${s}|${tx}|${tz}`);
+        const tl = s === want ? world.tile(dim, s, tx, tz) : world.peek(dim, s, tx, tz);
+        if (tl) { const [sx, sz] = toS(tx * span, tz * span); ctx.drawImage(tl.canvas, sx, sz, span * view.s + .5, span * view.s + .5); }
+      }
+    }
+    world.keepOnly(keys);
+    ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
+  }
+  const biomeAt = (x, z) => {
+    for (const s of SCALES.filter(s => s >= bioScale())) {
+      const span = TILE * s, tx = Math.floor(x / span), tz = Math.floor(z / span), tl = world.peek(dim, s, tx, tz);
+      if (tl) { const id = tl.ids[Math.floor((z - tz * span) / s) * TILE + Math.floor((x - tx * span) / s)]; return BIOMES[id] ? titleCase(BIOMES[id][0].replace(/_/g, " ")) : null; }
+    }
+    return null;
+  };
+  // structures, as small badges: the ones the player went to (filled) always, the rest once zoomed in
+  function drawStructures() {
+    const r = box(), [x0, z0] = toW(0, 0), [x1, z1] = toW(r.width, r.height), shown = [];
+    ctx.font = "600 9px " + cssv("--body"); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const [kind, , badge, maxW, always] of STRUCTS[dim]) {
+      const zoomedIn = x1 - x0 <= maxW;
+      if (!zoomedIn && !always) continue;
+      const pts = zoomedIn ? world.structures(dim, kind, x0 - 200, z0 - 200, x1 + 200, z1 + 200) || [] : visitedOf(dim, kind);
+      if (pts.length) shown.push([kind, badge]);
+      for (const [x, z] of pts) {
+        const [sx, sz] = toS(x, z); if (sx < -12 || sz < -12 || sx > r.width + 12 || sz > r.height + 12) continue;
+        const went = wasNear(dim, x, z), w = badge.length > 1 ? 11 : 8;
+        ctx.fillStyle = went ? cssv("--text") : cssv("--surface"); ctx.strokeStyle = cssv("--text"); ctx.lineWidth = 1.25;
+        ctx.beginPath(); ctx.roundRect(sx - w, sz - 7, w * 2, 14, 4); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = went ? cssv("--surface") : cssv("--text"); ctx.fillText(badge, sx, sz + .5);
+        hot.push({x: sx, z: sz, e: {text: T.travelStruct[kind] + (went ? " · " + T.travelVisited : ""), where: `${x}, ${z}`}});
+      }
+    }
+    ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+    $("#tvStructLegend").innerHTML = shown.length ? shown.map(([k, b]) => `<span><b class="tvbadge">${b}</b>${esc(T.travelStruct[k])}</span>`).join("") + `<span><b class="tvbadge on">V</b>${esc(T.travelVisited)}</span>` : "";
+  }
   function draw() {
     if (!view) return;
-    const r = box(); ctx.clearRect(0, 0, r.width, r.height); grid();
+    const r = box(); ctx.clearRect(0, 0, r.width, r.height);
+    hot = [];
+    const bio = world && layers.bio && !world.failed;
+    if (bio) drawBiomes();
+    grid();
     const cols = SPLITS.map((_, i) => cssv("--split" + i)), faint = cssv("--line");
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     for (const pc of P.pieces[dim]) for (let i = 1; i < pc.length; i++) {
@@ -147,12 +223,13 @@ function travelMount(run, d, P, body) {
       const [ax, az] = toS(a[2], a[3]), [bx, bz] = toS(b[2], b[3]);
       if (Math.abs(bx - ax) + Math.abs(bz - az) < .3 && i % 4) continue;   // too small to see at this zoom
       const fast = b[0] > a[0] && Math.hypot(b[2] - a[2], b[3] - a[3]) / ((b[0] - a[0]) / 1000) > 20;
-      if (done && fast) { ctx.strokeStyle = cols[b[6]]; ctx.globalAlpha = .22; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(ax, az); ctx.lineTo(bx, bz); ctx.stroke(); }
+      if (bio && done) { ctx.strokeStyle = "#fff"; ctx.globalAlpha = .9; ctx.lineWidth = fast ? 7 : 5; ctx.beginPath(); ctx.moveTo(ax, az); ctx.lineTo(bx, bz); ctx.stroke(); }
+      else if (done && fast) { ctx.strokeStyle = cols[b[6]]; ctx.globalAlpha = .22; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(ax, az); ctx.lineTo(bx, bz); ctx.stroke(); }
       ctx.strokeStyle = done ? cols[b[6]] : faint; ctx.globalAlpha = done ? .95 : .7; ctx.lineWidth = done ? 2.25 : 1.5;
       ctx.beginPath(); ctx.moveTo(ax, az); ctx.lineTo(bx, bz); ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    hot = [];
+    if (world && layers.str && !world.failed) drawStructures(); else $("#tvStructLegend").innerHTML = "";
     for (const e of events) {
       if (e.dim !== dim) continue;
       const [x, z] = toS(e.x, e.z);
@@ -216,13 +293,17 @@ function travelMount(run, d, P, body) {
   cv.addEventListener("pointermove", ev => {
     if (drag) return;
     const r = box(), mx = ev.clientX - r.left, mz = ev.clientY - r.top;
+    if (world && layers.bio) { const [wx, wz] = toW(mx, mz), b = biomeAt(wx, wz); $("#tvHover").textContent = b ? `${b} · ${Math.round(wx)}, ${Math.round(wz)}` : ""; }
     const near = hot.filter(h => Math.hypot(h.x - mx, h.z - mz) < 9);
     if (!near.length) { tip.style.display = "none"; return; }
-    tip.innerHTML = near.slice(0, 6).map(({e}) => `<div><b>${esc(e.text)}</b> <span class="mono muted">${fmt(e.t, 0)}</span></div>`).join("") + (near.length > 6 ? `<div class="muted">${esc(T.andMore(near.length - 6))}</div>` : "");
+    tip.innerHTML = near.slice(0, 6).map(({e}) => `<div><b>${esc(e.text)}</b> <span class="mono muted">${e.t != null ? fmt(e.t, 0) : esc(e.where)}</span></div>`).join("") + (near.length > 6 ? `<div class="muted">${esc(T.andMore(near.length - 6))}</div>` : "");
     tip.style.display = "block";
     tip.style.left = Math.max(4, Math.min(mx + 14, r.width - tip.offsetWidth - 4)) + "px"; tip.style.top = Math.max(4, mz - tip.offsetHeight - 12) + "px";
   });
-  cv.addEventListener("pointerleave", () => { tip.style.display = "none"; });
+  cv.addEventListener("pointerleave", () => { tip.style.display = "none"; $("#tvHover").textContent = ""; });
+  const saveLayers = () => { try { localStorage.setItem("aa-tv-layers", JSON.stringify(layers)); } catch {} draw(); };
+  if ($("#tvBio")) $("#tvBio").addEventListener("change", e => { layers.bio = e.target.checked; $("#tvHover").textContent = ""; saveLayers(); });
+  if ($("#tvStr")) $("#tvStr").addEventListener("change", e => { layers.str = e.target.checked; saveLayers(); });
   let drag = null; const touches = new Map();
   cv.addEventListener("pointerdown", ev => { cv.setPointerCapture(ev.pointerId); touches.set(ev.pointerId, [ev.clientX, ev.clientY]); drag = {x: ev.clientX, y: ev.clientY, cx: view.cx, cz: view.cz, d: null}; tip.style.display = "none"; });
   cv.addEventListener("pointermove", ev => {

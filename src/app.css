@@ -376,3 +376,8 @@ input.field:disabled{opacity:.6}
 .tvbar input[type=range]{flex:1 1 260px;accent-color:var(--accent);min-height:32px}
 .travel.fs .tvmap canvas{height:calc(100vh - 290px)}
 .travel.fs .tvlist{max-height:calc(100vh - 290px)}
+.tvlayers{display:flex;gap:14px;flex-wrap:wrap}
+.tvhover{position:absolute;left:8px;top:22px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;pointer-events:none}
+.tvhover:empty{display:none}
+.tvbadge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:16px;padding:0 4px;margin-right:6px;border:1.25px solid var(--text);border-radius:4px;background:var(--surface);color:var(--text);font-size:9px;font-weight:600}
+.tvbadge.on{background:var(--text);color:var(--surface)}

@@ -205,6 +205,12 @@ const T = {
   travelDist: "Travelled",
   travelTimeHere: "Time here",
   travelFar: "Farthest from 0, 0",
+  travelBiomes: "Biomes",
+  travelStructures: "Structures",
+  travelVisited: "passed by",
+  travelStruct: {stronghold: "Stronghold", village: "Village", desert: "Desert temple", jungle: "Jungle temple", outpost: "Pillager outpost",
+    monument: "Ocean monument", mansion: "Woodland mansion", hut: "Witch hut", igloo: "Igloo", portal: "Ruined portal", shipwreck: "Shipwreck",
+    treasure: "Buried treasure", fortress: "Nether fortress", bastion: "Bastion", endcity: "End city"},
   travelKeys: "Drag to move · scroll to zoom · double-click to fit · hover the progress graph to move the player · click an event to go there",
 
   // Graph hover text

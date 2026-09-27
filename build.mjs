@@ -25,7 +25,7 @@ const read = p => fs.readFileSync(p, "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "travel-map.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
 ];
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n") + "\n})();\n";
 const appCss = read(inCode("src/app.css"));
@@ -166,6 +166,8 @@ const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);
 if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
+// the biome/structure generator for travel maps of runs with a seed (see wasm/)
+if ([...paths.keys()].some(n => (out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
 for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
 for (const rel of copies) { fs.mkdirSync(path.dirname(inSite("dist/" + rel)), {recursive: true}); fs.copyFileSync(inSite(rel), inSite("dist/" + rel)); }
 console.log(`Built ${path.relative(process.cwd(), inSite("dist/index.html")) || "dist/index.html"}: ${out.length} runs, ${Object.keys(icons).length} icons, ${(html.length / 1024).toFixed(0)} KB`);

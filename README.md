@@ -37,6 +37,7 @@ Then open `dist/index.html` in a browser.
 | `src/stats.js`, `src/splits.js` | Everything worked out about a run |
 | `src/overview.js`, `src/run-page.js`, `src/compare.js` | The three tabs |
 | `ghost.mjs`, `src/travel-map.js` | The travel map: reads Hermes' ghost file at build time, draws it on the run page |
+| `src/seed-map.js`, `src/biomes.js`, `wasm/` | The travel map's biomes and structures from the run's seed: [cubiomes](https://github.com/Cubitect/cubiomes) (MIT) compiled to `wasm/cubiomes.wasm` by `wasm/build.sh` |
 | `src/editor.js` | The owner adding, editing and deleting runs from the website (saves to the site's repository through GitHub's API) |
 | `src/charts.js`, `src/progress-graph.js` | The graphs |
 | `icons/` | Built-in icons; a site's own `icons/` folder can add or replace them |

@@ -2,7 +2,7 @@
  * travel-map.js — the "Travel map" on a run's page: where the player went, from Hermes' ghost file.
  * build.mjs turns logs/<N>.ghost into paths/<N>.json (columns t, d, x, z, y, h — see ghost.mjs); this draws it:
  * one map per dimension with the path as a single line, the same icons as the progress graph where things
- * happened (deaths, thunder, riptide, trident, nautilus shells, the god apple, portals), the player's head,
+ * happened (deaths, thunder, riptide, trident, nautilus shells, the god apple), the spawn, the player's head,
  * and a timeline with the dimensions coloured like the progress graph.
  * With the run's seed, the world's biomes and structures are drawn underneath (see seed-map.js): bright near
  * where the player has been so far, faded everywhere else.
@@ -77,7 +77,7 @@ function travelMount(run, d, P, body) {
     ...d.lanes.trident.slice(0, 1).map(t => place(t, {k: "trident", icon: "trident", text: T.travelTrident})),   // where it was obtained
     ...d.lanes.nautilus.map((t, i, all) => place(t, {k: "nautilus", icon: "g_nautilus", text: T.nautilusMarker(i + 1, all.length)})),
     ...(run.st.gapple != null ? [place(run.st.gapple, {k: "gapple", icon: "s_gapple", text: T.godAppleMarker})] : []),
-    ...run.dims.slice(1).filter((x, i) => x[1] !== run.dims[i][1]).map(x => place(x[0] - 400, {t: x[0], k: "portal", text: T.travelTo(DIMS[x[1]]), to: x[1]})),
+    ...(P.pieces.o.length ? [{t: 0, dim: "o", x: P.pieces.o[0][0][2], z: P.pieces.o[0][0][3], k: "spawn", icon: "st_spawn"}] : []),   // where the run started
   ].sort((a, b) => a.t - b.t);
   const eventIcon = e => e.k === "thunder" && !okIcon(ICONS.thunder) ? `<span class="tvdot thunder"></span>` : ic(e.icon, 16);
 
@@ -120,7 +120,7 @@ function travelMount(run, d, P, body) {
   let head = null;
   if (run.uuid || run.player) { head = new Image(); head.onload = () => draw(); head.src = `https://mc-heads.net/avatar/${encodeURIComponent((run.uuid || run.player).replace(/-/g, ""))}/32`; }
 
-  let dim = "o", t = endT, view = null, playing = false, hot = [];
+  let dim = "o", t = endT, view = null, playing = false;
   const pct = v => (Math.max(0, Math.min(1, v / endT)) * 100).toFixed(3) + "%";
   const dimSegs = run.dims.map((x, i) => [x[0], (run.dims[i + 1] || [endT])[0], x[1]]).filter(s => s[1] > s[0]);
   const BASE = 60;   // playing at 1×: one minute of the run per second; fast forward / rewind double it each press
@@ -128,7 +128,7 @@ function travelMount(run, d, P, body) {
   const hours = []; for (let h = 3600000; h < endT; h += 3600000) hours.push(h);
   body.innerHTML = `
     <div class="tvtop"><div class="tabs-inline" id="tvTabs">${"one".split("").filter(k => P.pieces[k].length).map(k => `<button type="button" data-d="${k}">${esc(DIMS[k])}</button>`).join("")}</div></div>
-    <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><div class="tip" id="tvTip"></div><span class="tvhover mono" id="tvHover"></span>
+    <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><span class="tvhover mono" id="tvHover"></span>
       <button type="button" class="tvfollow" id="tvFollow" aria-pressed="false" title="${esc(T.travelFollow)}" aria-label="${esc(T.travelFollow)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
       <div class="tvover"><span class="mono" id="tvWhere"></span></div></div>
     <div class="tvtl">
@@ -147,7 +147,7 @@ function travelMount(run, d, P, body) {
       <span class="mono muted tvend">${fmt(endT, 0)}</span>
     </div>`;
 
-  const cv = $("#tvCanvas"), ctx = cv.getContext("2d"), tip = $("#tvTip");
+  const cv = $("#tvCanvas"), ctx = cv.getContext("2d");
   const mask = document.createElement("canvas"), mctx = mask.getContext("2d");
   const box = () => cv.getBoundingClientRect();
   const size = () => { const r = box(), dpr = devicePixelRatio || 1; cv.width = mask.width = Math.max(1, r.width * dpr); cv.height = mask.height = Math.max(1, r.height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); mctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
@@ -267,7 +267,6 @@ function travelMount(run, d, P, body) {
           ctx.beginPath(); ctx.roundRect(sx - w, sz - 7, w * 2, 14, 4); ctx.fill(); ctx.stroke();
           ctx.fillStyle = cssv("--text"); ctx.fillText(badge, sx, sz + .5);
         }
-        hot.push({x: sx, z: sz, e: {text: T.travelStruct[kind]}});
       }
     }
     ctx.globalAlpha = 1; ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
@@ -277,7 +276,6 @@ function travelMount(run, d, P, body) {
     if (!view) return;
     if (follow) { const p = travelAt(P, t); if (p[1] === dim) { view.cx = p[2]; view.cz = p[3]; } }
     const r = box(); ctx.clearRect(0, 0, r.width, r.height);
-    hot = [];
     const pth = pathSoFar(), bio = world && !world.failed;
     if (bio) drawBiomes(pth);
     grid(bio);
@@ -302,10 +300,9 @@ function travelMount(run, d, P, body) {
       if (x < -12 || z < -12 || x > r.width + 12 || z > r.height + 12) continue;
       ctx.globalAlpha = e.t <= t ? (e.faded ? .5 : 1) : .3;
       const im = e.icon && travelIcon(e.icon);
-      if (im) { ctx.imageSmoothingEnabled = false; ctx.drawImage(im, x - 10, z - 10, 20, 20); ctx.imageSmoothingEnabled = true; }
-      else if (e.k === "portal") { ctx.fillStyle = cssv("--s4"); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, z - 7); ctx.lineTo(x + 7, z); ctx.lineTo(x, z + 7); ctx.lineTo(x - 7, z); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+      if (im && e.k === "spawn") { ctx.imageSmoothingQuality = "high"; ctx.drawImage(im, x - 15, z - 15, 30, 30); }
+      else if (im) { ctx.imageSmoothingEnabled = false; ctx.drawImage(im, x - 10, z - 10, 20, 20); ctx.imageSmoothingEnabled = true; }
       else { ctx.fillStyle = cssv("--gold"); ctx.beginPath(); ctx.arc(x, z, 6, 0, 7); ctx.fill(); }
-      hot.push({x, z, e});
     }
     ctx.globalAlpha = 1;
     // the player: their head
@@ -375,15 +372,10 @@ function travelMount(run, d, P, body) {
     if (drag) return;
     const r = box(), mx = ev.clientX - r.left, mz = ev.clientY - r.top;
     if (world) { const [wx, wz] = toW(mx, mz), b = biomeAt(wx, wz); $("#tvHover").textContent = b ? `${b} · ${Math.round(wx)}, ${Math.round(wz)}` : ""; }
-    const near = hot.filter(h => Math.hypot(h.x - mx, h.z - mz) < 11);
-    if (!near.length) { tip.style.display = "none"; return; }
-    tip.innerHTML = near.slice(0, 6).map(({e}) => `<div><b>${esc(e.text)}</b></div>`).join("") + (near.length > 6 ? `<div class="muted">${esc(T.andMore(near.length - 6))}</div>` : "");
-    tip.style.display = "block";
-    tip.style.left = Math.max(4, Math.min(mx + 14, r.width - tip.offsetWidth - 4)) + "px"; tip.style.top = Math.max(4, mz - tip.offsetHeight - 12) + "px";
   });
-  cv.addEventListener("pointerleave", () => { tip.style.display = "none"; $("#tvHover").textContent = ""; });
+  cv.addEventListener("pointerleave", () => { $("#tvHover").textContent = ""; });
   let drag = null; const touches = new Map();
-  cv.addEventListener("pointerdown", ev => { cv.setPointerCapture(ev.pointerId); touches.set(ev.pointerId, [ev.clientX, ev.clientY]); drag = {x: ev.clientX, y: ev.clientY, cx: view.cx, cz: view.cz, d: null}; tip.style.display = "none"; });
+  cv.addEventListener("pointerdown", ev => { cv.setPointerCapture(ev.pointerId); touches.set(ev.pointerId, [ev.clientX, ev.clientY]); drag = {x: ev.clientX, y: ev.clientY, cx: view.cx, cz: view.cz, d: null}; });
   cv.addEventListener("pointermove", ev => {
     if (!drag || !touches.has(ev.pointerId)) return;
     touches.set(ev.pointerId, [ev.clientX, ev.clientY]);

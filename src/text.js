@@ -13,7 +13,7 @@ const T = {
 
   // Overview page
   pb: "PB",
-  wr: "WR",
+  wr: "WR · AA No Reset 1.16",
   wrWord: "World record",
   pbBehind: t => `PB is ${t} behind`,
   pbAhead: t => `PB is ${t} ahead`,
@@ -172,7 +172,10 @@ const T = {
   edNewRun: "New run",
   edWrOption: "World record (someone else's run)",
   edWrTitle: "World record",
-  edWrIntro: "The current world record, shown next to your PB and on its own page (it isn't counted in your stats). Upload the runner's files the same way as a run; replace them whenever there's a new record.",
+  edWrIntro: repo => `The AA No Reset 1.16 world record. It's the same on every site made from ${repo}: shown next to the PB and on its own page, never counted in anyone's stats. Upload the runner's files the same way as a run; replace them when there's a new record.`,
+  edWrNot116: v => `This log is from Minecraft ${v || "(unknown)"}; the record is for 1.16.`,
+  edWrSaved: "Saved. This site is rebuilding; other sites show the new record after their daily rebuild.",
+  edWrSavedLater: "Saved. Sites show the new record after their daily rebuild.",
   edRunner: "Runner",
   edCommitWr: "Update the world record (from the website)",
   edWrRemove: "Remove",

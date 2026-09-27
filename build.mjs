@@ -10,8 +10,10 @@
 //   <any folder>/<image>   screenshots mentioned in runs.json (copied next to the page)
 //   site.json              the site's own words: title, subtitle, or any other text from src/text.js
 //   icons/<name>.png       optional: adds or replaces icons
-//   wr/wr.log              optional: the world record (someone else's run), shown next to the PB and on its own page;
-//                          with wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video}
+//
+// The world record (AA No Reset, 1.16) is the same for every site, so it lives here with the code, in wr/:
+//   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video}.
+// Sites rebuild every day, so a new record shows up on all of them by the next day.
 //
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
 import fs from "node:fs";
@@ -143,29 +145,31 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   out.push({...run, meta});
 }
 
-// 3b) the world record: read like a run, but kept apart (it isn't one of this site's runs)
+// 3b) the world record (from the code's wr/, the same for every site): read like a run, but kept apart
 let wr = null;
-const wrLog = ["log", "txt", "jsonl"].map(e => inSite("wr/wr." + e)).find(f => fs.existsSync(f));
+const wrLog = ["log", "txt", "jsonl"].map(e => inCode("wr/wr." + e)).find(f => fs.existsSync(f));
+const inWr = f => inCode("wr/" + f);
 if (wrLog) {
   const r = parseLog(read(wrLog), path.basename(wrLog));
+  if (!/^1\.16(\.|$)/.test(r.mc || "")) throw new Error(`wr/${path.basename(wrLog)} is from Minecraft ${r.mc || "(unknown)"}, but the record is for 1.16`);
   r.id = "wr-" + runKey(r);
-  const d = fs.existsSync(inSite("wr/wr.json")) ? JSON.parse(read(inSite("wr/wr.json"))) : {};
+  const d = fs.existsSync(inWr("wr.json")) ? JSON.parse(read(inWr("wr.json"))) : {};
   const meta = {wr: true};
   for (const k of ["runner", "date", "seed", "video"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]).slice(0, 200);
   if (!meta.seed && r.seed) meta.seed = String(r.seed);
   if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error("wr/wr.json: date must look like 2026-09-22");
   if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error("wr/wr.json: video must start with http:// or https://");
-  if (fs.existsSync(inSite("wr/wr.ghost"))) {
-    const g = readGhost(fs.readFileSync(inSite("wr/wr.ghost")), r);
+  if (fs.existsSync(inWr("wr.ghost"))) {
+    const g = readGhost(fs.readFileSync(inWr("wr.ghost")), r);
     if (g) { paths.set("wr", g); meta.path = "paths/wr.json"; console.log(`Read wr/wr.ghost: ${g.t.length} points`); }
     else console.warn("wr/wr.ghost doesn't match wr/wr.log (another world?), so it's skipped");
   }
-  if (fs.existsSync(inSite("wr/wr.stats.json"))) {
-    const v = ((JSON.parse(read(inSite("wr/wr.stats.json"))).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
+  if (fs.existsSync(inWr("wr.stats.json"))) {
+    const v = ((JSON.parse(read(inWr("wr.stats.json"))).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
     if (v != null) meta.elytraCm = v;
   }
   wr = {...encodeRun(r), meta};
-  console.log(`Parsed ${path.relative(site, wrLog)} as the world record`);
+  console.log(`Parsed the world record (wr/${path.basename(wrLog)})`);
 }
 
 // 4) icons: the built-in ones, then the site's own (which win)
@@ -189,7 +193,12 @@ const head = `<meta charset="utf-8">
 `;
 // Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
-const json = JSON.stringify({runs: out, wr, icons, text, repo}).replace(/</g, "\\u003c");
+// …and which repository the code is in (where the world record is kept)
+const codeRepo = (() => {
+  try { const m = /url\s*=\s*\S*github\.com[/:]([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?\s*$/m.exec(read(inCode(".git/config"))); if (m) return m[1]; } catch {}
+  return "zesskyo/aa-stats";
+})();
+const json = JSON.stringify({runs: out, wr, icons, text, repo, codeRepo}).replace(/</g, "\\u003c");
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);

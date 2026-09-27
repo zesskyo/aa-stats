@@ -9,7 +9,7 @@
  */
 const travelCache = {};             // run id -> loaded path
 let travelResize = null;
-const TRAVEL_SEEN = 32;             // chunks around the player shown as "explored" (maximum render distance: a square)
+const TRAVEL_SEEN = {o: 32, n: 24, e: 32};   // chunks around the player shown as "explored", by dimension (render distance: a square)
 const TRAVEL_NEAR = 64;             // a structure this close to the path counts as one the player went to
 
 const travelCardShell = () => `
@@ -100,9 +100,9 @@ function travelMount(run, d, P, body) {
     for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) { if (i * i + j * j > r * r) continue; const v = m.get((cx + i) + "," + (cz + j)); if (v != null && v <= t) return true; }
     return false;
   };
-  // was this spot inside the rendered square around the player by time t? (within 32 chunks either way; 128-block cells)
+  // was this spot inside the rendered square around the player by time t? (within the render distance either way; 128-block cells)
   const seenBy = (k, x, z, t) => {
-    const m = cells[128][k], cx = Math.floor(x / 128), cz = Math.floor(z / 128), r = TRAVEL_SEEN * 16 / 128;
+    const m = cells[128][k], cx = Math.floor(x / 128), cz = Math.floor(z / 128), r = Math.ceil(TRAVEL_SEEN[k] * 16 / 128);
     for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) { const v = m.get((cx + i) + "," + (cz + j)); if (v != null && v <= t) return true; }
     return false;
   };
@@ -222,11 +222,11 @@ function travelMount(run, d, P, body) {
     mctx.globalCompositeOperation = "source-over"; drawTiles(mctx, false);
     // keep them only in the squares of chunks rendered around the player so far
     mctx.globalCompositeOperation = "destination-in";
-    const seen = new Path2D(), done = new Set(), side = (TRAVEL_SEEN * 2 + 1) * 16 * view.s;
+    const seen = new Path2D(), done = new Set(), R = TRAVEL_SEEN[dim], side = (R * 2 + 1) * 16 * view.s;
     for (const pc of P.pieces[dim]) for (const p of pc) {
       if (p[0] > t) break;
       const cx = Math.floor(p[2] / 16), cz = Math.floor(p[3] / 16), k = cx + "," + cz; if (done.has(k)) continue; done.add(k);
-      const [sx, sz] = toS((cx - TRAVEL_SEEN) * 16, (cz - TRAVEL_SEEN) * 16); seen.rect(sx, sz, side, side);
+      const [sx, sz] = toS((cx - R) * 16, (cz - R) * 16); seen.rect(sx, sz, side, side);
     }
     mctx.fillStyle = "#000"; mctx.fill(seen);
     mctx.globalCompositeOperation = "source-over";

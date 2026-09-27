@@ -347,10 +347,6 @@ input.field:disabled{opacity:.6}
 .tabs-inline{display:flex;gap:6px;flex-wrap:wrap}
 .tabs-inline button{min-height:38px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
 .tabs-inline button[aria-pressed="true"]{background:var(--surface2);color:var(--text);font-weight:600}
-.tvstats{display:flex;gap:18px;flex-wrap:wrap}
-.tvstats div{display:flex;flex-direction:column}
-.tvstats b{font-size:16px}
-.tvstats span{font-size:12px;color:var(--muted)}
 .tvgrid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px}
 @media (max-width:900px){.tvgrid{grid-template-columns:minmax(0,1fr)}}
 .tvmap{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg);touch-action:none}
@@ -361,23 +357,23 @@ input.field:disabled{opacity:.6}
 .tvover .mono{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px}
 .tvover .btn{min-height:34px;font-size:13px}
 .tvlist{list-style:none;margin:0;padding:0;max-height:520px;overflow-y:auto;border:1px solid var(--line);border-radius:10px}
-.tvlist button{display:grid;grid-template-columns:62px 12px minmax(0,1fr);gap:8px;align-items:center;width:100%;min-height:34px;padding:4px 10px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.tvlist button{display:grid;grid-template-columns:62px 18px minmax(0,1fr);gap:8px;align-items:center;width:100%;min-height:34px;padding:4px 10px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer}
 .tvlist li:last-child button{border-bottom:0}
 .tvlist button:hover{background:var(--surface2)}
 .tvlist button.now{background:var(--surface2);font-weight:600}
 .tvlist button.faded{color:var(--muted)}
 .tvlist .mono{color:var(--muted);font-size:12px}
 .tvdot{display:inline-block;width:10px;height:10px;flex:none}
-.tvdot.adv{border-radius:50%;background:var(--accent)}
 .tvdot.death{background:var(--death);clip-path:polygon(20% 0,50% 30%,80% 0,100% 20%,70% 50%,100% 80%,80% 100%,50% 70%,20% 100%,0 80%,30% 50%,0 20%)}
 .tvdot.portal{background:var(--s4);transform:rotate(45deg) scale(.85)}
-.tvfast{display:inline-block;width:18px;height:8px;border-radius:4px;background:var(--muted);opacity:.35;vertical-align:middle;margin-right:6px}
 .tvbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .tvbar input[type=range]{flex:1 1 260px;accent-color:var(--accent);min-height:32px}
 .travel.fs .tvmap canvas{height:calc(100vh - 290px)}
 .travel.fs .tvlist{max-height:calc(100vh - 290px)}
-.tvlayers{display:flex;gap:14px;flex-wrap:wrap}
 .tvhover{position:absolute;left:8px;top:22px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;pointer-events:none}
 .tvhover:empty{display:none}
 .tvbadge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:16px;padding:0 4px;margin-right:6px;border:1.25px solid var(--text);border-radius:4px;background:var(--surface);color:var(--text);font-size:9px;font-weight:600}
-.tvbadge.on{background:var(--text);color:var(--surface)}
+.tvico{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px}
+.tvico .ico{width:16px;height:16px;image-rendering:pixelated}
+.tvdot.thunder{background:var(--gold);clip-path:polygon(55% 0,10% 58%,45% 58%,35% 100%,90% 40%,55% 40%,65% 0)}
+.legend .ico{width:16px;height:16px;image-rendering:pixelated;vertical-align:middle;margin-right:4px}

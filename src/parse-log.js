@@ -12,7 +12,7 @@
  *             Only build.mjs uses it; it isn't stored.
  */
 function parseLog(text, filename) {
-  let start = null, player = null, mc = null, dim = "o";
+  let start = null, player = null, uuid = null, mc = null, dim = "o";
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
   const tot = {}, clock = [];
@@ -46,7 +46,7 @@ function parseLog(text, filename) {
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
     const igt = e.speedrunigt ? e.speedrunigt.igt : 0, rta = e.speedrunigt ? e.speedrunigt.rta : 0, d = e.data || {};
-    if (!player && d.player && d.player.name) player = d.player.name;
+    if (!player && d.player && d.player.name) { player = d.player.name; if (/^[0-9a-f-]{32,36}$/i.test(d.player.uuid || "")) uuid = d.player.uuid; }
     if (type === "initialize") { mc = d.mc_version; if (e.time) start = e.time; }
     else if (type === "dimension") {
       const x = String(d.dimension || "").replace("minecraft:", "");
@@ -93,7 +93,7 @@ function parseLog(text, filename) {
   if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
   const comp = events.filter(e => e[4]);
   const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
-  return {start: start || Date.now(), player: player || "Unknown", mc: mc || "", finalIgt: last[0], finalRta: last[1],
+  return {start: start || Date.now(), player: player || "Unknown", uuid, mc: mc || "", finalIgt: last[0], finalRta: last[1],
     critCount: seen.size, events, dims, deaths, st, tot, meta: {}, addedAt: Date.now(), clock};
 }
 

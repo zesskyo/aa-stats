@@ -14,8 +14,6 @@
  *   screenshots/<N>.png  the screenshot
  *   runs.json            date, seed, video, notes, deaths, and for runs without a log: time, 100%, splits
  *   site.json            the site's title and subtitle ("Site settings", and the setup card on a new site)
- * The world record is kept with the code (DATA.codeRepo, wr/…), so it's the same on every site. It can only be
- * changed by someone whose token can write to that repository too.
  */
 
 // ---------- Which repository this site is (build.mjs gets it from GitHub Actions) ----------
@@ -28,18 +26,16 @@ const TOKEN_KEY = GH ? "aa-gh-token:" + GH.full : null;
 const ghToken = () => { try { return TOKEN_KEY ? localStorage.getItem(TOKEN_KEY) : null; } catch { return null; } };
 const signedIn = () => !!ghToken();
 
-const CODE = typeof DATA.codeRepo === "string" && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(DATA.codeRepo) ? DATA.codeRepo : null;
-
 // ---------- GitHub API ----------
-async function gh(path, opts = {}, token = ghToken(), repo = GH.full) {
-  const res = await fetch("https://api.github.com/repos/" + repo + path, {
+async function gh(path, opts = {}, token = ghToken()) {
+  const res = await fetch("https://api.github.com/repos/" + GH.full + path, {
     method: opts.method || "GET",
     headers: {"Accept": "application/vnd.github+json", "Authorization": "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28", ...(opts.body ? {"Content-Type": "application/json"} : {})},
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   if (!res.ok) {
     let msg = ""; try { msg = (await res.json()).message || ""; } catch {}
-    const e = new Error(res.status === 401 ? T.edTokenBad : res.status === 403 || res.status === 404 && opts.method ? T.edTokenNoWrite(repo) : `GitHub: ${res.status} ${msg}`);
+    const e = new Error(res.status === 401 ? T.edTokenBad : res.status === 403 || res.status === 404 && opts.method ? T.edTokenNoWrite(GH.full) : `GitHub: ${res.status} ${msg}`);
     e.status = res.status; throw e;
   }
   return res.status === 204 ? null : res.json();
@@ -56,11 +52,10 @@ async function readJsonFile(path) {
 const readRunsJson = () => readJsonFile("runs.json");
 
 // One commit with all the changes. files: [{path, text} | {path, b64} | {remove: path or RegExp}]
-async function ghCommit(message, files, repo = GH.full, branch = GH.branch) {
-  const g = (path, opts) => gh(path, opts, ghToken(), repo);
-  const head = (await g(`/git/ref/heads/${branch}`)).object.sha;
-  const base = (await g(`/git/commits/${head}`)).tree.sha;
-  const existing = (await g(`/git/trees/${base}?recursive=1`)).tree.filter(x => x.type === "blob").map(x => x.path);
+async function ghCommit(message, files) {
+  const head = (await gh(`/git/ref/heads/${GH.branch}`)).object.sha;
+  const base = (await gh(`/git/commits/${head}`)).tree.sha;
+  const existing = (await gh(`/git/trees/${base}?recursive=1`)).tree.filter(x => x.type === "blob").map(x => x.path);
   const tree = [], seen = new Set();
   for (const f of files) {
     if (f.remove) {
@@ -68,13 +63,13 @@ async function ghCommit(message, files, repo = GH.full, branch = GH.branch) {
         .filter(p => !files.some(g => g.path === p) && !seen.has(p))
         .forEach(p => { seen.add(p); tree.push({path: p, mode: "100644", type: "blob", sha: null}); });
     } else if (f.b64 != null) {
-      const blob = await g("/git/blobs", {method: "POST", body: {content: f.b64, encoding: "base64"}});
+      const blob = await gh("/git/blobs", {method: "POST", body: {content: f.b64, encoding: "base64"}});
       tree.push({path: f.path, mode: "100644", type: "blob", sha: blob.sha});
     } else tree.push({path: f.path, mode: "100644", type: "blob", content: f.text});
   }
-  const t = await g("/git/trees", {method: "POST", body: {base_tree: base, tree}});
-  const c = await g("/git/commits", {method: "POST", body: {message, tree: t.sha, parents: [head]}});
-  await g(`/git/refs/heads/${branch}`, {method: "PATCH", body: {sha: c.sha}});
+  const t = await gh("/git/trees", {method: "POST", body: {base_tree: base, tree}});
+  const c = await gh("/git/commits", {method: "POST", body: {message, tree: t.sha, parents: [head]}});
+  await gh(`/git/refs/heads/${GH.branch}`, {method: "PATCH", body: {sha: c.sha}});
   return c.sha;
 }
 
@@ -95,25 +90,16 @@ function mountOwnerControls() {
         : `<button type="button" class="btn primary" data-owner="setup">${esc(T.welcomeSetup)}</button>`}</div>
     </section>`;
   if ($("#addRunBtn")) $("#addRunBtn").addEventListener("click", () => openEditor(null));
-  if (signedIn() && CODE && canWr == null) checkWr().then(ok => { if (ok) { if (state.view === "edit") renderEditor(); else if (state.view === "run") render(); } });
   if ($("#signInBtn")) $("#signInBtn").addEventListener("click", () => openSignIn());
   if ($("#siteSetBtn")) $("#siteSetBtn").addEventListener("click", openSiteSettings);
-  if ($("#signOutBtn")) $("#signOutBtn").addEventListener("click", () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} canWr = null; mountOwnerControls(); if (state.view === "edit") go("runs"); else render(); });
+  if ($("#signOutBtn")) $("#signOutBtn").addEventListener("click", () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} mountOwnerControls(); if (state.view === "edit") go("runs"); else render(); });
   welcome.querySelectorAll("[data-owner]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.owner;
     if (k === "setup") openSignIn(openSiteSettings); else if (k === "name") openSiteSettings(); else openEditor(null);
   }));
 }
-// Can the signed-in token change the world record? (it's in the code's repository) — null until GitHub answers
-let canWr = null;
-async function checkWr() {
-  if (!CODE || !signedIn() || canWr != null) return canWr;
-  try { const r = await gh("", {}, ghToken(), CODE); canWr = !!(r.permissions && r.permissions.push); } catch { canWr = false; }
-  return canWr;
-}
-
 // "Edit" button on a run's page (only when signed in)
-const editButton = run => signedIn() && (!isWr(run) || canWr) ? `<button type="button" class="btn" data-edit-run="${esc(run.id)}">${esc(T.edEdit)}</button>` : "";
+const editButton = run => signedIn() && !isWr(run) ? `<button type="button" class="btn" data-edit-run="${esc(run.id)}">${esc(T.edEdit)}</button>` : "";
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-edit-run]"); if (b) openEditor(findRun(b.dataset.editRun)); });
 
 // ---------- Sign in ----------
@@ -154,7 +140,6 @@ let ED = null;   // what the form is working on
 
 function openEditor(run) {
   if (!signedIn()) return openSignIn(() => openEditor(run));
-  if (isWr(run)) return openWrEditor();
   const meta = (run && run.meta) || {};
   const nextNum = RUNS.reduce((a, r) => Math.max(a, runNum(r)), 0) + 1;
   ED = {
@@ -172,16 +157,6 @@ function openEditor(run) {
   if (run && !run.manual) { ED.deaths = derive(run).deaths.map(x => x.intentional); ED.causes = derive(run).deaths.map(x => x.cause); }
   ED.deathsStart = ED.deaths ? ED.deaths.join() : null;   // deaths are only written if a tick changes
   ED.causesStart = ED.causes ? ED.causes.join("\n") : null;   // …or a cause is changed
-  go("edit");
-}
-
-// The world record: the same files as a run, plus who ran it
-function openWrEditor() {
-  if (!signedIn()) return openSignIn(openWrEditor);
-  if (!canWr) return;
-  const meta = (WR && WR.meta) || {};
-  ED = {wr: true, run: WR, isNew: !WR, mode: "files", log: null, stats: null, ghost: null, hasLog: !!WR,
-    elytraStart: meta.elytraCm != null ? +(meta.elytraCm / 100000).toFixed(2) : null, busy: false, msg: "", msgBad: false};
   go("edit");
 }
 
@@ -206,7 +181,21 @@ function renderEditor() {
   const shotLocal = !ED.removeShot && run && !okUrl(meta.screenshot) && shotUrl(run);
   const dimName = {o: T.overworld, n: T.nether, e: T.theEnd};
   const logDate = lr ? new Date(lr.start).toLocaleDateString("en-CA") : "";
-  const files = `
+
+  el.innerHTML = `
+    <div class="head-row" style="align-items:center">
+      <h1>${esc(ED.isNew ? T.edAddRun : T.edEditRun(ED.num))}</h1>
+      <label class="fld edpick"><span class="label">${esc(T.edPickRun)}</span><select class="field" id="edPick">
+        <option value=""${ED.isNew ? " selected" : ""}>${esc(T.edNewRun)}</option>
+        ${byNumber().slice().reverse().map(r => `<option value="${esc(r.id)}"${run === r ? " selected" : ""}>${esc(runTitle(r))} · ${r.finalIgt != null ? fmt(r.finalIgt, 0) : "—"}</option>`).join("")}
+      </select></label>
+    </div>
+    <form class="card edform" id="edForm" novalidate>
+      ${ED.isNew || (run && run.manual) ? `<div class="tabs-inline" id="edModes" role="tablist">
+        <button type="button" role="tab" data-mode="files" aria-pressed="${ED.mode === "files"}">${esc(T.edModeFiles)}</button>
+        <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
+      </div>` : ""}
+      ${ED.mode === "files" ? `
       <div class="edfiles">
         <div class="edfilecard" data-drop="log">
           <b>${esc(T.edLog)}</b>
@@ -229,41 +218,7 @@ function renderEditor() {
           <button type="button" class="btn" id="edGhostBtn">${esc(T.edChooseFile)}</button>
           <input type="file" id="edGhostFile" accept=".ghost" hidden>
         </div>
-      </div>`;
-  const picker = `<label class="fld edpick"><span class="label">${esc(T.edPickRun)}</span><select class="field" id="edPick">
-        <option value=""${ED.isNew && !ED.wr ? " selected" : ""}>${esc(T.edNewRun)}</option>
-        ${canWr ? `<option value="wr"${ED.wr ? " selected" : ""}>${esc(T.edWrOption)}</option>` : ""}
-        ${byNumber().slice().reverse().map(r => `<option value="${esc(r.id)}"${run === r ? " selected" : ""}>${esc(runTitle(r))} · ${r.finalIgt != null ? fmt(r.finalIgt, 0) : "—"}</option>`).join("")}
-      </select></label>`;
-
-  el.innerHTML = `
-    <div class="head-row" style="align-items:center">
-      <h1>${esc(ED.wr ? T.edWrTitle : ED.isNew ? T.edAddRun : T.edEditRun(ED.num))}</h1>
-      ${picker}
-    </div>
-    ${ED.wr ? `<form class="card edform" id="edForm" novalidate>
-      <p class="muted" style="margin:0">${esc(T.edWrIntro(CODE))}</p>
-      ${files}
-      <div class="edgrid">
-        <label class="fld"><span class="label">${esc(T.edRunner)}</span><input class="field" type="text" id="edRunner" value="${esc(meta.runner || "")}" autocomplete="off"></label>
-        <label class="fld"><span class="label">${esc(T.edDate)}</span><input class="field" type="date" id="edDate" value="${esc(meta.date || logDate)}"></label>
-        <label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span><input class="field mono" type="text" id="edSeed" value="${esc(meta.seed || (lr && lr.seed) || "")}" autocomplete="off"></label>
-        <label class="fld"><span class="label">${esc(T.edVideoLink)}</span><input class="field" type="url" id="edVideo" value="${esc(meta.video || "")}"></label>
       </div>
-      <p class="cmp-status${ED.msgBad ? " bad" : ""}" id="edMsg" role="status" aria-live="polite">${ED.msg}</p>
-      <div class="actions">
-        ${ED.isNew ? "" : `<button type="button" class="btn danger" id="edDelete"${ED.busy ? " disabled" : ""}>${esc(T.edWrRemove)}</button>`}
-        <span style="flex:1"></span>
-        <button type="button" class="btn" id="edCancel">${esc(T.edCancel)}</button>
-        <button type="submit" class="btn primary" id="edSave"${ED.busy ? " disabled" : ""}>${esc(T.edSave)}</button>
-      </div>
-    </form>` : `<form class="card edform" id="edForm" novalidate>
-      ${ED.isNew || (run && run.manual) ? `<div class="tabs-inline" id="edModes" role="tablist">
-        <button type="button" role="tab" data-mode="files" aria-pressed="${ED.mode === "files"}">${esc(T.edModeFiles)}</button>
-        <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
-      </div>` : ""}
-      ${ED.mode === "files" ? `
-      ${files}
       ${ld && ld.category === "Invalid" ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}` : ""}
 
       <div class="edgrid">
@@ -313,7 +268,7 @@ function renderEditor() {
         <button type="button" class="btn" id="edCancel">${esc(T.edCancel)}</button>
         <button type="submit" class="btn primary" id="edSave"${ED.busy ? " disabled" : ""}>${esc(T.edSave)}</button>
       </div>
-    </form>`}`;
+    </form>`;
 
   // keep what's typed when the form redraws (after picking a file)
   const keep = () => { ED.draft = edRead(); };
@@ -330,7 +285,7 @@ function renderEditor() {
   pick("#edShotBtn", "#edShotFile", f => { keep(); if (!/^image\//.test(f.type)) return edMsg(T.edShotBad, true); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; if (ED.draft) ED.draft.shotLink = ""; renderEditor(); edRestore(); });
   if ($("#edShotRemove")) $("#edShotRemove").addEventListener("click", () => { keep(); ED.shot = null; ED.removeShot = true; renderEditor(); edRestore(); });
   el.querySelectorAll('[name="edProof"]').forEach(r => r.addEventListener("change", () => { keep(); ED.proof = r.value; renderEditor(); edRestore(); }));
-  $("#edPick").addEventListener("change", e => e.target.value === "wr" ? openWrEditor() : openEditor(e.target.value ? findRun(e.target.value) : null));
+  $("#edPick").addEventListener("change", e => openEditor(e.target.value ? findRun(e.target.value) : null));
   el.querySelectorAll("[data-death]").forEach(c => c.addEventListener("change", () => { ED.deaths[+c.dataset.death] = c.checked; }));
   el.querySelectorAll("[data-drop]").forEach(z => {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
@@ -347,12 +302,12 @@ function renderEditor() {
 function edRead() {
   const v = id => { const x = $(id); return x ? x.value.trim() : null; };
   return {num: v("#edNum"), date: v("#edDate"), seed: v("#edSeed"), video: v("#edVideo"), notes: $("#edNotes") ? $("#edNotes").value.replace(/\s+$/, "") : "",
-    time: v("#edTime"), hundred: v("#edHundred"), shotLink: v("#edShotLink"), runner: v("#edRunner")};
+    time: v("#edTime"), hundred: v("#edHundred"), shotLink: v("#edShotLink")};
 }
 function edRestore() {
   const d = ED.draft; if (!d) return;
   const set = (id, val) => { const x = $(id); if (x && val != null) x.value = val; };
-  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink); set("#edRunner", d.runner);
+  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink);
   if (d.date || !ED.log) set("#edDate", d.date);
 }
 const edMsg = (html, bad) => { ED.msg = html; ED.msgBad = !!bad; const m = $("#edMsg"); if (m) { m.innerHTML = html; m.classList.toggle("bad", !!bad); } };
@@ -381,7 +336,6 @@ async function edPickStats(file) {
 // ---------- Save ----------
 async function edSave() {
   if (ED.busy) return;
-  if (ED.wr) return edSaveWr();
   const f = edRead(), num = ED.isNew ? parseInt(f.num, 10) : ED.num;
   const err = m => edMsg(esc(m), true);
   if (!(num >= 1)) return err(T.edBadNumber);
@@ -456,33 +410,7 @@ async function edSave() {
 }
 const sortRuns = d => Object.fromEntries(Object.entries(d).sort((a, b) => Number(a[0]) - Number(b[0])));
 
-// the world record: its files in wr/ (a new log replaces the old files; a ghost or stats file from the old record wouldn't match)
-async function edSaveWr() {
-  const f = edRead(), err = m => edMsg(esc(m), true);
-  if (!ED.log && !ED.hasLog) return err(T.edNeedLog);
-  if (ED.log && !/^1\.16(\.|$)/.test(ED.log.run.mc || "")) return err(T.edWrNot116(ED.log.run.mc));
-  if (f.video && !/^https?:\/\/\S+$/i.test(f.video)) return err(T.edBadVideo);
-  ED.busy = true; $("#edSave").disabled = true; edMsg(esc(T.edSaving));
-  try {
-    const files = [];
-    if (ED.log) files.push({remove: /^wr\/wr\.(log|txt|jsonl|ghost|stats\.json)$/}, {path: "wr/wr.log", b64: await fileToB64(ED.log.file)});
-    if (ED.ghost) files.push({path: "wr/wr.ghost", b64: await fileToB64(ED.ghost)});
-    if (ED.stats) files.push({path: "wr/wr.stats.json", text: await ED.stats.file.text()});
-    const info = {};
-    for (const k of ["runner", "date", "seed", "video"]) if (f[k]) info[k] = f[k];
-    files.push({path: "wr/wr.json", text: JSON.stringify(info, null, 2) + "\n"});
-    await ghCommit(T.edCommitWr, files, CODE, "main");
-    edWrDone();
-  } catch (x) { ED.busy = false; $("#edSave").disabled = false; edMsg(esc(x.message || String(x)), true); }
-}
-
 async function edDelete() {
-  if (ED.wr) {
-    if (ED.busy || !confirm(T.edWrRemoveConfirm)) return;
-    ED.busy = true; edMsg(esc(T.edSaving));
-    try { await ghCommit(T.edCommitWrRemove, [{remove: /^wr\//}], CODE, "main"); edWrDone(); } catch (x) { ED.busy = false; edMsg(esc(x.message || String(x)), true); }
-    return;
-  }
   if (ED.busy || !confirm(T.edDeleteConfirm(ED.num))) return;
   const num = ED.num;
   ED.busy = true; edMsg(esc(T.edSaving));
@@ -495,19 +423,6 @@ async function edDelete() {
       {path: "runs.json", text: JSON.stringify(sortRuns(details), null, 2) + "\n"}];
     edDone(await ghCommit(T.edCommitDelete(num), files));
   } catch (x) { ED.busy = false; edMsg(esc(x.message || String(x)), true); }
-}
-
-// After the WR changes: rebuild this site now if the token may (the others pick it up at their daily rebuild)
-async function edWrDone() {
-  const form = $("#edForm"); if (form) form.querySelectorAll("input, textarea, select, button").forEach(x => { if (x.id !== "edCancel") x.disabled = true; });
-  if ($("#edCancel")) $("#edCancel").textContent = T.edClose;
-  try {
-    const flows = (await gh("/actions/workflows")).workflows || [];
-    const f = flows.find(w => /deploy\.yml$/.test(w.path)) || flows[0];
-    if (!f) throw new Error();
-    await gh(`/actions/workflows/${f.id}/dispatches`, {method: "POST", body: {ref: GH.branch}});
-    edMsg(esc(T.edWrSaved) + ` <a href="https://github.com/${esc(GH.full)}/actions" target="_blank" rel="noopener noreferrer">${esc(T.edSeeBuild)}</a>`);
-  } catch { edMsg(esc(T.edWrSavedLater)); }
 }
 
 // ---------- After saving: follow the site's build ----------

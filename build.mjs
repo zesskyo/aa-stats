@@ -12,8 +12,8 @@
 //   icons/<name>.png       optional: adds or replaces icons
 //
 // The world record (AA No Reset, 1.16) is the same for every site, so it lives here with the code, in wr/:
-//   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video}.
-// Sites rebuild every day, so a new record shows up on all of them by the next day.
+//   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video, notes}.
+// Sites rebuild every day, so a new record shows up on all of them by the next day. It's changed here only (not from the sites).
 //
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
 import fs from "node:fs";
@@ -155,7 +155,7 @@ if (wrLog) {
   r.id = "wr-" + runKey(r);
   const d = fs.existsSync(inWr("wr.json")) ? JSON.parse(read(inWr("wr.json"))) : {};
   const meta = {wr: true};
-  for (const k of ["runner", "date", "seed", "video"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]).slice(0, 200);
+  for (const k of ["runner", "date", "seed", "video", "notes"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]).slice(0, 2000);
   if (!meta.seed && r.seed) meta.seed = String(r.seed);
   if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error("wr/wr.json: date must look like 2026-09-22");
   if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error("wr/wr.json: video must start with http:// or https://");
@@ -193,12 +193,7 @@ const head = `<meta charset="utf-8">
 `;
 // Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
-// …and which repository the code is in (where the world record is kept)
-const codeRepo = (() => {
-  try { const m = /url\s*=\s*\S*github\.com[/:]([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?\s*$/m.exec(read(inCode(".git/config"))); if (m) return m[1]; } catch {}
-  return "zesskyo/aa-stats";
-})();
-const json = JSON.stringify({runs: out, wr, icons, text, repo, codeRepo}).replace(/</g, "\\u003c");
+const json = JSON.stringify({runs: out, wr, icons, text, repo}).replace(/</g, "\\u003c");
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);

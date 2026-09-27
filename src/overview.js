@@ -10,14 +10,12 @@ function renderOverview() {
   const sumOfBest = sobParts.every(Boolean) ? sobParts.reduce((a, b) => a + b.dur, 0) : null;
   const totalPlay = RUNS.reduce((a, r) => a + (r.finalIgt || 0), 0);
   const avgTime = average(valid.map(r => r.finalIgt));
-  // the world record next to the PB, with how far apart they are
-  const gap = pb && WR && WR.finalIgt != null ? pb.finalIgt - WR.finalIgt : null;
+  // the world record, on the right
   const wrCol = WR && WR.finalIgt != null ? `
-      <div class="pbcol">
+      <div class="pbcol wrcol">
         <span class="label">${esc(T.wr)}</span>
         <span class="big wrtime">${runTime(WR)}</span>
-        <button type="button" class="linkbtn" style="align-self:flex-start;padding:0" data-open="${esc(WR.id)}">${esc(WR.meta.runner || T.wrWord)}</button>
-        ${gap != null ? `<span class="note">${esc(gap > 0 ? T.pbBehind(fmt(gap, 0)) : T.pbAhead(fmt(-gap, 0)))}</span>` : ""}
+        <button type="button" class="linkbtn" style="padding:0" data-open="${esc(WR.id)}">${esc(WR.meta.runner || T.wrWord)}</button>
       </div>` : "";
   $("#pbCard").innerHTML = pb ? `
     <div class="pbrow">

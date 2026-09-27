@@ -10,7 +10,6 @@ function renderRunPage() {
   state.runId = run.id;
   const d = derive(run), meta = run.meta || {};
 
-  travelFollow = null; progressCtl = null;
   if (run.manual) return renderManualRun(el, run, d);
   el.innerHTML = `
     <div class="pagerwrap">${pager(run)}</div>

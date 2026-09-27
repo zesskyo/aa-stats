@@ -21,7 +21,6 @@ const progressCardShell = () => `
   </section>`;
 
 let chartKeys = null, fsResize = null;   // keyboard shortcuts and resize handler for the current run
-let progressCtl = null;                   // lets the travel map draw the hover line on this graph
 
 // Everything the graph shows for one run: lines, icons, deaths, thunder, riptide, split colours and hover text.
 // The Compare page uses this too, so a run looks the same there.
@@ -107,7 +106,7 @@ function drawProgress(run, d) {
     if (state.zoom) $("#zReset").addEventListener("click", () => { state.zoom = null; draw(); });
     const shared = {xmin: za, xmaxFix: zb, fitY: !!state.zoom, W, onBrush: setZoom,
       onWheel: (t, f) => { const [a, b] = current(); setZoom(t - (t - a) * f, t + (b - t) * f); }, wheelActive: () => card.classList.contains("fs")};
-    progressCtl = mountProgress(pp, box, rbox, shared, Htop, Hres, t => { if (travelFollow) travelFollow(t); });
+    mountProgress(pp, box, rbox, shared, Htop, Hres);
   }
   draw();
 

@@ -99,7 +99,15 @@ function seedWorld(run) {
         const cx = c.getContext("2d"), img = cx.createImageData(TILE, TILE);
         res.ids.forEach((id, i) => { const col = rgb[id]; if (col) { img.data[i * 4] = col[0]; img.data[i * 4 + 1] = col[1]; img.data[i * 4 + 2] = col[2]; img.data[i * 4 + 3] = 255; } });
         cx.putImageData(img, 0, 0);
-        tiles.set(k, {canvas: c, ids: res.ids}); wanted.delete(k);
+        // the faded copy: mostly grey and lighter, with a hint of the colour
+        const f = document.createElement("canvas"); f.width = f.height = TILE;
+        const fx = f.getContext("2d"), fd = fx.createImageData(TILE, TILE);
+        for (let i = 0; i < img.data.length; i += 4) {
+          const [r, g, b, a] = [img.data[i], img.data[i + 1], img.data[i + 2], img.data[i + 3]], l = .3 * r + .59 * g + .11 * b, v = l * .55 + 255 * .45;
+          fd.data[i] = r * .15 + v * .85; fd.data[i + 1] = g * .15 + v * .85; fd.data[i + 2] = b * .15 + v * .85; fd.data[i + 3] = a;
+        }
+        fx.putImageData(fd, 0, 0);
+        tiles.set(k, {canvas: c, faded: f, ids: res.ids}); wanted.delete(k);
         if (world.onReady) world.onReady();
       })).catch(() => { world.failed = true; if (world.onReady) world.onReady(); });
       return null;

@@ -3,12 +3,11 @@
  * build.mjs turns logs/<N>.ghost into paths/<N>.json (columns t, d, x, z, y, h — see ghost.mjs); this draws it:
  * one map per dimension with the path as a single line, the same icons as the progress graph where things
  * happened (deaths, thunder, riptide, trident, nautilus shells, the god apple, portals), the player's head,
- * and a timeline (dimensions coloured like the progress graph) that moves together with the progress graph.
+ * and a timeline with the dimensions coloured like the progress graph.
  * With the run's seed, the world's biomes and structures are drawn underneath (see seed-map.js): bright near
  * where the player has been so far, faded everywhere else.
  */
 const travelCache = {};             // run id -> loaded path
-let travelFollow = null;            // the progress graph calls this with the time under the mouse
 let travelResize = null;
 const TRAVEL_SEEN = 512;            // blocks around the path shown as "explored" (32 chunks: maximum render distance)
 const TRAVEL_NEAR = 64;             // a structure this close to the path counts as one the player went to
@@ -118,23 +117,28 @@ function travelMount(run, d, P, body) {
   let dim = "o", t = endT, view = null, playing = false, hot = [];
   const pct = v => (Math.max(0, Math.min(1, v / endT)) * 100).toFixed(3) + "%";
   const dimSegs = run.dims.map((x, i) => [x[0], (run.dims[i + 1] || [endT])[0], x[1]]).filter(s => s[1] > s[0]);
-  const SPEEDS = [10, 60, 300, 1000];   // run time per real second
-  let speed = 300;
+  const BASE = 60;   // playing at 1×: one minute of the run per second; fast forward / rewind double it each press
+  let rate = 0;      // 0 = paused, negative = rewinding
+  const hours = []; for (let h = 3600000; h < endT; h += 3600000) hours.push(h);
   body.innerHTML = `
     <div class="tvtop"><div class="tabs-inline" id="tvTabs">${"one".split("").filter(k => P.pieces[k].length).map(k => `<button type="button" data-d="${k}">${esc(DIMS[k])}</button>`).join("")}</div></div>
     <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><div class="tip" id="tvTip"></div><span class="tvhover mono" id="tvHover"></span>
       <div class="tvover"><span class="mono" id="tvWhere"></span></div></div>
     <div class="tvtl">
-      <button type="button" class="tvplay" id="tvPlay" aria-label="${esc(T.travelPlay)}"></button>
+      <div class="tvctl">
+        <button type="button" class="tvbtn" id="tvRw" aria-label="${esc(T.travelRewind)}" title="${esc(T.travelRewind)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 6v12L2.5 12zM21 6v12l-8.5-6z"/></svg></button>
+        <button type="button" class="tvplay" id="tvPlay" aria-label="${esc(T.travelPlay)}"></button>
+        <button type="button" class="tvbtn" id="tvFf" aria-label="${esc(T.travelForward)}" title="${esc(T.travelForward)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 6v12l8.5-6zM3 6v12l8.5-6z"/></svg></button>
+        <span class="tvrate mono" id="tvRate"></span>
+      </div>
       <div class="tvtrack" id="tvTrack" role="slider" tabindex="0" aria-label="${esc(T.travelTitle)}" aria-valuemin="0" aria-valuemax="${endT}">
         <div class="tvmarks">${events.filter(e => e.icon).map(e => `<span style="left:${pct(e.t)}"${e.faded ? ' class="faded"' : ""}>${eventIcon(e)}</span>`).join("")}</div>
-        <div class="tvstrip">${dimSegs.map(s => `<i class="${s[2] === "n" ? "c-ne" : s[2] === "e" ? "c-en" : "c-ow"}" style="left:${pct(s[0])};width:${pct(s[1] - s[0])}"></i>`).join("")}<b class="tvlater" id="tvLater"></b></div>
+        <div class="tvstrip">${dimSegs.map(s => `<i class="${s[2] === "n" ? "c-ne" : s[2] === "e" ? "c-en" : "c-ow"}" style="left:${pct(s[0])};width:${pct(s[1] - s[0])}"></i>`).join("")}${hours.map(h => `<u style="left:${pct(h)}"></u>`).join("")}<b class="tvlater" id="tvLater"></b></div>
         <div class="tvhead" id="tvHead"><span class="mono" id="tvNow"></span></div>
+        <span class="tvpeek mono" id="tvPeek"></span>
       </div>
       <span class="mono muted tvend">${fmt(endT, 0)}</span>
-      <div class="tvspeed" role="group" aria-label="${esc(T.travelSpeed)}">${SPEEDS.map(s => `<button type="button" data-speed="${s}" aria-pressed="${s === speed}">${s}×</button>`).join("")}</div>
-    </div>
-    <div class="keys"><span>${esc(T.travelKeys)}</span></div>`;
+    </div>`;
 
   const cv = $("#tvCanvas"), ctx = cv.getContext("2d"), tip = $("#tvTip");
   const mask = document.createElement("canvas"), mctx = mask.getContext("2d");
@@ -189,7 +193,7 @@ function travelMount(run, d, P, body) {
   // biomes: tiles at the detail that suits the zoom (coarser ones underneath while those are worked out)
   const SCALES = [4, 16, 64, 256];
   const bioScale = () => SCALES.find(s => s * view.s >= 1) || 256;
-  function drawTiles(c, request) {
+  function drawTiles(c, request, faded) {
     const r = box(), want = bioScale(), [x0, z0] = toW(0, 0), [x1, z1] = toW(r.width, r.height), keys = new Set();
     c.imageSmoothingEnabled = false;
     for (const s of SCALES.filter(s => s >= want).reverse()) {
@@ -197,20 +201,21 @@ function travelMount(run, d, P, body) {
       for (let tx = Math.floor(x0 / span); tx <= Math.floor(x1 / span); tx++) for (let tz = Math.floor(z0 / span); tz <= Math.floor(z1 / span); tz++) {
         if (s === want) keys.add(`${dim}|${s}|${tx}|${tz}`);
         const tl = s === want && request ? world.tile(dim, s, tx, tz) : world.peek(dim, s, tx, tz);
-        if (tl) { const [sx, sz] = toS(tx * span, tz * span); c.drawImage(tl.canvas, sx, sz, span * view.s + .5, span * view.s + .5); }
+        if (tl) { const [sx, sz] = toS(tx * span, tz * span); c.drawImage(faded ? tl.faded : tl.canvas, sx, sz, span * view.s + .5, span * view.s + .5); }
       }
     }
     if (request) world.keepOnly(keys);
   }
   function drawBiomes(pth) {
     const r = box();
-    // everywhere: faded
-    ctx.globalAlpha = .55; drawTiles(ctx, true); ctx.globalAlpha = 1;
+    // everywhere: faded (a greyed copy)
+    drawTiles(ctx, true, true);
     // around the path so far: clear (a thick copy of the path, filled in with the biomes)
     mctx.save(); mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.clearRect(0, 0, mask.width, mask.height); mctx.restore();
-    mctx.globalCompositeOperation = "source-over"; mctx.lineCap = mctx.lineJoin = "round";
+    mctx.globalCompositeOperation = "source-over"; drawTiles(mctx, false);
+    mctx.globalCompositeOperation = "destination-in"; mctx.lineCap = mctx.lineJoin = "round";   // keep them only along the path
     mctx.strokeStyle = "#000"; mctx.lineWidth = Math.max(8, TRAVEL_SEEN * 2 * view.s); mctx.stroke(pth);
-    mctx.globalCompositeOperation = "source-in"; drawTiles(mctx, false); mctx.globalCompositeOperation = "source-over";
+    mctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1; ctx.drawImage(mask, 0, 0, r.width, r.height);
   }
   const biomeAt = (x, z) => {
@@ -299,9 +304,7 @@ function travelMount(run, d, P, body) {
   const setT = (v, from) => {
     t = Math.max(0, Math.min(endT, v));
     const p = travelAt(P, t); if (p[1] !== dim) setDim(p[1], true); else draw();
-    if (from !== "graph" && progressCtl) progressCtl.showLine(t);
   };
-  travelFollow = v => { if (v != null && !playing && card.isConnected) setT(v, "graph"); };
   // the timeline: click or drag to move through the run; arrow keys step a minute
   const track = $("#tvTrack");
   const fromX = ev => { const r = track.getBoundingClientRect(); return (ev.clientX - r.left) / r.width * endT; };
@@ -315,25 +318,30 @@ function travelMount(run, d, P, body) {
     else if (e.key === "Home") setT(0); else if (e.key === "End") setT(endT); else return;
     e.preventDefault();
   });
+  // hovering the timeline shows the time there
+  track.addEventListener("pointermove", ev => { const v = Math.max(0, Math.min(endT, fromX(ev))), pk = $("#tvPeek"); pk.textContent = fmt(v, 0); pk.style.left = pct(v); pk.style.display = "block"; });
+  track.addEventListener("pointerleave", () => { $("#tvPeek").style.display = "none"; });
+  // play / pause, fast forward and rewind (each press doubles the speed, up to 32×)
   let last = 0;
   const tick = now => {
-    if (!playing || !card.isConnected) return;
+    if (!rate || !card.isConnected) return;
     const dt = last ? now - last : 0; last = now;
-    setT(t + dt * speed);
-    if (t >= endT) return stop();
+    setT(t + dt * BASE * rate);
+    if ((rate > 0 && t >= endT) || (rate < 0 && t <= 0)) return stop();
     requestAnimationFrame(tick);
   };
   const playIcon = on => `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${on ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>' : '<path d="M8 5v14l11-7z"/>'}</svg>`;
-  const stop = () => { playing = false; $("#tvPlay").innerHTML = playIcon(false); $("#tvPlay").setAttribute("aria-label", T.travelPlay); };
-  $("#tvPlay").innerHTML = playIcon(false);
-  $("#tvPlay").addEventListener("click", () => {
-    if (playing) return stop();
-    playing = true; last = 0; if (t >= endT) t = 0;
-    $("#tvPlay").innerHTML = playIcon(true); $("#tvPlay").setAttribute("aria-label", T.travelPause); requestAnimationFrame(tick);
-  });
-  body.querySelectorAll("[data-speed]").forEach(b => b.addEventListener("click", () => {
-    speed = +b.dataset.speed; body.querySelectorAll("[data-speed]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-  }));
+  const show = () => {
+    playing = rate !== 0;
+    $("#tvPlay").innerHTML = playIcon(playing); $("#tvPlay").setAttribute("aria-label", playing ? T.travelPause : T.travelPlay);
+    $("#tvRate").textContent = rate && Math.abs(rate) !== 1 ? (rate < 0 ? "−" : "") + Math.abs(rate) + "×" : "";
+  };
+  const runAt = r => { const was = rate; rate = r; show(); if (!was) { last = 0; requestAnimationFrame(tick); } };
+  const stop = () => { rate = 0; show(); };
+  show();
+  $("#tvPlay").addEventListener("click", () => { if (rate) return stop(); if (t >= endT) t = 0; runAt(1); });
+  $("#tvFf").addEventListener("click", () => { if (t >= endT) t = 0; runAt(rate > 0 ? Math.min(rate * 2, 32) : 2); });
+  $("#tvRw").addEventListener("click", () => { if (t <= 0) t = endT; runAt(rate < 0 ? Math.max(rate * 2, -32) : -2); });
   $("#tvTabs").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) setDim(b.dataset.d, true); });
 
   // ---------- hover, drag, zoom ----------

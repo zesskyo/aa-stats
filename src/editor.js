@@ -144,8 +144,9 @@ function openEditor(run) {
   const nextNum = RUNS.reduce((a, r) => Math.max(a, runNum(r)), 0) + 1;
   ED = {
     run, num: run ? runNum(run) : nextNum, isNew: !run,
+    mode: run && run.manual ? "manual" : "files",   // "files": everything read from the files; "manual": typed in
     log: null,                              // {file, run} when a log was picked
-    keepLog: true,
+    stats: null,                            // {file, km} when the world's stats file was picked
     hasLog: !!(run && !run.manual),         // the run already has a log on the site
     proof: meta.screenshot ? "shot" : "video",   // a run has a video or a screenshot, never both
     shot: null, removeShot: false,          // new screenshot file / remove the current one
@@ -176,10 +177,8 @@ function renderEditor() {
   const lr = ED.log && ED.log.run, ld = lr ? derive(lr) : null;
   const {list: deaths} = edDeaths();
   if (!ED.deaths || ED.deaths.length !== deaths.length) ED.deaths = deaths.map(x => x.intentional);
-  if (!ED.causes || ED.causes.length !== deaths.length) ED.causes = deaths.map(x => x.cause);
   // the screenshot already uploaded to the site (a link is shown in its own box instead)
   const shotLocal = !ED.removeShot && run && !okUrl(meta.screenshot) && shotUrl(run);
-  const splitVal = i => meta.splits && meta.splits[i] != null ? tIn(meta.splits[i]) : "";
   const dimName = {o: T.overworld, n: T.nether, e: T.theEnd};
   const logDate = lr ? new Date(lr.start).toLocaleDateString("en-CA") : "";
 
@@ -192,56 +191,55 @@ function renderEditor() {
       </select></label>
     </div>
     <form class="card edform" id="edForm" novalidate>
+      ${ED.isNew || (run && run.manual) ? `<div class="tabs-inline" id="edModes" role="tablist">
+        <button type="button" role="tab" data-mode="files" aria-pressed="${ED.mode === "files"}">${esc(T.edModeFiles)}</button>
+        <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
+      </div>` : ""}
+      ${ED.mode === "files" ? `
+      <div class="edfiles">
+        <div class="edfilecard" data-drop="log">
+          <b>${esc(T.edLog)}</b>
+          <span class="note">${esc(T.edFileWhere)} <code>${esc(T.edWhereLog)}</code></span>
+          <span class="note edstatus">${ED.log ? esc(ED.log.file.name) + " · " + esc(T.edLogRead(fmt(lr.finalIgt), ld.category, lr.deaths.length)) : ED.hasLog ? esc(T.edOnSite) : esc(T.edNeeded)}</span>
+          <button type="button" class="btn" id="edLogBtn">${esc(T.edChooseFile)}</button>
+          <input type="file" id="edLogFile" accept=".log,.txt,.jsonl" hidden>
+        </div>
+        <div class="edfilecard" data-drop="stats">
+          <b>${esc(T.edStats)}</b>
+          <span class="note">${esc(T.edFileWhere)} <code>${esc(T.edWhereStats)}</code></span>
+          <span class="note edstatus">${ED.stats ? esc(ED.stats.file.name) + " · " + esc(T.edStatsRead(ED.stats.km)) : ED.elytraStart != null ? esc(T.edStatsRead(ED.elytraStart.toFixed(1))) : esc(T.edOptional)}</span>
+          <button type="button" class="btn" id="edStatsBtn">${esc(T.edChooseFile)}</button>
+          <input type="file" id="edStatsFile" accept=".json" hidden>
+        </div>
+        <div class="edfilecard" data-drop="ghost">
+          <b>${esc(T.edGhost)}</b>
+          <span class="note">${esc(T.edFileWhere)} <code>${esc(T.edWhereGhost)}</code></span>
+          <span class="note edstatus">${ED.ghost ? esc(ED.ghost.name) : run && meta.path ? esc(T.edOnSite) : esc(T.edOptional)}</span>
+          <button type="button" class="btn" id="edGhostBtn">${esc(T.edChooseFile)}</button>
+          <input type="file" id="edGhostFile" accept=".ghost" hidden>
+        </div>
+      </div>
+      ${ld && ld.category === "Invalid" ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}` : ""}
+
       <div class="edgrid">
         <label class="fld"><span class="label">${esc(T.edRunNumber)}</span>
           <input class="field mono" type="number" min="1" step="1" id="edNum" value="${esc(ED.num)}"${ED.isNew ? "" : " disabled"}></label>
+        ${ED.mode === "manual" ? `<label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run && run.manual ? tIn(run.finalIgt) : "")}"></label>
+        <label class="fld"><span class="label">${esc(T.colHundred)}</span><select class="field" id="edHundred">
+          <option value="yes"${meta.hundred === true ? " selected" : ""}>${esc(T.hundredYes)}</option>
+          <option value="no"${meta.hundred !== true ? " selected" : ""}>${esc(T.hundredNo)}</option></select></label>` : ""}
         <label class="fld"><span class="label">${esc(T.edDate)}</span>
           <input class="field" type="date" id="edDate" value="${esc(meta.date || logDate)}"></label>
         <label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span>
-          <input class="field mono" type="text" id="edSeed" value="${esc(meta.seed || "")}" autocomplete="off"></label>
+          <input class="field mono" type="text" id="edSeed" value="${esc(meta.seed || (lr && lr.seed) || "")}" autocomplete="off"></label>
       </div>
 
-      <fieldset class="edsec"><legend>${esc(T.edLog)}</legend>
-        <div class="edfile" data-drop="log">
-          <button type="button" class="btn" id="edLogBtn">${esc(ED.log ? T.edLogReplace : withLog ? T.edLogReplace : T.edLogPick)}</button>
-          <span class="note">${ED.log ? esc(ED.log.file.name) + " · " + esc(T.edLogRead(fmt(lr.finalIgt), ld.category, lr.deaths.length))
-            : ED.hasLog ? esc(T.edLogOnSite) : esc(T.edLogNone)}</span>
-          <input type="file" id="edLogFile" accept=".log,.txt,.jsonl" hidden>
-        </div>
-        ${ld && ld.category === "Invalid" ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
-        ${ED.log ? `<label class="check"><input type="checkbox" id="edKeep"${ED.keepLog || ED.ghost ? " checked" : ""}${ED.ghost ? " disabled" : ""}> ${esc(T.edKeepLog)}</label>` : ""}
-        ${withLog ? `<div class="edfile" data-drop="ghost">
-          <button type="button" class="btn" id="edGhostBtn">${esc(ED.ghost || (run && meta.path) ? T.edGhostReplace : T.edGhostPick)}</button>
-          <span class="note">${ED.ghost ? esc(ED.ghost.name) + " · " + esc(T.edGhostNote) : run && meta.path ? esc(T.edGhostOnSite) : esc(T.edGhostWhat)}</span>
-          <input type="file" id="edGhostFile" accept=".ghost" hidden>
-        </div>` : ""}
-      </fieldset>
-
-      ${withLog ? "" : `<fieldset class="edsec"><legend>${esc(T.edNoLogDetails)}</legend>
-        <div class="edgrid">
-          <label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run ? tIn(run.finalIgt) : "")}"></label>
-          <label class="fld"><span class="label">${esc(T.colHundred)}</span><select class="field" id="edHundred">
-            <option value="yes"${meta.hundred === true ? " selected" : ""}>${esc(T.hundredYes)}</option>
-            <option value="no"${meta.hundred !== true ? " selected" : ""}>${esc(T.hundredNo)}</option></select></label>
-          ${SPLIT_CARDS.map(i => `<label class="fld"><span class="label">${esc(SPLITS[i].name)}</span><input class="field mono" type="text" data-split="${i}" value="${esc(splitVal(i))}"></label>`).join("")}
-        </div>
-      </fieldset>`}
-
-      ${deaths.length ? `<fieldset class="edsec"><legend>${esc(T.edDeaths)}</legend>
+      ${ED.mode === "files" && deaths.length ? `<fieldset class="edsec"><legend>${esc(T.edDeaths)}</legend>
         <p class="note" style="margin:0 0 6px">${esc(T.edDeathsNote)}</p>
         ${deaths.map((x, k) => `<div class="eddeath">
           <label class="check"><input type="checkbox" data-death="${k}"${ED.deaths[k] ? " checked" : ""}> ${esc(T.deathLabel)} · <span class="mono">${fmt(x.t, 0)}</span> · ${esc(dimName[x.dim] || "")}</label>
         </div>`).join("")}
       </fieldset>` : ""}
-
-      <fieldset class="edsec"><legend>${esc(T.statElytra)}</legend>
-        <div class="edfile">
-          <input class="field mono" type="number" min="0" step="0.1" id="edElytra" value="${esc(ED.elytraStart ?? "")}" style="max-width:140px">
-          <span class="note">km</span>
-          <button type="button" class="btn" id="edStatsBtn">${esc(T.edStatsPick)}</button>
-          <input type="file" id="edStatsFile" accept=".json" hidden>
-        </div>
-      </fieldset>
 
       <fieldset class="edsec"><legend>${esc(T.edProof)}</legend>
         <div class="edradio" role="radiogroup" aria-label="${esc(T.edProof)}">
@@ -279,20 +277,21 @@ function renderEditor() {
     $(btn).addEventListener("click", () => $(input).click());
     $(input).addEventListener("change", e => { const f = e.target.files[0]; if (f) onFile(f); });
   };
+  const pickGhost = f => { keep(); if (f.size < 46 || f.size % 46) return edMsg(esc(T.edGhostBad), true); ED.ghost = f; renderEditor(); edRestore(); };
   pick("#edLogBtn", "#edLogFile", edPickLog);
   pick("#edStatsBtn", "#edStatsFile", edPickStats);
-  pick("#edGhostBtn", "#edGhostFile", f => { keep(); if (f.size < 46 || f.size % 46) return edMsg(esc(T.edGhostBad), true); ED.ghost = f; renderEditor(); edRestore(); });
+  pick("#edGhostBtn", "#edGhostFile", pickGhost);
+  if ($("#edModes")) $("#edModes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (!b || b.dataset.mode === ED.mode) return; keep(); ED.mode = b.dataset.mode; renderEditor(); edRestore(); });
   pick("#edShotBtn", "#edShotFile", f => { keep(); if (!/^image\//.test(f.type)) return edMsg(T.edShotBad, true); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; if (ED.draft) ED.draft.shotLink = ""; renderEditor(); edRestore(); });
   if ($("#edShotRemove")) $("#edShotRemove").addEventListener("click", () => { keep(); ED.shot = null; ED.removeShot = true; renderEditor(); edRestore(); });
   el.querySelectorAll('[name="edProof"]').forEach(r => r.addEventListener("change", () => { keep(); ED.proof = r.value; renderEditor(); edRestore(); }));
   $("#edPick").addEventListener("change", e => openEditor(e.target.value ? findRun(e.target.value) : null));
-  if ($("#edKeep")) $("#edKeep").addEventListener("change", e => { ED.keepLog = e.target.checked; });
   el.querySelectorAll("[data-death]").forEach(c => c.addEventListener("change", () => { ED.deaths[+c.dataset.death] = c.checked; }));
   el.querySelectorAll("[data-drop]").forEach(z => {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
     z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over"); const f = e.dataTransfer.files[0]; if (!f) return;
-      if (z.dataset.drop === "log") edPickLog(f); else if (z.dataset.drop === "ghost") { keep(); if (f.size < 46 || f.size % 46) return edMsg(esc(T.edGhostBad), true); ED.ghost = f; renderEditor(); edRestore(); } else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); } });
+      if (z.dataset.drop === "log") edPickLog(f); else if (z.dataset.drop === "ghost") pickGhost(f); else if (z.dataset.drop === "stats") edPickStats(f); else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); } });
   });
   $("#edCancel").addEventListener("click", () => { const r = ED.run; ED = null; r ? go("run", r.id) : go("runs"); });
   $("#edForm").addEventListener("submit", e => { e.preventDefault(); edSave(); });
@@ -303,15 +302,13 @@ function renderEditor() {
 function edRead() {
   const v = id => { const x = $(id); return x ? x.value.trim() : null; };
   return {num: v("#edNum"), date: v("#edDate"), seed: v("#edSeed"), video: v("#edVideo"), notes: $("#edNotes") ? $("#edNotes").value.replace(/\s+$/, "") : "",
-    time: v("#edTime"), hundred: v("#edHundred"), elytra: v("#edElytra"), shotLink: v("#edShotLink"),
-    splits: [...document.querySelectorAll("[data-split]")].map(x => [+x.dataset.split, x.value.trim()])};
+    time: v("#edTime"), hundred: v("#edHundred"), shotLink: v("#edShotLink")};
 }
 function edRestore() {
   const d = ED.draft; if (!d) return;
   const set = (id, val) => { const x = $(id); if (x && val != null) x.value = val; };
-  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edElytra", d.elytra); set("#edShotLink", d.shotLink);
+  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink);
   if (d.date || !ED.log) set("#edDate", d.date);
-  d.splits.forEach(([i, val]) => { const x = document.querySelector(`[data-split="${i}"]`); if (x) x.value = val; });
 }
 const edMsg = (html, bad) => { ED.msg = html; ED.msgBad = !!bad; const m = $("#edMsg"); if (m) { m.innerHTML = html; m.classList.toggle("bad", !!bad); } };
 
@@ -328,10 +325,11 @@ async function edPickLog(file) {
   } catch (e) { edMsg(esc(e.message || String(e)), true); }
 }
 async function edPickStats(file) {
+  ED.draft = edRead();
   try {
     const cm = ((JSON.parse(await file.text()).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
     if (cm == null) throw new Error(T.edStatsNone);
-    $("#edElytra").value = (cm / 100000).toFixed(1); edMsg("");
+    ED.stats = {file, km: (cm / 100000).toFixed(1)}; ED.msg = ""; renderEditor(); edRestore();
   } catch (e) { edMsg(esc(e.message || T.edStatsNone), true); }
 }
 
@@ -345,11 +343,9 @@ async function edSave() {
   const isLink = s => /^https?:\/\/\S+$/i.test(s);
   if (ED.proof === "video" && f.video && !isLink(f.video)) return err(T.edBadVideo);
   if (ED.proof === "shot" && f.shotLink && !isLink(f.shotLink)) return err(T.edBadShotLink);
-  const withLog = !!ED.log || ED.hasLog;
-  const timeOk = s => !s || /^(\d+:)?\d{1,2}:\d{2}(\.\d{1,3})?$/.test(s);
-  if (!withLog && !timeOk(f.time)) return err(T.edBadTime(T.timeLabel));
-  for (const [i, s] of f.splits) if (!timeOk(s)) return err(T.edBadTime(SPLITS[i].name));
-  if (f.elytra && !(+f.elytra >= 0)) return err(T.edBadElytra);
+  const withLog = ED.mode === "files";
+  if (withLog && !ED.log && !ED.hasLog) return err(T.edNeedLog);
+  if (!withLog && f.time && !/^(\d+:)?\d{1,2}:\d{2}(\.\d{1,3})?$/.test(f.time)) return err(T.edBadTime(T.timeLabel));
 
   ED.busy = true; $("#edSave").disabled = true; edMsg(esc(T.edSaving));
   try {
@@ -364,8 +360,6 @@ async function edSave() {
     else {
       put("time", f.time);
       put("hundred", f.hundred === "yes");
-      const sp = {}; f.splits.forEach(([i, s]) => { if (s) sp[SPLITS[i].name] = s; });
-      put("splits", Object.keys(sp).length ? sp : null);
     }
 
     // deaths (if a tick changed or there's a new log): only write the ones that differ from the usual rule
@@ -377,17 +371,12 @@ async function edSave() {
       put("intentionalDeaths", on.length ? on : null); put("notIntentionalDeaths", off.length ? off : null);
     }
 
-    // elytra distance (only if it was changed here)
-    const ely = f.elytra === "" ? null : Math.round(+f.elytra * 100) / 100;
-    if (ely !== ED.elytraStart) put("elytraKm", ely);
+    // the world's stats file (elytra distance comes from it)
+    if (ED.stats) { files.push({path: `logs/${num}.stats.json`, text: await ED.stats.file.text()}); delete e.elytraKm; }
 
-    // the log
-    // the ghost file (travel map); it's lined up with the log, so the log is kept too
+    // the files: the log (always kept whole, so future site updates can read it again) and the ghost file
+    if (ED.log) files.push({path: `logs/${num}.log`, b64: await fileToB64(ED.log.file)}, {remove: `runs/${num}.json`});
     if (ED.ghost) files.push({path: `logs/${num}.ghost`, b64: await fileToB64(ED.ghost)});
-    if (ED.log) {
-      if (ED.keepLog || ED.ghost) { files.push({path: `logs/${num}.log`, b64: await fileToB64(ED.log.file)}, {remove: `runs/${num}.json`}); }
-      else { files.push({path: `runs/${num}.json`, text: JSON.stringify(encodeRun(ED.log.run))}, {remove: `logs/${num}.log`}); }
-    }
 
     // proof: a video or a screenshot (a link, or an image uploaded next to the site), never both
     const oldShot = typeof e.screenshot === "string" && !/^https?:/i.test(e.screenshot) ? e.screenshot : null;

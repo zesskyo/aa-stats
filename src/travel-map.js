@@ -170,11 +170,19 @@ function travelMount(run, d, P, body) {
     view.cx = Math.min(bounds.x1 + hw * .5, Math.max(bounds.x0 - hw * .5, view.cx));
     view.cz = Math.min(bounds.z1 + hh * .5, Math.max(bounds.z0 - hh * .5, view.cz));
   };
+  // each dimension keeps its own view; one not seen yet keeps the current zoom, centred on the player
+  const views = {};
   function setDim(k, refit) {
     if (!P.pieces[k].length) return;
+    const prev = view; if (prev) views[dim] = {...prev};
     dim = k;
     $("#tvTabs").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.d === k)));
-    if (refit) fit();
+    if (refit) {
+      fit();
+      if (views[k]) view = {...views[k]};
+      else if (prev) { const p = travelAt(P, t); view.s = prev.s; if (p[1] === k) { view.cx = p[2]; view.cz = p[3]; } }
+      clampView();
+    }
     draw();
   }
 
@@ -250,7 +258,7 @@ function travelMount(run, d, P, body) {
       for (const [x, z] of pts) {
         const [sx, sz] = toS(x, z); if (sx < -14 || sz < -14 || sx > r.width + 14 || sz > r.height + 14) continue;
         if (!zoomedIn && !nearBy(dim, x, z, t)) continue;
-        ctx.globalAlpha = seenBy(dim, x, z, t) ? 1 : .5;
+        ctx.globalAlpha = seenBy(dim, x, z, t) ? 1 : .75;
         const im = travelIcon("st_" + kind);
         if (im) { ctx.imageSmoothingQuality = "high"; ctx.drawImage(im, sx - 11, sz - 11, 22, 22); }
         else {

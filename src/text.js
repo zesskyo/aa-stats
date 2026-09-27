@@ -217,7 +217,7 @@ const T = {
   // How a death happened (see deathCause in parse-log.js)
   deathCause: c => !c ? "Died" : c.startsWith("mob:") ? "Killed by " + titleCase(c.slice(4).replace(/_/g, " ")) :
     ({fire: "Burned to death", lava: "Died in lava", void: "Fell out of the world", impact: "Fall or explosion"})[c] || c,
-  thunderMarker: "Thunder! (Very Very Frightening)",
+  thunderMarker: "Thunder",
   riptideMarker: (uses, dur) => `Riptide · ${uses} uses · ${dur}`,
   hoverRiptide: "Riptide",
   multiComplete: name => `${name} complete`,

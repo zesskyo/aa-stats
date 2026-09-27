@@ -8,12 +8,14 @@
  *   deaths  – [igt, dimension, cause] (cause: see deathCause below)
  *   st      – timelines of stats (TNT used, debris mined, skulls picked up, gold blocks held, …)
  *   tot     – final totals (creepers killed, shulker boxes opened, …)
+ *   clock   – [real time (ms), igt] several times a second, to line up other recordings (the ghost file) with the run.
+ *             Only build.mjs uses it; it isn't stored.
  */
 function parseLog(text, filename) {
   let start = null, player = null, mc = null, dim = "o";
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
-  const tot = {};
+  const tot = {}, clock = [];
   const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0;
   let killedBy = null; const hits = [];   // for working out how each death happened
   const TRACK = {
@@ -32,6 +34,11 @@ function parseLog(text, filename) {
   };
   for (const line of text.split("\n")) {
     if (!line) continue;
+    // clock: real time and IGT from any kind of line (cheap: no JSON parsing), a few times a second
+    if (line.startsWith('{"time":')) {
+      const w = parseInt(line.slice(8), 10), gi = line.lastIndexOf('"igt":');
+      if (gi > 0 && (!clock.length || w - clock[clock.length - 1][0] >= 250)) clock.push([w, parseInt(line.slice(gi + 6), 10)]);
+    }
     const q = line.indexOf('"type":"'); if (q < 0) continue;
     const type = line.slice(q + 8, line.indexOf('"', q + 8));
     if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null")) continue;
@@ -87,7 +94,7 @@ function parseLog(text, filename) {
   const comp = events.filter(e => e[4]);
   const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
   return {start: start || Date.now(), player: player || "Unknown", mc: mc || "", finalIgt: last[0], finalRta: last[1],
-    critCount: seen.size, events, dims, deaths, st, tot, meta: {}, addedAt: Date.now()};
+    critCount: seen.size, events, dims, deaths, st, tot, meta: {}, addedAt: Date.now(), clock};
 }
 
 /*
@@ -114,7 +121,7 @@ function deathCause(t, dim, killedBy, hits) {
 const runKey = r => "run-" + r.start + "-" + String(r.player).replace(/[^A-Za-z0-9_-]/g, "");
 
 // Runs are stored with each event squashed into one "igt|rta|id|criterion|done" string to keep files small.
-const encodeRun = r => { const {_d, ...x} = r; return {...x, events: r.events.map(e => e.join("|"))}; };
+const encodeRun = r => { const {_d, clock, ...x} = r; return {...x, events: r.events.map(e => e.join("|"))}; };
 const decodeRun = x => ({meta: {}, st: {}, tot: {}, deaths: [], ...x,
   events: (x.events || []).map(s => { if (Array.isArray(s)) return s; const p = String(s).split("|"); return [+p[0], +p[1], p[2], p.slice(3, -1).join("|"), +p[p.length - 1]]; }),
   dims: (x.dims || []).map(s => Array.isArray(s) ? s : [+String(s).split("|")[0], String(s).split("|")[1]])});

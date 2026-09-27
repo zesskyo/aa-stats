@@ -9,6 +9,7 @@
  *
  * What a save writes (the same files you'd upload by hand):
  *   logs/<N>.log         the Hermes log (if "keep the full log" is ticked)
+ *   logs/<N>.ghost       Hermes' ghost file, for the travel map
  *   runs/<N>.json        otherwise, the run as read from the log (much smaller)
  *   screenshots/<N>.png  the screenshot
  *   runs.json            date, seed, video, notes, deaths, and for runs without a log: time, 100%, splits
@@ -208,7 +209,12 @@ function renderEditor() {
           <input type="file" id="edLogFile" accept=".log,.txt,.jsonl" hidden>
         </div>
         ${ld && ld.category === "Invalid" ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
-        ${ED.log ? `<label class="check"><input type="checkbox" id="edKeep"${ED.keepLog ? " checked" : ""}> ${esc(T.edKeepLog)}</label>` : ""}
+        ${ED.log ? `<label class="check"><input type="checkbox" id="edKeep"${ED.keepLog || ED.ghost ? " checked" : ""}${ED.ghost ? " disabled" : ""}> ${esc(T.edKeepLog)}</label>` : ""}
+        ${withLog ? `<div class="edfile" data-drop="ghost">
+          <button type="button" class="btn" id="edGhostBtn">${esc(ED.ghost || (run && meta.path) ? T.edGhostReplace : T.edGhostPick)}</button>
+          <span class="note">${ED.ghost ? esc(ED.ghost.name) + " · " + esc(T.edGhostNote) : run && meta.path ? esc(T.edGhostOnSite) : esc(T.edGhostWhat)}</span>
+          <input type="file" id="edGhostFile" accept=".ghost" hidden>
+        </div>` : ""}
       </fieldset>
 
       ${withLog ? "" : `<fieldset class="edsec"><legend>${esc(T.edNoLogDetails)}</legend>
@@ -276,6 +282,7 @@ function renderEditor() {
   };
   pick("#edLogBtn", "#edLogFile", edPickLog);
   pick("#edStatsBtn", "#edStatsFile", edPickStats);
+  pick("#edGhostBtn", "#edGhostFile", f => { keep(); if (f.size < 46 || f.size % 46) return edMsg(esc(T.edGhostBad), true); ED.ghost = f; renderEditor(); edRestore(); });
   pick("#edShotBtn", "#edShotFile", f => { keep(); if (!/^image\//.test(f.type)) return edMsg(T.edShotBad, true); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; if (ED.draft) ED.draft.shotLink = ""; renderEditor(); edRestore(); });
   if ($("#edShotRemove")) $("#edShotRemove").addEventListener("click", () => { keep(); ED.shot = null; ED.removeShot = true; renderEditor(); edRestore(); });
   el.querySelectorAll('[name="edProof"]').forEach(r => r.addEventListener("change", () => { keep(); ED.proof = r.value; renderEditor(); edRestore(); }));
@@ -287,7 +294,7 @@ function renderEditor() {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
     z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over"); const f = e.dataTransfer.files[0]; if (!f) return;
-      if (z.dataset.drop === "log") edPickLog(f); else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); } });
+      if (z.dataset.drop === "log") edPickLog(f); else if (z.dataset.drop === "ghost") { keep(); if (f.size < 46 || f.size % 46) return edMsg(esc(T.edGhostBad), true); ED.ghost = f; renderEditor(); edRestore(); } else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); } });
   });
   $("#edCancel").addEventListener("click", () => { const r = ED.run; ED = null; r ? go("run", r.id) : go("runs"); });
   $("#edForm").addEventListener("submit", e => { e.preventDefault(); edSave(); });
@@ -383,8 +390,10 @@ async function edSave() {
     if (ely !== ED.elytraStart) put("elytraKm", ely);
 
     // the log
+    // the ghost file (travel map); it's lined up with the log, so the log is kept too
+    if (ED.ghost) files.push({path: `logs/${num}.ghost`, b64: await fileToB64(ED.ghost)});
     if (ED.log) {
-      if (ED.keepLog) { files.push({path: `logs/${num}.log`, b64: await fileToB64(ED.log.file)}, {remove: `runs/${num}.json`}); }
+      if (ED.keepLog || ED.ghost) { files.push({path: `logs/${num}.log`, b64: await fileToB64(ED.log.file)}, {remove: `runs/${num}.json`}); }
       else { files.push({path: `runs/${num}.json`, text: JSON.stringify(encodeRun(ED.log.run))}, {remove: `logs/${num}.log`}); }
     }
 
@@ -428,7 +437,7 @@ async function edDelete() {
     const details = await readRunsJson();
     const shot = details[num] && typeof details[num].screenshot === "string" && !/^https?:/i.test(details[num].screenshot) ? details[num].screenshot : null;
     delete details[num];
-    const files = [{remove: `logs/${num}.log`}, {remove: `logs/${num}.stats.json`}, {remove: `runs/${num}.json`},
+    const files = [{remove: `logs/${num}.log`}, {remove: `logs/${num}.stats.json`}, {remove: `logs/${num}.ghost`}, {remove: `runs/${num}.json`},
       {remove: new RegExp(`^screenshots/${num}\\.(png|jpe?g|webp|gif)$`, "i")}, ...(shot ? [{remove: shot}] : []),
       {path: "runs.json", text: JSON.stringify(sortRuns(details), null, 2) + "\n"}];
     edDone(await ghCommit(T.edCommitDelete(num), files));

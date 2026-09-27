@@ -3,6 +3,7 @@
 // The code lives here (src/, icons/). Each website keeps its own runs in its own folder (a "site folder"):
 //   logs/<N>.log           Hermes play.log for run N (the file name is the run number)
 //   logs/<N>.stats.json    optional: the world's stats/<uuid>.json, for elytra distance
+//   logs/<N>.ghost         optional: Hermes' ghost file (position every tick), for the travel map
 //   runs/<N>.json          already-parsed runs (used when there is no log for that number)
 //   runs.json              details: date, seed, video, screenshot, notes, deaths. A run that's only in
 //                          runs.json (no log) is shown from what's there: time, 100%, splits…
@@ -13,6 +14,7 @@
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
 import fs from "node:fs";
 import path from "node:path";
+import { readGhost } from "./ghost.mjs";
 
 const code = path.dirname(new URL(import.meta.url).pathname);
 const site = path.resolve(process.argv[2] || ".");
@@ -23,7 +25,7 @@ const read = p => fs.readFileSync(p, "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "travel-map.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
 ];
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n") + "\n})();\n";
 const appCss = read(inCode("src/app.css"));
@@ -41,6 +43,7 @@ const parseTime = (s, where) => {
 };
 const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
 const copies = [];   // screenshots to copy into dist/
+const paths = new Map();   // run number -> travel map points (written to dist/paths/)
 
 // 0) site.json: the site's own words (any text from src/text.js can be changed here)
 const text = {};
@@ -53,6 +56,7 @@ if (fs.existsSync(inSite("site.json"))) {
 }
 
 const runs = new Map();   // run number -> stored run
+const clocks = new Map(); // run number -> the parsed run (with its clock), for lining up a ghost file
 const numOf = f => { const m = /^(\d+)\./.exec(f); return m ? Number(m[1]) : null; };
 
 // 1) already-parsed runs
@@ -65,6 +69,7 @@ if (fs.existsSync(inSite("logs"))) for (const f of fs.readdirSync(inSite("logs")
   const n = numOf(f); if (n == null || !/\.(log|txt|jsonl)$/i.test(f)) continue;
   const r = parseLog(read(inSite("logs/" + f)), f);
   r.id = runKey(r);
+  clocks.set(n, r);
   runs.set(n, encodeRun(r));
   console.log(`Parsed logs/${f} as run ${n}`);
 }
@@ -121,6 +126,13 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
       meta.splits = splits;
     }
   }
+  // travel map: the ghost file, lined up with the log, saved next to the page as paths/<N>.json
+  const ghostFile = inSite(`logs/${n}.ghost`);
+  if (fs.existsSync(ghostFile)) {
+    const g = clocks.has(n) ? readGhost(fs.readFileSync(ghostFile), clocks.get(n)) : null;
+    if (g) { paths.set(n, g); meta.path = `paths/${n}.json`; console.log(`Read logs/${n}.ghost: ${g.t.length} points`); }
+    else console.warn(`logs/${n}.ghost: ${clocks.has(n) ? "doesn't match the run's log (another world?)" : "needs logs/" + n + ".log to line it up"}, so it's skipped`);
+  }
   const statsFile = inSite(`logs/${n}.stats.json`);
   if (fs.existsSync(statsFile)) {
     const v = ((JSON.parse(read(statsFile)).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
@@ -153,5 +165,7 @@ const json = JSON.stringify({runs: out, icons, text, repo}).replace(/</g, "\\u00
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);
+if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
+for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
 for (const rel of copies) { fs.mkdirSync(path.dirname(inSite("dist/" + rel)), {recursive: true}); fs.copyFileSync(inSite(rel), inSite("dist/" + rel)); }
 console.log(`Built ${path.relative(process.cwd(), inSite("dist/index.html")) || "dist/index.html"}: ${out.length} runs, ${Object.keys(icons).length} icons, ${(html.length / 1024).toFixed(0)} KB`);

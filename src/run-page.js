@@ -1,6 +1,7 @@
 /*
  * run-page.js — the Stats page for one run.
- * Order on the page: run switcher, title, splits, progress graph, run stats, Debris / Skulls / Rare biomes, notes.
+ * Order on the page: run switcher, title, splits, progress graph, travel map (if there's a ghost file), run stats,
+ * Debris / Skulls / Rare biomes, notes.
  */
 function renderRunPage() {
   const el = $("#view-run");
@@ -9,6 +10,7 @@ function renderRunPage() {
   state.runId = run.id;
   const d = derive(run), meta = run.meta || {};
 
+  travelFollow = null; progressCtl = null;
   if (run.manual) return renderManualRun(el, run, d);
   el.innerHTML = `
     <div class="pagerwrap">${pager(run)}</div>
@@ -16,6 +18,7 @@ function renderRunPage() {
     ${d.category === "Invalid" ? `<div class="card" style="border-color:var(--bad)"><b>${esc(T.invalidRun)}</b> <span class="muted">${esc(T.invalidRunMissing)} ${d.missing.map(id => esc(advName(id))).join(", ")}. ${esc(T.invalidRunNote)}</span></div>` : ""}
     ${splitsCard(d)}
     ${progressCardShell()}
+    ${meta.path ? travelCardShell() : ""}
     <section class="card"><h2 style="margin-bottom:14px">${esc(T.runStatsTitle)}</h2>${runStatCards(run)}</section>
     <div class="grid3">
       ${miniCard(T.debrisTitle, d.debrisSplit.start != null ? d.debrisSplit.dur : null, d.debrisSplit.start != null ? "debrisChart" : null, T.noDebris)}
@@ -26,6 +29,7 @@ function renderRunPage() {
     ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">${esc(T.notesTitle)}</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}`;
 
   drawProgress(run, d);
+  if (meta.path) drawTravel(run, d);
   drawDebris(run, d);
   drawSkulls(run, d);
   bindPager(el);

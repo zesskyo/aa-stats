@@ -10,11 +10,22 @@ function renderOverview() {
   const sumOfBest = sobParts.every(Boolean) ? sobParts.reduce((a, b) => a + b.dur, 0) : null;
   const totalPlay = RUNS.reduce((a, r) => a + (r.finalIgt || 0), 0);
   const avgTime = average(valid.map(r => r.finalIgt));
+  // the world record next to the PB, with how far apart they are
+  const gap = pb && WR && WR.finalIgt != null ? pb.finalIgt - WR.finalIgt : null;
+  const wrCol = WR && WR.finalIgt != null ? `
+      <div class="pbcol">
+        <span class="label">${esc(T.wr)}</span>
+        <span class="big wrtime">${runTime(WR)}</span>
+        <button type="button" class="linkbtn" style="align-self:flex-start;padding:0" data-open="${esc(WR.id)}">${esc(WR.meta.runner || T.wrWord)}</button>
+        ${gap != null ? `<span class="note">${esc(gap > 0 ? T.pbBehind(fmt(gap, 0)) : T.pbAhead(fmt(-gap, 0)))}</span>` : ""}
+      </div>` : "";
   $("#pbCard").innerHTML = pb ? `
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <span class="label">${esc(T.pb)}</span>
-      <span class="big">${runTime(pb)}</span>
-      <button type="button" class="linkbtn" style="align-self:flex-start;padding:0" data-open="${esc(pb.id)}">${esc(runTitle(pb))}</button>
+    <div class="pbrow">
+      <div class="pbcol">
+        <span class="label">${esc(T.pb)}</span>
+        <span class="big">${runTime(pb)}</span>
+        <button type="button" class="linkbtn" style="align-self:flex-start;padding:0" data-open="${esc(pb.id)}">${esc(runTitle(pb))}</button>
+      </div>${wrCol}
     </div>
     <div class="stats2">
       <div><span class="k">${esc(T.sumOfBest)}</span><span class="v">${sumOfBest != null ? fmt(sumOfBest, 0) : "—"}</span></div>
@@ -22,7 +33,7 @@ function renderOverview() {
       <div><span class="k">${esc(T.totalRuns)}</span><span class="v">${RUNS.length}</span></div>
       <div><span class="k">${esc(T.totalPlaytime)}</span><span class="v">${fmt(totalPlay, 0)}</span></div>
     </div>`
-    : `<span class="label">${esc(T.pb)}</span><p class="muted" style="margin:12px 0 0">${esc(T.noPbYet)}</p>`;
+    : `<div class="pbrow"><div class="pbcol"><span class="label">${esc(T.pb)}</span><p class="muted" style="margin:4px 0 0">${esc(T.noPbYet)}</p></div>${wrCol}</div>`;
   $("#pbCard").querySelectorAll("[data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
 
   // ---------- Fastest Splits ----------

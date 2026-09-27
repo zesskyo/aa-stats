@@ -10,6 +10,8 @@
 //   <any folder>/<image>   screenshots mentioned in runs.json (copied next to the page)
 //   site.json              the site's own words: title, subtitle, or any other text from src/text.js
 //   icons/<name>.png       optional: adds or replaces icons
+//   wr/wr.log              optional: the world record (someone else's run), shown next to the PB and on its own page;
+//                          with wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video}
 //
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
 import fs from "node:fs";
@@ -141,6 +143,30 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   out.push({...run, meta});
 }
 
+// 3b) the world record: read like a run, but kept apart (it isn't one of this site's runs)
+let wr = null;
+const wrLog = ["log", "txt", "jsonl"].map(e => inSite("wr/wr." + e)).find(f => fs.existsSync(f));
+if (wrLog) {
+  const r = parseLog(read(wrLog), path.basename(wrLog));
+  r.id = "wr-" + runKey(r);
+  const d = fs.existsSync(inSite("wr/wr.json")) ? JSON.parse(read(inSite("wr/wr.json"))) : {};
+  const meta = {wr: true};
+  for (const k of ["runner", "date", "seed", "video"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]).slice(0, 200);
+  if (!meta.seed && r.seed) meta.seed = String(r.seed);
+  if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error("wr/wr.json: date must look like 2026-09-22");
+  if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error("wr/wr.json: video must start with http:// or https://");
+  if (fs.existsSync(inSite("wr/wr.ghost"))) {
+    const g = readGhost(fs.readFileSync(inSite("wr/wr.ghost")), r);
+    if (g) { paths.set("wr", g); meta.path = "paths/wr.json"; console.log(`Read wr/wr.ghost: ${g.t.length} points`); }
+    else console.warn("wr/wr.ghost doesn't match wr/wr.log (another world?), so it's skipped");
+  }
+  if (fs.existsSync(inSite("wr/wr.stats.json"))) {
+    const v = ((JSON.parse(read(inSite("wr/wr.stats.json"))).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
+    if (v != null) meta.elytraCm = v;
+  }
+  wr = {...encodeRun(r), meta};
+  console.log(`Parsed ${path.relative(site, wrLog)} as the world record`);
+}
 
 // 4) icons: the built-in ones, then the site's own (which win)
 const icons = {};
@@ -163,13 +189,13 @@ const head = `<meta charset="utf-8">
 `;
 // Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
-const json = JSON.stringify({runs: out, icons, text, repo}).replace(/</g, "\\u003c");
+const json = JSON.stringify({runs: out, wr, icons, text, repo}).replace(/</g, "\\u003c");
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);
 if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
 // the biome/structure generator for travel maps of runs with a seed (see wasm/)
-if ([...paths.keys()].some(n => (out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
+if ([...paths.keys()].some(n => (n === "wr" ? wr : out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
 for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
 if (iconFiles.size) { fs.mkdirSync(inSite("dist/icons"), {recursive: true}); for (const [f, src] of iconFiles) fs.copyFileSync(src, inSite("dist/icons/" + f)); }
 for (const rel of copies) { fs.mkdirSync(path.dirname(inSite("dist/" + rel)), {recursive: true}); fs.copyFileSync(inSite(rel), inSite("dist/" + rel)); }

@@ -36,6 +36,7 @@ let runBarObserver = null;
 function mountRunBar(run, d) {
   let bar = $("#runbar");
   if (!bar) { bar = document.createElement("div"); bar.id = "runbar"; bar.className = "runbar"; document.querySelector("header.top").after(bar); }
+  if (isWr(run)) { bar.classList.remove("show"); bar.innerHTML = ""; if (runBarObserver) runBarObserver.disconnect(); return; }
   const list = byNumber(), i = list.indexOf(run);
   let collapsed = false; try { collapsed = localStorage.getItem("aa-runbar") === "min"; } catch {}
   bar.innerHTML = collapsed

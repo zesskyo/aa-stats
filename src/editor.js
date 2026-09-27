@@ -14,6 +14,7 @@
  *   screenshots/<N>.png  the screenshot
  *   runs.json            date, seed, video, notes, deaths, and for runs without a log: time, 100%, splits
  *   site.json            the site's title and subtitle ("Site settings", and the setup card on a new site)
+ *   wr/wr.log, wr/wr.ghost, wr/wr.stats.json, wr/wr.json   the world record (someone else's run)
  */
 
 // ---------- Which repository this site is (build.mjs gets it from GitHub Actions) ----------
@@ -140,6 +141,7 @@ let ED = null;   // what the form is working on
 
 function openEditor(run) {
   if (!signedIn()) return openSignIn(() => openEditor(run));
+  if (isWr(run)) return openWrEditor();
   const meta = (run && run.meta) || {};
   const nextNum = RUNS.reduce((a, r) => Math.max(a, runNum(r)), 0) + 1;
   ED = {
@@ -157,6 +159,15 @@ function openEditor(run) {
   if (run && !run.manual) { ED.deaths = derive(run).deaths.map(x => x.intentional); ED.causes = derive(run).deaths.map(x => x.cause); }
   ED.deathsStart = ED.deaths ? ED.deaths.join() : null;   // deaths are only written if a tick changes
   ED.causesStart = ED.causes ? ED.causes.join("\n") : null;   // …or a cause is changed
+  go("edit");
+}
+
+// The world record: the same files as a run, plus who ran it
+function openWrEditor() {
+  if (!signedIn()) return openSignIn(openWrEditor);
+  const meta = (WR && WR.meta) || {};
+  ED = {wr: true, run: WR, isNew: !WR, mode: "files", log: null, stats: null, ghost: null, hasLog: !!WR,
+    elytraStart: meta.elytraCm != null ? +(meta.elytraCm / 100000).toFixed(2) : null, busy: false, msg: "", msgBad: false};
   go("edit");
 }
 
@@ -181,21 +192,7 @@ function renderEditor() {
   const shotLocal = !ED.removeShot && run && !okUrl(meta.screenshot) && shotUrl(run);
   const dimName = {o: T.overworld, n: T.nether, e: T.theEnd};
   const logDate = lr ? new Date(lr.start).toLocaleDateString("en-CA") : "";
-
-  el.innerHTML = `
-    <div class="head-row" style="align-items:center">
-      <h1>${esc(ED.isNew ? T.edAddRun : T.edEditRun(ED.num))}</h1>
-      <label class="fld edpick"><span class="label">${esc(T.edPickRun)}</span><select class="field" id="edPick">
-        <option value=""${ED.isNew ? " selected" : ""}>${esc(T.edNewRun)}</option>
-        ${byNumber().slice().reverse().map(r => `<option value="${esc(r.id)}"${run === r ? " selected" : ""}>${esc(runTitle(r))} · ${r.finalIgt != null ? fmt(r.finalIgt, 0) : "—"}</option>`).join("")}
-      </select></label>
-    </div>
-    <form class="card edform" id="edForm" novalidate>
-      ${ED.isNew || (run && run.manual) ? `<div class="tabs-inline" id="edModes" role="tablist">
-        <button type="button" role="tab" data-mode="files" aria-pressed="${ED.mode === "files"}">${esc(T.edModeFiles)}</button>
-        <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
-      </div>` : ""}
-      ${ED.mode === "files" ? `
+  const files = `
       <div class="edfiles">
         <div class="edfilecard" data-drop="log">
           <b>${esc(T.edLog)}</b>
@@ -218,7 +215,41 @@ function renderEditor() {
           <button type="button" class="btn" id="edGhostBtn">${esc(T.edChooseFile)}</button>
           <input type="file" id="edGhostFile" accept=".ghost" hidden>
         </div>
+      </div>`;
+  const picker = `<label class="fld edpick"><span class="label">${esc(T.edPickRun)}</span><select class="field" id="edPick">
+        <option value=""${ED.isNew && !ED.wr ? " selected" : ""}>${esc(T.edNewRun)}</option>
+        <option value="wr"${ED.wr ? " selected" : ""}>${esc(T.edWrOption)}</option>
+        ${byNumber().slice().reverse().map(r => `<option value="${esc(r.id)}"${run === r ? " selected" : ""}>${esc(runTitle(r))} · ${r.finalIgt != null ? fmt(r.finalIgt, 0) : "—"}</option>`).join("")}
+      </select></label>`;
+
+  el.innerHTML = `
+    <div class="head-row" style="align-items:center">
+      <h1>${esc(ED.wr ? T.edWrTitle : ED.isNew ? T.edAddRun : T.edEditRun(ED.num))}</h1>
+      ${picker}
+    </div>
+    ${ED.wr ? `<form class="card edform" id="edForm" novalidate>
+      <p class="muted" style="margin:0">${esc(T.edWrIntro)}</p>
+      ${files}
+      <div class="edgrid">
+        <label class="fld"><span class="label">${esc(T.edRunner)}</span><input class="field" type="text" id="edRunner" value="${esc(meta.runner || "")}" autocomplete="off"></label>
+        <label class="fld"><span class="label">${esc(T.edDate)}</span><input class="field" type="date" id="edDate" value="${esc(meta.date || logDate)}"></label>
+        <label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span><input class="field mono" type="text" id="edSeed" value="${esc(meta.seed || (lr && lr.seed) || "")}" autocomplete="off"></label>
+        <label class="fld"><span class="label">${esc(T.edVideoLink)}</span><input class="field" type="url" id="edVideo" value="${esc(meta.video || "")}"></label>
       </div>
+      <p class="cmp-status${ED.msgBad ? " bad" : ""}" id="edMsg" role="status" aria-live="polite">${ED.msg}</p>
+      <div class="actions">
+        ${ED.isNew ? "" : `<button type="button" class="btn danger" id="edDelete"${ED.busy ? " disabled" : ""}>${esc(T.edWrRemove)}</button>`}
+        <span style="flex:1"></span>
+        <button type="button" class="btn" id="edCancel">${esc(T.edCancel)}</button>
+        <button type="submit" class="btn primary" id="edSave"${ED.busy ? " disabled" : ""}>${esc(T.edSave)}</button>
+      </div>
+    </form>` : `<form class="card edform" id="edForm" novalidate>
+      ${ED.isNew || (run && run.manual) ? `<div class="tabs-inline" id="edModes" role="tablist">
+        <button type="button" role="tab" data-mode="files" aria-pressed="${ED.mode === "files"}">${esc(T.edModeFiles)}</button>
+        <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
+      </div>` : ""}
+      ${ED.mode === "files" ? `
+      ${files}
       ${ld && ld.category === "Invalid" ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}` : ""}
 
       <div class="edgrid">
@@ -268,7 +299,7 @@ function renderEditor() {
         <button type="button" class="btn" id="edCancel">${esc(T.edCancel)}</button>
         <button type="submit" class="btn primary" id="edSave"${ED.busy ? " disabled" : ""}>${esc(T.edSave)}</button>
       </div>
-    </form>`;
+    </form>`}`;
 
   // keep what's typed when the form redraws (after picking a file)
   const keep = () => { ED.draft = edRead(); };
@@ -285,7 +316,7 @@ function renderEditor() {
   pick("#edShotBtn", "#edShotFile", f => { keep(); if (!/^image\//.test(f.type)) return edMsg(T.edShotBad, true); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; if (ED.draft) ED.draft.shotLink = ""; renderEditor(); edRestore(); });
   if ($("#edShotRemove")) $("#edShotRemove").addEventListener("click", () => { keep(); ED.shot = null; ED.removeShot = true; renderEditor(); edRestore(); });
   el.querySelectorAll('[name="edProof"]').forEach(r => r.addEventListener("change", () => { keep(); ED.proof = r.value; renderEditor(); edRestore(); }));
-  $("#edPick").addEventListener("change", e => openEditor(e.target.value ? findRun(e.target.value) : null));
+  $("#edPick").addEventListener("change", e => e.target.value === "wr" ? openWrEditor() : openEditor(e.target.value ? findRun(e.target.value) : null));
   el.querySelectorAll("[data-death]").forEach(c => c.addEventListener("change", () => { ED.deaths[+c.dataset.death] = c.checked; }));
   el.querySelectorAll("[data-drop]").forEach(z => {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
@@ -302,12 +333,12 @@ function renderEditor() {
 function edRead() {
   const v = id => { const x = $(id); return x ? x.value.trim() : null; };
   return {num: v("#edNum"), date: v("#edDate"), seed: v("#edSeed"), video: v("#edVideo"), notes: $("#edNotes") ? $("#edNotes").value.replace(/\s+$/, "") : "",
-    time: v("#edTime"), hundred: v("#edHundred"), shotLink: v("#edShotLink")};
+    time: v("#edTime"), hundred: v("#edHundred"), shotLink: v("#edShotLink"), runner: v("#edRunner")};
 }
 function edRestore() {
   const d = ED.draft; if (!d) return;
   const set = (id, val) => { const x = $(id); if (x && val != null) x.value = val; };
-  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink);
+  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink); set("#edRunner", d.runner);
   if (d.date || !ED.log) set("#edDate", d.date);
 }
 const edMsg = (html, bad) => { ED.msg = html; ED.msgBad = !!bad; const m = $("#edMsg"); if (m) { m.innerHTML = html; m.classList.toggle("bad", !!bad); } };
@@ -336,6 +367,7 @@ async function edPickStats(file) {
 // ---------- Save ----------
 async function edSave() {
   if (ED.busy) return;
+  if (ED.wr) return edSaveWr();
   const f = edRead(), num = ED.isNew ? parseInt(f.num, 10) : ED.num;
   const err = m => edMsg(esc(m), true);
   if (!(num >= 1)) return err(T.edBadNumber);
@@ -410,7 +442,31 @@ async function edSave() {
 }
 const sortRuns = d => Object.fromEntries(Object.entries(d).sort((a, b) => Number(a[0]) - Number(b[0])));
 
+// the world record: its files in wr/ (a new log replaces the old files; a ghost or stats file from the old record wouldn't match)
+async function edSaveWr() {
+  const f = edRead(), err = m => edMsg(esc(m), true);
+  if (!ED.log && !ED.hasLog) return err(T.edNeedLog);
+  if (f.video && !/^https?:\/\/\S+$/i.test(f.video)) return err(T.edBadVideo);
+  ED.busy = true; $("#edSave").disabled = true; edMsg(esc(T.edSaving));
+  try {
+    const files = [];
+    if (ED.log) files.push({remove: /^wr\/wr\.(log|txt|jsonl|ghost|stats\.json)$/}, {path: "wr/wr.log", b64: await fileToB64(ED.log.file)});
+    if (ED.ghost) files.push({path: "wr/wr.ghost", b64: await fileToB64(ED.ghost)});
+    if (ED.stats) files.push({path: "wr/wr.stats.json", text: await ED.stats.file.text()});
+    const info = {};
+    for (const k of ["runner", "date", "seed", "video"]) if (f[k]) info[k] = f[k];
+    files.push({path: "wr/wr.json", text: JSON.stringify(info, null, 2) + "\n"});
+    edDone(await ghCommit(T.edCommitWr, files));
+  } catch (x) { ED.busy = false; $("#edSave").disabled = false; edMsg(esc(x.message || String(x)), true); }
+}
+
 async function edDelete() {
+  if (ED.wr) {
+    if (ED.busy || !confirm(T.edWrRemoveConfirm)) return;
+    ED.busy = true; edMsg(esc(T.edSaving));
+    try { edDone(await ghCommit(T.edCommitWrRemove, [{remove: /^wr\//}])); } catch (x) { ED.busy = false; edMsg(esc(x.message || String(x)), true); }
+    return;
+  }
   if (ED.busy || !confirm(T.edDeleteConfirm(ED.num))) return;
   const num = ED.num;
   ED.busy = true; edMsg(esc(T.edSaving));

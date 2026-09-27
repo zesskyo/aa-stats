@@ -93,7 +93,7 @@ function renderCompare() {
   // One slot per run: pick a run, or upload one into it
   const options = sel => {
     const o = (id, label) => `<option value="${esc(id)}"${id === sel ? " selected" : ""}>${esc(label)}</option>`;
-    const mine = byNumber().map(r => o(r.id, runTitle(r) + " · " + fmt(r.finalIgt, 0))).join("");
+    const mine = byNumber().concat(WR && WR.finalIgt != null ? [WR] : []).map(r => o(r.id, runTitle(r) + " · " + fmt(r.finalIgt, 0))).join("");
     const up = UPLOADED.map(u => o(u.run.id, u.label + " · " + fmt(u.run.finalIgt, 0))).join("");
     return (sel ? "" : `<option value="" selected>${esc(T.cmpAdd)}</option>`) + (mine ? `<optgroup label="${esc(T.cmpMine)}">${mine}</optgroup>` : "") + (up ? `<optgroup label="${esc(T.cmpUploadedRuns)}">${up}</optgroup>` : "");
   };

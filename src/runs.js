@@ -7,6 +7,8 @@ try { DATA = JSON.parse(document.getElementById("aa-data").textContent) || DATA;
 // The site's own words from its site.json (build.mjs only lets through text that exists in text.js)
 if (DATA.text && typeof DATA.text === "object") for (const [k, v] of Object.entries(DATA.text)) if (typeof T[k] === "string" && typeof v === "string") T[k] = v;
 const RUNS = (DATA.runs || []).map(decodeRun);
+// The world record (someone else's run, from the site's wr/ folder): shown next to the PB, never counted in this site's stats
+const WR = DATA.wr && typeof DATA.wr === "object" ? decodeRun(DATA.wr) : null;
 const ICONS = (DATA.icons && typeof DATA.icons === "object") ? DATA.icons : {};
 
 // ---------- Icons ----------
@@ -18,11 +20,12 @@ const icAt = (key, x, y, size) => okIcon(ICONS[key]) ? `<image href="${ICONS[key
 
 // ---------- About a run ----------
 const runNum = r => r.meta && r.meta.num ? r.meta.num : RUNS.slice().sort((a, b) => a.start - b.start).indexOf(r) + 1;
-const runTitle = r => T.runWord + " " + runNum(r);
+const isWr = r => !!(r && r.meta && r.meta.wr);
+const runTitle = r => isWr(r) ? T.wrWord + (r.meta.runner ? " · " + r.meta.runner : "") : T.runWord + " " + runNum(r);
 // The run's final time: with milliseconds, unless it was typed into runs.json without them
 const runTime = r => fmt(r.finalIgt, r.manual && r.finalIgt % 1000 === 0 ? 0 : 3);
 const byNumber = () => RUNS.slice().sort((a, b) => runNum(a) - runNum(b));
-const findRun = id => RUNS.find(r => r.id === id);
+const findRun = id => RUNS.find(r => r.id === id) || (WR && WR.id === id ? WR : undefined);
 
 // Date shown for a run: the date from runs.json, otherwise the day the run finished
 const doneAt = r => r.start + (r.finalRta || 0);

@@ -8,6 +8,7 @@ double cos(double x) { return js_cos(x); } double sin(double x) { return js_sin(
 double pow(double a, double b) { return js_pow(a, b); } double log(double x) { return js_log(x); } double atan2(double y, double x) { return js_atan2(y, x); }
 double round(double x) { return x < 0 ? -__builtin_floor(-x + 0.5) : __builtin_floor(x + 0.5); }
 float roundf(float x) { return (float)round(x); }
+double nan(const char *s) { return __builtin_nan(""); }
 long lround(double x) { return (long)round(x); } long long llround(double x) { return (long long)round(x); }
 
 // memory: bump allocator with a free list per exact size (cubiomes allocates a few buffers and reuses them)

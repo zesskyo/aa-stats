@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 static Generator g;
+static SurfaceNoise endSurface;   // for End cities, which also need high enough ground
 static int mc, dimension;
 static uint64_t seed;
 static int *cache = 0; static size_t cacheSize = 0;
@@ -14,6 +15,7 @@ void setup(int version, uint32_t seedLo, uint32_t seedHi, int dim) {
     mc = version; dimension = dim; seed = ((uint64_t)seedHi << 32) | seedLo;
     setupGenerator(&g, mc, 0);
     applySeed(&g, dim, seed);
+    if (dim == DIM_END) initSurfaceNoise(&endSurface, DIM_END, seed);
 }
 
 // Biome ids for sx × sz samples, one per `scale` blocks, starting at sample (x, z); y is the height (in scale units)
@@ -43,6 +45,7 @@ int structures(int type, int x0, int z0, int x1, int z1) {
         if (!getStructurePos(type, mc, seed, rx, rz, &p)) continue;
         if (p.x < x0 || p.x > x1 || p.z < z0 || p.z > z1) continue;
         if (!isViableStructurePos(type, &g, p.x, p.z, 0)) continue;
+        if (type == End_City && !isViableEndCityTerrain(&g, &endSurface, p.x, p.z)) continue;
         if (n < 4096) { out[2 * n] = p.x; out[2 * n + 1] = p.z; n++; }
     }
     return n;

@@ -2,7 +2,7 @@
  * travel-map.js — the "Travel map" on a run's page: where the player went, from Hermes' ghost file.
  * build.mjs turns logs/<N>.ghost into paths/<N>.json (columns t, d, x, z, y, h — see ghost.mjs); this draws it:
  * one map per dimension with the path as a single line, the same icons as the progress graph where things
- * happened (deaths, thunder, riptide, trident, nautilus shells, the god apple), the spawn, the player's head,
+ * happened (deaths, thunder, riptide, trident, nautilus shells, the god apple, wither skeleton skulls), the player's head,
  * and a timeline with the dimensions coloured like the progress graph.
  * With the run's seed, the world's biomes and structures are drawn underneath (see seed-map.js): bright near
  * where the player has been so far, faded everywhere else.
@@ -77,7 +77,7 @@ function travelMount(run, d, P, body) {
     ...d.lanes.trident.slice(0, 1).map(t => place(t, {k: "trident", icon: "trident", text: T.travelTrident})),   // where it was obtained
     ...d.lanes.nautilus.map((t, i, all) => place(t, {k: "nautilus", icon: "g_nautilus", text: T.nautilusMarker(i + 1, all.length)})),
     ...(run.st.gapple != null ? [place(run.st.gapple, {k: "gapple", icon: "s_gapple", text: T.godAppleMarker})] : []),
-    ...(P.pieces.o.length ? [{t: 0, dim: "o", x: P.pieces.o[0][0][2], z: P.pieces.o[0][0][3], k: "spawn", icon: "st_spawn"}] : []),   // where the run started
+    ...d.lanes.skull.map(t => place(t, {k: "skull", icon: "s_skulls", text: T.skullsTitle})),   // wither skeleton skulls picked up
   ].sort((a, b) => a.t - b.t);
   const eventIcon = e => e.k === "thunder" && !okIcon(ICONS.thunder) ? `<span class="tvdot thunder"></span>` : ic(e.icon, 16);
 
@@ -300,8 +300,7 @@ function travelMount(run, d, P, body) {
       if (x < -12 || z < -12 || x > r.width + 12 || z > r.height + 12) continue;
       ctx.globalAlpha = e.t <= t ? (e.faded ? .5 : 1) : .3;
       const im = e.icon && travelIcon(e.icon);
-      if (im && e.k === "spawn") { ctx.imageSmoothingQuality = "high"; ctx.drawImage(im, x - 15, z - 15, 30, 30); }
-      else if (im) { ctx.imageSmoothingEnabled = false; ctx.drawImage(im, x - 10, z - 10, 20, 20); ctx.imageSmoothingEnabled = true; }
+      if (im) { ctx.imageSmoothingEnabled = false; ctx.drawImage(im, x - 10, z - 10, 20, 20); ctx.imageSmoothingEnabled = true; }
       else { ctx.fillStyle = cssv("--gold"); ctx.beginPath(); ctx.arc(x, z, 6, 0, 7); ctx.fill(); }
     }
     ctx.globalAlpha = 1;

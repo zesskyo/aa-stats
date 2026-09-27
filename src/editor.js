@@ -230,8 +230,7 @@ function renderEditor() {
       ${deaths.length ? `<fieldset class="edsec"><legend>${esc(T.edDeaths)}</legend>
         <p class="note" style="margin:0 0 6px">${esc(T.edDeathsNote)}</p>
         ${deaths.map((x, k) => `<div class="eddeath">
-          <label class="check"><input type="checkbox" data-death="${k}"${ED.deaths[k] ? " checked" : ""}> ${esc(T.deathMarker(k + 1, deaths.length))} · <span class="mono">${fmt(x.t, 0)}</span> · ${esc(dimName[x.dim] || "")}</label>
-          <input class="field" type="text" data-cause="${k}" value="${esc(ED.causes[k])}" maxlength="120" aria-label="${esc(T.edDeathCause(k + 1))}">
+          <label class="check"><input type="checkbox" data-death="${k}"${ED.deaths[k] ? " checked" : ""}> ${esc(T.deathLabel)} · <span class="mono">${fmt(x.t, 0)}</span> · ${esc(dimName[x.dim] || "")}</label>
         </div>`).join("")}
       </fieldset>` : ""}
 
@@ -289,7 +288,6 @@ function renderEditor() {
   $("#edPick").addEventListener("change", e => openEditor(e.target.value ? findRun(e.target.value) : null));
   if ($("#edKeep")) $("#edKeep").addEventListener("change", e => { ED.keepLog = e.target.checked; });
   el.querySelectorAll("[data-death]").forEach(c => c.addEventListener("change", () => { ED.deaths[+c.dataset.death] = c.checked; }));
-  el.querySelectorAll("[data-cause]").forEach(c => c.addEventListener("input", () => { ED.causes[+c.dataset.cause] = c.value; }));
   el.querySelectorAll("[data-drop]").forEach(z => {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
@@ -377,12 +375,6 @@ async function edSave() {
       const on = [], off = [];
       (ED.deaths || []).forEach((v, k) => { if (v !== defaults[k]) (v ? on : off).push(k + 1); });
       put("intentionalDeaths", on.length ? on : null); put("notIntentionalDeaths", off.length ? off : null);
-    }
-    // death causes: only the ones written differently from what the log says
-    if (ED.log || (ED.causes ? ED.causes.join("\n") : null) !== ED.causesStart) {
-      const {autoCauses} = edDeaths(), dc = {};
-      (ED.causes || []).forEach((c, k) => { c = (c || "").trim(); if (c && c !== autoCauses[k]) dc[k + 1] = c; });
-      put("deathCauses", Object.keys(dc).length ? dc : null);
     }
 
     // elytra distance (only if it was changed here)

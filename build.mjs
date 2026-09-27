@@ -145,8 +145,10 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
 // 4) icons: the built-in ones, then the site's own (which win)
 const icons = {};
 const MIME = {png: "image/png", gif: "image/gif", webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg"};
+const iconFiles = new Map();   // big icons (the travel map's structure icons, st_*) are files next to the page, not inside it
 for (const dir of [inCode("icons"), inSite("icons")]) if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir)) {
   const m = /^([a-z0-9_]+)\.(png|gif|webp|jpe?g)$/i.exec(f); if (!m) continue;
+  if (m[1].startsWith("st_")) { iconFiles.set(f, path.join(dir, f)); icons[m[1]] = "icons/" + f; continue; }
   icons[m[1]] = `data:${MIME[m[2].toLowerCase()]};base64,` + fs.readFileSync(path.join(dir, f)).toString("base64");
 }
 
@@ -169,5 +171,6 @@ if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
 // the biome/structure generator for travel maps of runs with a seed (see wasm/)
 if ([...paths.keys()].some(n => (out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
 for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
+if (iconFiles.size) { fs.mkdirSync(inSite("dist/icons"), {recursive: true}); for (const [f, src] of iconFiles) fs.copyFileSync(src, inSite("dist/icons/" + f)); }
 for (const rel of copies) { fs.mkdirSync(path.dirname(inSite("dist/" + rel)), {recursive: true}); fs.copyFileSync(inSite(rel), inSite("dist/" + rel)); }
 console.log(`Built ${path.relative(process.cwd(), inSite("dist/index.html")) || "dist/index.html"}: ${out.length} runs, ${Object.keys(icons).length} icons, ${(html.length / 1024).toFixed(0)} KB`);

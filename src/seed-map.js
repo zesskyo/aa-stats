@@ -11,14 +11,15 @@
  */
 const TILE = 128;                              // samples per tile side
 const DIM_ID = {o: 0, n: -1, e: 1};
-// Structures by dimension: cubiomes' number, a short badge, the widest view (blocks) where all of them are shown,
+// Structures by dimension (named like their icons, icons/st_<name>.png): cubiomes' number, a badge if there's no icon, the widest view (blocks) where all of them are shown,
 // and whether the ones the player went to are shown at any zoom (not for the very common ones)
 const STRUCTS = {
-  o: [["stronghold", -1, "SH", 16000, true], ["village", 5, "V", 4000, true], ["desert", 1, "DT", 4000, true], ["jungle", 2, "JT", 4000, true],
-      ["outpost", 10, "PO", 4000, true], ["monument", 8, "OM", 4000, true], ["mansion", 9, "WM", 16000, true], ["hut", 3, "WH", 4000, true],
-      ["igloo", 4, "IG", 4000, true], ["portal", 11, "RP", 1500, false], ["shipwreck", 7, "SW", 1500, false], ["treasure", 14, "BT", 1000, false]],
-  n: [["fortress", 18, "NF", 2000, true], ["bastion", 19, "BR", 2000, true], ["portal", 12, "RP", 1000, false]],
-  e: [["endcity", 20, "EC", 3000, true]],
+  o: [["stronghold", -1, "SH", 16000, true], ["village", 5, "V", 4000, true], ["desert_pyramid", 1, "DP", 4000, true],
+      ["pillager_outpost", 10, "PO", 4000, true], ["monument", 8, "OM", 4000, true], ["mansion", 9, "WM", 16000, true],
+      ["swamp_hut", 3, "SH", 4000, true], ["igloo", 4, "IG", 4000, true], ["ruined_portal", 11, "RP", 1500, false],
+      ["shipwreck", 7, "SW", 1500, false], ["ocean_ruin", 6, "OR", 1500, false]],
+  n: [["fortress", 18, "NF", 2000, true], ["bastion_remnant", 19, "BR", 2000, true], ["ruined_portal", 12, "RP", 1000, false]],
+  e: [["end_city", 20, "EC", 3000, true]],
 };
 const STRUCT_TILE = 2048;
 

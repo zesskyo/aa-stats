@@ -10,7 +10,7 @@ const RUNS = (DATA.runs || []).map(decodeRun);
 const ICONS = (DATA.icons && typeof DATA.icons === "object") ? DATA.icons : {};
 
 // ---------- Icons ----------
-const okIcon = v => typeof v === "string" && /^data:image\/(png|webp|gif|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(v);
+const okIcon = v => typeof v === "string" && (/^data:image\/(png|webp|gif|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(v) || /^icons\/[a-z0-9_]+\.(png|webp|gif|jpe?g)$/i.test(v));
 // Icon as an <img> (size in pixels), or "" if there's no icon for that name
 const ic = (key, size = 20) => okIcon(ICONS[key]) ? `<img class="ico" src="${ICONS[key]}" width="${size}" height="${size}" alt="">` : "";
 // Icon inside a graph (SVG), or ""

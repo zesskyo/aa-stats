@@ -3,14 +3,14 @@
  * build.mjs turns logs/<N>.ghost into paths/<N>.json (columns t, d, x, z, y, h — see ghost.mjs); this draws it:
  * one map per dimension with the path as a single line, the same icons as the progress graph where things
  * happened (deaths, thunder, riptide, trident, nautilus shells, the god apple, portals), the player's head,
- * and a timeline that moves together with the progress graph (hover the graph and the player moves on the map).
+ * and a timeline (dimensions coloured like the progress graph) that moves together with the progress graph.
  * With the run's seed, the world's biomes and structures are drawn underneath (see seed-map.js): bright near
  * where the player has been so far, faded everywhere else.
  */
 const travelCache = {};             // run id -> loaded path
 let travelFollow = null;            // the progress graph calls this with the time under the mouse
 let travelResize = null;
-const TRAVEL_SEEN = 128;            // blocks around the path shown as "explored" (about the render distance)
+const TRAVEL_SEEN = 512;            // blocks around the path shown as "explored" (32 chunks: maximum render distance)
 const TRAVEL_NEAR = 64;             // a structure this close to the path counts as one the player went to
 
 const travelCardShell = () => `
@@ -72,7 +72,7 @@ function travelMount(run, d, P, body) {
   // ---------- things that happened, placed where they happened (same icons as the progress graph) ----------
   const place = (t, extra) => { const p = travelAt(P, t); return {t, dim: p[1], x: p[2], z: p[3], ...extra}; };
   const events = [
-    ...d.deaths.map((x, i) => place(x.t - 250, {t: x.t, k: "death", icon: "skull", text: T.deathMarker(i + 1, d.deaths.length) + " · " + x.cause, faded: x.intentional})),
+    ...d.deaths.map(x => place(x.t - 250, {t: x.t, k: "death", icon: "skull", text: T.deathLabel, faded: x.intentional})),
     ...(d.thunder != null ? [place(d.thunder, {k: "thunder", icon: "thunder", text: T.thunderMarker})] : []),
     ...d.riptide.map(r => place(r.start, {k: "riptide", icon: "trident", text: T.riptideMarker(r.uses, fmtShort(r.end - r.start)), end: r.end})),
     ...d.lanes.trident.slice(0, 1).map(t => place(t, {k: "trident", icon: "trident", text: T.travelTrident})),   // where it was obtained
@@ -80,24 +80,25 @@ function travelMount(run, d, P, body) {
     ...(run.st.gapple != null ? [place(run.st.gapple, {k: "gapple", icon: "s_gapple", text: T.godAppleMarker})] : []),
     ...run.dims.slice(1).filter((x, i) => x[1] !== run.dims[i][1]).map(x => place(x[0] - 400, {t: x[0], k: "portal", text: T.travelTo(DIMS[x[1]]), to: x[1]})),
   ].sort((a, b) => a.t - b.t);
-  const eventIcon = e => e.k === "portal" ? `<span class="tvdot portal"></span>` : e.k === "thunder" && !okIcon(ICONS.thunder) ? `<span class="tvdot thunder"></span>` : ic(e.icon, 16);
+  const eventIcon = e => e.k === "thunder" && !okIcon(ICONS.thunder) ? `<span class="tvdot thunder"></span>` : ic(e.icon, 16);
 
   // ---------- the world from the seed, and where the player went ----------
   const world = seedWorld(run);
   let redraw = 0;
   if (world) world.onReady = () => { if (!redraw && card.isConnected) redraw = requestAnimationFrame(() => { redraw = 0; draw(); }); };
   // cells of 16 blocks the path went through (each with the first time it did), for "near the path so far"
-  const cells = {}, squares = {};
+  const cells = {16: {}, 128: {}}, squares = {};
   for (const k of "one") {
-    const c = cells[k] = new Map(), q = squares[k] = new Set();
+    const c = cells[16][k] = new Map(), cc = cells[128][k] = new Map(), q = squares[k] = new Set();
     P.pieces[k].forEach(pc => pc.forEach(p => {
       const key = Math.floor(p[2] / 16) + "," + Math.floor(p[3] / 16); if (!c.has(key)) c.set(key, p[0]);
+      const k2 = Math.floor(p[2] / 128) + "," + Math.floor(p[3] / 128); if (!cc.has(k2)) cc.set(k2, p[0]);
       q.add(Math.floor(p[2] / STRUCT_TILE) + "," + Math.floor(p[3] / STRUCT_TILE));
     }));
   }
-  const nearBy = (k, x, z, t) => {   // was the player within TRAVEL_NEAR blocks by time t?
-    const cx = Math.floor(x / 16), cz = Math.floor(z / 16), r = TRAVEL_NEAR / 16;
-    for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) { const v = i * i + j * j <= r * r && cells[k].get((cx + i) + "," + (cz + j)); if (v != null && v !== false && v <= t) return true; }
+  const nearBy = (k, x, z, t, dist = TRAVEL_NEAR) => {   // was the player within `dist` blocks by time t?
+    const size = dist <= TRAVEL_NEAR ? 16 : 128, m = cells[size][k], cx = Math.floor(x / size), cz = Math.floor(z / size), r = Math.round(dist / size);
+    for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) { if (i * i + j * j > r * r) continue; const v = m.get((cx + i) + "," + (cz + j)); if (v != null && v <= t) return true; }
     return false;
   };
   const visitedOf = (k, kind) => {   // structures of one kind near the path (searched only where the path goes)
@@ -115,20 +116,25 @@ function travelMount(run, d, P, body) {
   if (run.uuid || run.player) { head = new Image(); head.onload = () => draw(); head.src = `https://mc-heads.net/avatar/${encodeURIComponent((run.uuid || run.player).replace(/-/g, ""))}/32`; }
 
   let dim = "o", t = endT, view = null, playing = false, hot = [];
+  const pct = v => (Math.max(0, Math.min(1, v / endT)) * 100).toFixed(3) + "%";
+  const dimSegs = run.dims.map((x, i) => [x[0], (run.dims[i + 1] || [endT])[0], x[1]]).filter(s => s[1] > s[0]);
+  const SPEEDS = [10, 60, 300, 1000];   // run time per real second
+  let speed = 300;
   body.innerHTML = `
     <div class="tvtop"><div class="tabs-inline" id="tvTabs">${"one".split("").filter(k => P.pieces[k].length).map(k => `<button type="button" data-d="${k}">${esc(DIMS[k])}</button>`).join("")}</div></div>
-    <div class="tvgrid">
-      <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><div class="tip" id="tvTip"></div><span class="tvhover mono" id="tvHover"></span>
-        <div class="tvover"><span class="mono" id="tvWhere"></span></div></div>
-      <ol class="tvlist" id="tvList">${events.map((e, i) => `<li><button type="button" data-ev="${i}" class="${e.faded ? "faded" : ""}"><span class="mono">${fmt(e.t, 0)}</span><span class="tvico">${eventIcon(e)}</span><span>${esc(e.text)}</span></button></li>`).join("") || `<li class="muted" style="padding:10px">${esc(T.travelNothing)}</li>`}</ol>
+    <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><div class="tip" id="tvTip"></div><span class="tvhover mono" id="tvHover"></span>
+      <div class="tvover"><span class="mono" id="tvWhere"></span></div></div>
+    <div class="tvtl">
+      <button type="button" class="tvplay" id="tvPlay" aria-label="${esc(T.travelPlay)}"></button>
+      <div class="tvtrack" id="tvTrack" role="slider" tabindex="0" aria-label="${esc(T.travelTitle)}" aria-valuemin="0" aria-valuemax="${endT}">
+        <div class="tvmarks">${events.filter(e => e.icon).map(e => `<span style="left:${pct(e.t)}"${e.faded ? ' class="faded"' : ""}>${eventIcon(e)}</span>`).join("")}</div>
+        <div class="tvstrip">${dimSegs.map(s => `<i class="${s[2] === "n" ? "c-ne" : s[2] === "e" ? "c-en" : "c-ow"}" style="left:${pct(s[0])};width:${pct(s[1] - s[0])}"></i>`).join("")}<b class="tvlater" id="tvLater"></b></div>
+        <div class="tvhead" id="tvHead"><span class="mono" id="tvNow"></span></div>
+      </div>
+      <span class="mono muted tvend">${fmt(endT, 0)}</span>
+      <div class="tvspeed" role="group" aria-label="${esc(T.travelSpeed)}">${SPEEDS.map(s => `<button type="button" data-speed="${s}" aria-pressed="${s === speed}">${s}×</button>`).join("")}</div>
     </div>
-    <div class="tvbar">
-      <button type="button" class="btn" id="tvPlay">▶ ${esc(T.travelPlay)}</button>
-      <input type="range" id="tvTime" min="0" max="${endT}" step="1000" value="${endT}" aria-label="${esc(T.travelTime)}">
-      <span class="mono" id="tvNow"></span>
-    </div>
-    <div class="legend" id="tvLegend"></div>
-    <div class="keys"><span>${esc(world ? T.travelKeysSeed : T.travelKeys)}</span></div>`;
+    <div class="keys"><span>${esc(T.travelKeys)}</span></div>`;
 
   const cv = $("#tvCanvas"), ctx = cv.getContext("2d"), tip = $("#tvTip");
   const mask = document.createElement("canvas"), mctx = mask.getContext("2d");
@@ -199,13 +205,13 @@ function travelMount(run, d, P, body) {
   function drawBiomes(pth) {
     const r = box();
     // everywhere: faded
-    ctx.globalAlpha = .28; drawTiles(ctx, true); ctx.globalAlpha = 1;
+    ctx.globalAlpha = .55; drawTiles(ctx, true); ctx.globalAlpha = 1;
     // around the path so far: clear (a thick copy of the path, filled in with the biomes)
     mctx.save(); mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.clearRect(0, 0, mask.width, mask.height); mctx.restore();
     mctx.globalCompositeOperation = "source-over"; mctx.lineCap = mctx.lineJoin = "round";
     mctx.strokeStyle = "#000"; mctx.lineWidth = Math.max(8, TRAVEL_SEEN * 2 * view.s); mctx.stroke(pth);
     mctx.globalCompositeOperation = "source-in"; drawTiles(mctx, false); mctx.globalCompositeOperation = "source-over";
-    ctx.globalAlpha = .85; ctx.drawImage(mask, 0, 0, r.width, r.height); ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1; ctx.drawImage(mask, 0, 0, r.width, r.height);
   }
   const biomeAt = (x, z) => {
     for (const s of SCALES.filter(s => s >= bioScale())) {
@@ -216,7 +222,7 @@ function travelMount(run, d, P, body) {
   };
   // structures: the ones near the path so far are clear, the rest faded; zoomed out, only the ones near the path
   function drawStructures() {
-    const r = box(), [x0, z0] = toW(0, 0), [x1, z1] = toW(r.width, r.height), shown = new Set();
+    const r = box(), [x0, z0] = toW(0, 0), [x1, z1] = toW(r.width, r.height);
     ctx.font = "600 9px " + cssv("--body"); ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const [kind, , badge, maxW, always] of STRUCTS[dim]) {
       const zoomedIn = x1 - x0 <= maxW;
@@ -224,23 +230,20 @@ function travelMount(run, d, P, body) {
       const pts = zoomedIn ? world.structures(dim, kind, x0 - 200, z0 - 200, x1 + 200, z1 + 200) || [] : visitedOf(dim, kind);
       for (const [x, z] of pts) {
         const [sx, sz] = toS(x, z); if (sx < -14 || sz < -14 || sx > r.width + 14 || sz > r.height + 14) continue;
-        const near = nearBy(dim, x, z, t);
-        if (!zoomedIn && !near) continue;
-        shown.add(kind);
-        ctx.globalAlpha = near ? 1 : .4;
+        if (!zoomedIn && !nearBy(dim, x, z, t)) continue;
+        ctx.globalAlpha = nearBy(dim, x, z, t, TRAVEL_SEEN) ? 1 : .5;
         const im = travelIcon("st_" + kind);
-        if (im) ctx.drawImage(im, sx - 9, sz - 9, 18, 18);
+        if (im) { ctx.imageSmoothingQuality = "high"; ctx.drawImage(im, sx - 11, sz - 11, 22, 22); }
         else {
           const w = badge.length > 1 ? 11 : 8;
           ctx.fillStyle = cssv("--surface"); ctx.strokeStyle = cssv("--text"); ctx.lineWidth = 1.25;
           ctx.beginPath(); ctx.roundRect(sx - w, sz - 7, w * 2, 14, 4); ctx.fill(); ctx.stroke();
           ctx.fillStyle = cssv("--text"); ctx.fillText(badge, sx, sz + .5);
         }
-        hot.push({x: sx, z: sz, e: {text: T.travelStruct[kind], where: `${x}, ${z}`}});
+        hot.push({x: sx, z: sz, e: {text: T.travelStruct[kind]}});
       }
     }
     ctx.globalAlpha = 1; ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
-    return shown;
   }
   function draw() {
     if (!view) return;
@@ -262,7 +265,7 @@ function travelMount(run, d, P, body) {
       for (const pc of P.pieces[dim]) for (const p of pc) { if (p[0] < e.t || p[0] > Math.min(e.end, t)) continue; const [x, z] = toS(p[2], p[3]); if (on) seg.lineTo(x, z); else { seg.moveTo(x, z); on = true; } }
       ctx.strokeStyle = "#3B8FD9"; ctx.lineWidth = 3; ctx.stroke(seg);
     }
-    const shown = bio ? drawStructures() : new Set();
+    if (bio) drawStructures();
     // events: their icons
     for (const e of events) {
       if (e.dim !== dim) continue;
@@ -270,7 +273,7 @@ function travelMount(run, d, P, body) {
       if (x < -12 || z < -12 || x > r.width + 12 || z > r.height + 12) continue;
       ctx.globalAlpha = e.t <= t ? (e.faded ? .5 : 1) : .3;
       const im = e.icon && travelIcon(e.icon);
-      if (im) { ctx.fillStyle = "rgba(255,255,255,.8)"; ctx.beginPath(); ctx.arc(x, z, 11, 0, 7); ctx.fill(); ctx.drawImage(im, x - 9, z - 9, 18, 18); }
+      if (im) { ctx.imageSmoothingEnabled = false; ctx.drawImage(im, x - 10, z - 10, 20, 20); ctx.imageSmoothingEnabled = true; }
       else if (e.k === "portal") { ctx.fillStyle = cssv("--s4"); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, z - 7); ctx.lineTo(x + 7, z); ctx.lineTo(x, z + 7); ctx.lineTo(x - 7, z); ctx.closePath(); ctx.fill(); ctx.stroke(); }
       else { ctx.fillStyle = cssv("--gold"); ctx.beginPath(); ctx.arc(x, z, 6, 0, 7); ctx.fill(); }
       hot.push({x, z, e});
@@ -280,51 +283,57 @@ function travelMount(run, d, P, body) {
     const p = travelAt(P, t);
     if (p[1] === dim) {
       const [x, z] = toS(p[2], p[3]);
-      ctx.fillStyle = "#fff"; ctx.fillRect(x - 12, z - 12, 24, 24);
+      ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = 4;
       if (head && head.complete && head.naturalWidth) { ctx.imageSmoothingEnabled = false; ctx.drawImage(head, x - 10, z - 10, 20, 20); ctx.imageSmoothingEnabled = true; }
       else { ctx.fillStyle = cssv("--text"); ctx.fillRect(x - 10, z - 10, 20, 20); }
+      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
     }
     $("#tvWhere").textContent = `${DIMS[p[1]]} · ${Math.round(p[2])}, ${Math.round(p[4])}, ${Math.round(p[3])}`;
-    $("#tvNow").textContent = fmt(t, 0);
-    $("#tvLegend").innerHTML = [...new Set(events.filter(e => e.dim === dim).map(e => e.k))].map(k => { const e = events.find(x => x.k === k); return `<span>${eventIcon(e)} ${esc(T.travelKinds[k])}</span>`; }).join("")
-      + [...shown].map(k => { const def = STRUCTS[dim].find(s => s[0] === k); return `<span>${okIcon(ICONS["st_" + k]) ? ic("st_" + k, 16) : `<b class="tvbadge">${def[2]}</b>`}${esc(T.travelStruct[k])}</span>`; }).join("");
-    // the latest event so far is marked in the list
-    let cur = -1; events.forEach((e, i) => { if (e.t <= t) cur = i; });
-    const list = $("#tvList"), prev = list.querySelector(".now");
-    if (prev && prev.dataset.ev != cur) prev.classList.remove("now");
-    const nowEl = list.querySelector(`[data-ev="${cur}"]`);
-    if (nowEl && !nowEl.classList.contains("now")) { nowEl.classList.add("now"); if (playing) nowEl.scrollIntoView({block: "nearest"}); }
+    // timeline: the playhead, with what's still to come dimmed
+    $("#tvNow").textContent = fmt(t, 0); $("#tvHead").style.left = pct(t);
+    $("#tvLater").style.left = pct(t); $("#tvLater").style.width = `calc(100% - ${pct(t)})`;
+    $("#tvTrack").setAttribute("aria-valuenow", Math.round(t)); $("#tvTrack").setAttribute("aria-valuetext", fmt(t, 0));
   }
 
   // ---------- time: slider, play, the progress graph, the list ----------
   const setT = (v, from) => {
     t = Math.max(0, Math.min(endT, v));
-    if (from !== "slider") $("#tvTime").value = t;
     const p = travelAt(P, t); if (p[1] !== dim) setDim(p[1], true); else draw();
     if (from !== "graph" && progressCtl) progressCtl.showLine(t);
   };
-  $("#tvTime").addEventListener("input", e => setT(+e.target.value, "slider"));
   travelFollow = v => { if (v != null && !playing && card.isConnected) setT(v, "graph"); };
+  // the timeline: click or drag to move through the run; arrow keys step a minute
+  const track = $("#tvTrack");
+  const fromX = ev => { const r = track.getBoundingClientRect(); return (ev.clientX - r.left) / r.width * endT; };
+  let scrub = false;
+  track.addEventListener("pointerdown", ev => { scrub = true; track.setPointerCapture(ev.pointerId); stop(); setT(fromX(ev)); });
+  track.addEventListener("pointermove", ev => { if (scrub) setT(fromX(ev)); });
+  track.addEventListener("pointerup", () => { scrub = false; }); track.addEventListener("pointercancel", () => { scrub = false; });
+  track.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 600000 : 60000;
+    if (e.key === "ArrowLeft") setT(t - step); else if (e.key === "ArrowRight") setT(t + step);
+    else if (e.key === "Home") setT(0); else if (e.key === "End") setT(endT); else return;
+    e.preventDefault();
+  });
   let last = 0;
   const tick = now => {
     if (!playing || !card.isConnected) return;
     const dt = last ? now - last : 0; last = now;
-    setT(t + dt * 300);   // 5 minutes of the run per second
+    setT(t + dt * speed);
     if (t >= endT) return stop();
     requestAnimationFrame(tick);
   };
-  const stop = () => { playing = false; $("#tvPlay").innerHTML = `▶ ${esc(T.travelPlay)}`; };
+  const playIcon = on => `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${on ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>' : '<path d="M8 5v14l11-7z"/>'}</svg>`;
+  const stop = () => { playing = false; $("#tvPlay").innerHTML = playIcon(false); $("#tvPlay").setAttribute("aria-label", T.travelPlay); };
+  $("#tvPlay").innerHTML = playIcon(false);
   $("#tvPlay").addEventListener("click", () => {
     if (playing) return stop();
     playing = true; last = 0; if (t >= endT) t = 0;
-    $("#tvPlay").innerHTML = `❚❚ ${esc(T.travelPause)}`; requestAnimationFrame(tick);
+    $("#tvPlay").innerHTML = playIcon(true); $("#tvPlay").setAttribute("aria-label", T.travelPause); requestAnimationFrame(tick);
   });
-  $("#tvList").addEventListener("click", e => {
-    const b = e.target.closest("[data-ev]"); if (!b) return;
-    const ev = events[+b.dataset.ev]; stop(); setT(ev.t);
-    if (ev.dim !== dim) setDim(ev.dim, true);
-    view.cx = ev.x; view.cz = ev.z; view.s = Math.max(view.s, .5); clampView(); draw();
-  });
+  body.querySelectorAll("[data-speed]").forEach(b => b.addEventListener("click", () => {
+    speed = +b.dataset.speed; body.querySelectorAll("[data-speed]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  }));
   $("#tvTabs").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) setDim(b.dataset.d, true); });
 
   // ---------- hover, drag, zoom ----------
@@ -334,7 +343,7 @@ function travelMount(run, d, P, body) {
     if (world) { const [wx, wz] = toW(mx, mz), b = biomeAt(wx, wz); $("#tvHover").textContent = b ? `${b} · ${Math.round(wx)}, ${Math.round(wz)}` : ""; }
     const near = hot.filter(h => Math.hypot(h.x - mx, h.z - mz) < 11);
     if (!near.length) { tip.style.display = "none"; return; }
-    tip.innerHTML = near.slice(0, 6).map(({e}) => `<div><b>${esc(e.text)}</b> <span class="mono muted">${e.t != null ? fmt(e.t, 0) : esc(e.where)}</span></div>`).join("") + (near.length > 6 ? `<div class="muted">${esc(T.andMore(near.length - 6))}</div>` : "");
+    tip.innerHTML = near.slice(0, 6).map(({e}) => `<div><b>${esc(e.text)}</b></div>`).join("") + (near.length > 6 ? `<div class="muted">${esc(T.andMore(near.length - 6))}</div>` : "");
     tip.style.display = "block";
     tip.style.left = Math.max(4, Math.min(mx + 14, r.width - tip.offsetWidth - 4)) + "px"; tip.style.top = Math.max(4, mz - tip.offsetHeight - 12) + "px";
   });

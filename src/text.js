@@ -199,6 +199,7 @@ const T = {
   travelStruct: {stronghold: "Stronghold", village: "Village", desert_pyramid: "Desert pyramid", pillager_outpost: "Pillager outpost",
     monument: "Ocean monument", mansion: "Woodland mansion", swamp_hut: "Swamp hut", igloo: "Igloo", ruined_portal: "Ruined portal",
     shipwreck: "Shipwreck", ocean_ruin: "Ocean ruin", fortress: "Nether fortress", bastion_remnant: "Bastion remnant", end_city: "End city"},
+  travelFollow: "Follow the player",
   travelRewind: "Rewind",
   travelForward: "Fast forward",
   deathLabel: "Death",

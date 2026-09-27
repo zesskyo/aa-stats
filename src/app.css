@@ -391,3 +391,5 @@ input.field:disabled{opacity:.6}
 .edfilecard code{font-family:var(--mono);font-size:11px;word-break:break-word}
 .edfilecard .edstatus{color:var(--text)}
 .edfilecard .btn{align-self:flex-start;margin-top:4px}
+.tvfollow{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.tvfollow[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}

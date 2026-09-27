@@ -9,7 +9,7 @@
  */
 const travelCache = {};             // run id -> loaded path
 let travelResize = null;
-const TRAVEL_SEEN = 512;            // blocks around the path shown as "explored" (32 chunks: maximum render distance)
+const TRAVEL_SEEN = 32;             // chunks around the player shown as "explored" (maximum render distance: a square)
 const TRAVEL_NEAR = 64;             // a structure this close to the path counts as one the player went to
 
 const travelCardShell = () => `
@@ -100,6 +100,12 @@ function travelMount(run, d, P, body) {
     for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) { if (i * i + j * j > r * r) continue; const v = m.get((cx + i) + "," + (cz + j)); if (v != null && v <= t) return true; }
     return false;
   };
+  // was this spot inside the rendered square around the player by time t? (within 32 chunks either way; 128-block cells)
+  const seenBy = (k, x, z, t) => {
+    const m = cells[128][k], cx = Math.floor(x / 128), cz = Math.floor(z / 128), r = TRAVEL_SEEN * 16 / 128;
+    for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) { const v = m.get((cx + i) + "," + (cz + j)); if (v != null && v <= t) return true; }
+    return false;
+  };
   const visitedOf = (k, kind) => {   // structures of one kind near the path (searched only where the path goes)
     const found = [];
     for (const sq of squares[k]) {
@@ -123,6 +129,7 @@ function travelMount(run, d, P, body) {
   body.innerHTML = `
     <div class="tvtop"><div class="tabs-inline" id="tvTabs">${"one".split("").filter(k => P.pieces[k].length).map(k => `<button type="button" data-d="${k}">${esc(DIMS[k])}</button>`).join("")}</div></div>
     <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><div class="tip" id="tvTip"></div><span class="tvhover mono" id="tvHover"></span>
+      <button type="button" class="tvfollow" id="tvFollow" aria-pressed="false" title="${esc(T.travelFollow)}" aria-label="${esc(T.travelFollow)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
       <div class="tvover"><span class="mono" id="tvWhere"></span></div></div>
     <div class="tvtl">
       <div class="tvctl">
@@ -213,8 +220,15 @@ function travelMount(run, d, P, body) {
     // around the path so far: clear (a thick copy of the path, filled in with the biomes)
     mctx.save(); mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.clearRect(0, 0, mask.width, mask.height); mctx.restore();
     mctx.globalCompositeOperation = "source-over"; drawTiles(mctx, false);
-    mctx.globalCompositeOperation = "destination-in"; mctx.lineCap = mctx.lineJoin = "round";   // keep them only along the path
-    mctx.strokeStyle = "#000"; mctx.lineWidth = Math.max(8, TRAVEL_SEEN * 2 * view.s); mctx.stroke(pth);
+    // keep them only in the squares of chunks rendered around the player so far
+    mctx.globalCompositeOperation = "destination-in";
+    const seen = new Path2D(), done = new Set(), side = (TRAVEL_SEEN * 2 + 1) * 16 * view.s;
+    for (const pc of P.pieces[dim]) for (const p of pc) {
+      if (p[0] > t) break;
+      const cx = Math.floor(p[2] / 16), cz = Math.floor(p[3] / 16), k = cx + "," + cz; if (done.has(k)) continue; done.add(k);
+      const [sx, sz] = toS((cx - TRAVEL_SEEN) * 16, (cz - TRAVEL_SEEN) * 16); seen.rect(sx, sz, side, side);
+    }
+    mctx.fillStyle = "#000"; mctx.fill(seen);
     mctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1; ctx.drawImage(mask, 0, 0, r.width, r.height);
   }
@@ -236,7 +250,7 @@ function travelMount(run, d, P, body) {
       for (const [x, z] of pts) {
         const [sx, sz] = toS(x, z); if (sx < -14 || sz < -14 || sx > r.width + 14 || sz > r.height + 14) continue;
         if (!zoomedIn && !nearBy(dim, x, z, t)) continue;
-        ctx.globalAlpha = nearBy(dim, x, z, t, TRAVEL_SEEN) ? 1 : .5;
+        ctx.globalAlpha = seenBy(dim, x, z, t) ? 1 : .5;
         const im = travelIcon("st_" + kind);
         if (im) { ctx.imageSmoothingQuality = "high"; ctx.drawImage(im, sx - 11, sz - 11, 22, 22); }
         else {
@@ -250,8 +264,10 @@ function travelMount(run, d, P, body) {
     }
     ctx.globalAlpha = 1; ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
   }
+  let follow = false;
   function draw() {
     if (!view) return;
+    if (follow) { const p = travelAt(P, t); if (p[1] === dim) { view.cx = p[2]; view.cz = p[3]; } }
     const r = box(); ctx.clearRect(0, 0, r.width, r.height);
     hot = [];
     const pth = pathSoFar(), bio = world && !world.failed;
@@ -342,6 +358,8 @@ function travelMount(run, d, P, body) {
   $("#tvPlay").addEventListener("click", () => { if (rate) return stop(); if (t >= endT) t = 0; runAt(1); });
   $("#tvFf").addEventListener("click", () => { if (t >= endT) t = 0; runAt(rate > 0 ? Math.min(rate * 2, 32) : 2); });
   $("#tvRw").addEventListener("click", () => { if (t <= 0) t = endT; runAt(rate < 0 ? Math.max(rate * 2, -32) : -2); });
+  const setFollow = on => { follow = on; $("#tvFollow").setAttribute("aria-pressed", String(on)); if (on) { view.s = Math.max(view.s, .25); draw(); } };
+  $("#tvFollow").addEventListener("click", () => setFollow(!follow));
   $("#tvTabs").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) setDim(b.dataset.d, true); });
 
   // ---------- hover, drag, zoom ----------
@@ -362,6 +380,7 @@ function travelMount(run, d, P, body) {
     if (!drag || !touches.has(ev.pointerId)) return;
     touches.set(ev.pointerId, [ev.clientX, ev.clientY]);
     if (touches.size === 2) { const [a, b] = [...touches.values()], dd = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.d) view.s *= dd / drag.d; drag.d = dd; clampView(); draw(); return; }
+    if (follow) setFollow(false);   // moving the map yourself stops following
     view.cx = drag.cx - (ev.clientX - drag.x) / view.s; view.cz = drag.cz - (ev.clientY - drag.y) / view.s; clampView(); draw();
   });
   const up = ev => { touches.delete(ev.pointerId); if (!touches.size) drag = null; };
@@ -369,7 +388,7 @@ function travelMount(run, d, P, body) {
   // gentle zoom: about 10% per wheel step, towards the mouse
   cv.addEventListener("wheel", ev => {
     ev.preventDefault();
-    const r = box(), mx = ev.clientX - r.left, mz = ev.clientY - r.top, [wx, wz] = toW(mx, mz);
+    const r = box(), mx = follow ? r.width / 2 : ev.clientX - r.left, mz = follow ? r.height / 2 : ev.clientY - r.top, [wx, wz] = toW(mx, mz);
     const dy = ev.deltaMode === 1 ? ev.deltaY * 33 : ev.deltaY;
     view.s *= Math.exp(-Math.max(-300, Math.min(300, dy)) * .001);
     clampView();

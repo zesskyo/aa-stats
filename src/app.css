@@ -415,3 +415,6 @@ input.field:disabled{opacity:.6}
 .pginvpop{position:absolute;right:24px;top:72px;z-index:6;display:flex;flex-direction:column;gap:10px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
 .pginvpop[hidden]{display:none}
 #pgInvBtn[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.advtoasts{position:absolute;top:8px;right:52px;z-index:4;display:flex;flex-direction:column;align-items:flex-end;pointer-events:none}
+.advtoast{display:block;image-rendering:pixelated;transform:translateX(calc(100% + 60px));opacity:0;transition:transform .5s ease,opacity .5s ease}
+.advtoast.in{transform:none;opacity:1}

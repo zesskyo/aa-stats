@@ -29,11 +29,11 @@ function invAssets() {
   const img = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
   invAssetsP = Promise.all([
     fetch("items/items.json").then(r => { if (!r.ok) throw 0; return r.json(); }),
-    img("items/atlas.png"), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"), img("items/steve.png"), img("items/elytra.png"),
+    img("items/atlas.png"), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"), img("items/steve.png"), img("items/elytra.png"), img("items/toasts.png"),
     ...Object.values(INV_EMPTY).map(k => img(`items/${k}.png`)),
-  ]).then(([db, atlas, gui, font, glint, shulker, steve, elytra, ...empties]) => {
+  ]).then(([db, atlas, gui, font, glint, shulker, steve, elytra, toasts, ...empties]) => {
     const empty = {}; Object.values(INV_EMPTY).forEach((k, i) => { empty[k] = empties[i]; });
-    return {db, atlas, gui, glint, shulker, steve, elytra, empty, font: invFont(font)};
+    return {db, atlas, gui, glint, shulker, steve, elytra, toasts, empty, font: invFont(font)};
   });
   invAssetsP.catch(() => { invAssetsP = null; });
   return invAssetsP;
@@ -361,4 +361,39 @@ function invOnGraph(run) {
     const go = () => { const v = +range.value; $("#invNow").textContent = fmt(v, 0); ctl.set(v); };
     range.addEventListener("input", go); go();
   });
+}
+
+// ---------- advancement pop-ups over the travel map, like the game's toasts ----------
+// As the timeline moves forward through an advancement, its toast slides in at the top right for 5 seconds;
+// at most 5 at once (the oldest go first). Jumping around the timeline doesn't show any.
+async function invToasts(host, run) {
+  let A; try { A = await invAssets(); } catch { return null; }
+  const {db, atlas, toasts, font} = A, adv = run.events.filter(e => e[4] && db.adv && db.adv[e[2]]).map(e => ({t: e[0], id: e[2]}));
+  const TOAST_COLOR = {task: "#FFFF00", goal: "#FFFF00", challenge: "#FF88FF"};
+  let last = null;
+  const make = a => {
+    const [icon, frame] = db.adv[a.id], G = host.clientWidth < 560 ? 1 : 2, P = Math.max(1, Math.round(G * (devicePixelRatio || 1)));
+    const c = document.createElement("canvas"); c.width = 160 * P; c.height = 32 * P; c.className = "advtoast";
+    c.style.width = 160 * G + "px"; c.style.height = 32 * G + "px";
+    const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+    x.drawImage(toasts, 0, 0, 160, 32, 0, 0, 160 * P, 32 * P);
+    const k = db.index[icon]; if (k != null) x.drawImage(atlas, (k % db.cols) * db.size, Math.floor(k / db.cols) * db.size, db.size, db.size, 8 * P, 8 * P, 16 * P, 16 * P);
+    font.draw(x, db.toast[frame] || db.toast.task, 30, 7, TOAST_COLOR[frame] || TOAST_COLOR.task, P);
+    font.draw(x, advName(a.id), 30, 18, "#FFFFFF", P);
+    return c;
+  };
+  const show = a => {
+    const el = make(a); host.appendChild(el);
+    while (host.children.length > 5) host.firstChild.remove();
+    requestAnimationFrame(() => el.classList.add("in"));
+    setTimeout(() => { el.classList.remove("in"); setTimeout(() => el.remove(), 600); }, 5000);
+  };
+  return {
+    // t: where the timeline is now; toasts only for moving forward a little (playing, or a short step)
+    set(t) {
+      if (last != null && t > last && t - last <= 180000) { for (const a of adv) if (a.t > last && a.t <= t) show(a); }
+      else if (last != null && t !== last) host.replaceChildren();
+      last = t;
+    },
+  };
 }

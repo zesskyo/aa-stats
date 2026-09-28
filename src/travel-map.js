@@ -120,7 +120,7 @@ function travelMount(run, d, P, body) {
   let head = null;
   if (run.uuid || run.player) { head = new Image(); head.onload = () => draw(); head.src = `https://mc-heads.net/avatar/${encodeURIComponent((run.uuid || run.player).replace(/-/g, ""))}/32`; }
 
-  let dim = "o", t = endT, view = null, playing = false, inv = null;
+  let dim = "o", t = endT, view = null, playing = false, inv = null, toasts = null;
   const pct = v => (Math.max(0, Math.min(1, v / endT)) * 100).toFixed(3) + "%";
   const dimSegs = run.dims.map((x, i) => [x[0], (run.dims[i + 1] || [endT])[0], x[1]]).filter(s => s[1] > s[0]);
   const BASE = 60;   // playing at 1×: one minute of the run per second; fast forward / rewind double it each press
@@ -131,6 +131,7 @@ function travelMount(run, d, P, body) {
     <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><span class="tvhover mono" id="tvHover"></span>
       <button type="button" class="tvfollow" id="tvFollow" aria-pressed="false" title="${esc(T.travelFollow)}" aria-label="${esc(T.travelFollow)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
       <div class="tvover"><span class="mono" id="tvWhere"></span></div>
+      <div class="advtoasts" id="tvToasts" aria-live="polite"></div>
       ${run.meta.inv ? `<button type="button" class="tvinvbtn" id="tvInvBtn" aria-pressed="false" aria-controls="tvInv" title="${esc(T.invTitle)}" aria-label="${esc(T.invTitle)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M3 12h18M11 12v2h2v-2"/></svg></button>
       <div class="tvinvpop" id="tvInv" hidden></div>` : ""}</div>
     <div class="tvtl">
@@ -319,6 +320,7 @@ function travelMount(run, d, P, body) {
     $("#tvWhere").textContent = `${DIMS[p[1]]} · ${Math.round(p[2])}, ${Math.round(p[4])}, ${Math.round(p[3])}`;
     // timeline: the playhead, with what's still to come dimmed
     if (inv && !$("#tvInv").hidden) inv.set(t);
+    if (toasts) toasts.set(t);
     $("#tvNow").textContent = fmt(t, 0); $("#tvHead").style.left = pct(t);
     $("#tvLater").style.left = pct(t); $("#tvLater").style.width = `calc(100% - ${pct(t)})`;
     $("#tvTrack").setAttribute("aria-valuenow", Math.round(t)); $("#tvTrack").setAttribute("aria-valuetext", fmt(t, 0));
@@ -418,6 +420,7 @@ function travelMount(run, d, P, body) {
   size();
   const startDim = travelAt(P, t)[1];
   setDim(P.pieces[startDim].length ? startDim : "o", true);
+  invToasts($("#tvToasts"), run).then(c => { toasts = c; if (toasts) toasts.set(t); });
   // the inventory: a pop-up over the map (button at the bottom right), following the timeline
   if (run.meta.inv) $("#tvInvBtn").addEventListener("click", () => {
     const pop = $("#tvInv"), open = pop.hidden;

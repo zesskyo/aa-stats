@@ -178,7 +178,7 @@ if (wrLog) {
 
 // 3c) the inventory replay: the inventory through the run, from the log (inv/<N>.json), and the item icons it needs
 const items = JSON.parse(read(inCode("items/items.json")));
-const invs = new Map(), usedIcons = new Set(["barrier"]);
+const invs = new Map(), usedIcons = new Set(["barrier", ...Object.values(items.adv || {}).map(a => a[0])]);
 for (const [n, file] of logFiles) {
   const run = n === "wr" ? wr : out.find(r => r.meta.num === n); if (!run) continue;
   const inv = readInventory(read(file), items, clocks.get(n).finalIgt);
@@ -222,7 +222,8 @@ if (invs.size) {
   // only the icons these runs use, cut out of the big atlas
   const keys = [...usedIcons].filter(k => items.index[k] != null), cols = 16;
   fs.writeFileSync(inSite("dist/items/atlas.png"), writePng(pickSquares(readPng(fs.readFileSync(inCode("items/atlas.png"))), items.size, cols, keys.map(k => items.index[k]))));
-  fs.writeFileSync(inSite("dist/items/items.json"), JSON.stringify({size: items.size, cols, index: Object.fromEntries(keys.map((k, i) => [k, i]))}));
+  fs.writeFileSync(inSite("dist/items/items.json"), JSON.stringify({size: items.size, cols, index: Object.fromEntries(keys.map((k, i) => [k, i])), adv: items.adv,
+    toast: {task: items.text["advancements.toast.task"], goal: items.text["advancements.toast.goal"], challenge: items.text["advancements.toast.challenge"]}}));
   for (const f of fs.readdirSync(inCode("items"))) if (f.endsWith(".png") && f !== "atlas.png") fs.copyFileSync(inCode("items/" + f), inSite("dist/items/" + f));
   fs.mkdirSync(inSite("dist/items/armor"), {recursive: true});
   for (const f of fs.readdirSync(inCode("items/armor"))) fs.copyFileSync(inCode("items/armor/" + f), inSite("dist/items/armor/" + f));

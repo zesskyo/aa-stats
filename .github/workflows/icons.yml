@@ -1,0 +1,31 @@
+name: Render the item icons
+
+# Renders items/atlas.png (the inventory's item icons) from Minecraft 1.16.1's models and textures with
+# items/make/make.mjs, and saves it here. Run it from the Actions tab ("Run workflow") after changing items/make/.
+on: workflow_dispatch
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Get Minecraft 1.16.1's models and textures
+        run: |
+          git clone -q --depth 1 --filter=blob:none --sparse -b 1.16.1 https://github.com/InventivetalentDev/minecraft-assets "$RUNNER_TEMP/mca"
+          git -C "$RUNNER_TEMP/mca" sparse-checkout set assets/minecraft/models assets/minecraft/textures
+      - name: Get a headless browser
+        run: npm i --no-save playwright@1 && npx playwright install --with-deps chromium
+      - name: Render the icons
+        run: node items/make/make.mjs "$RUNNER_TEMP/mca/assets/minecraft"
+      - name: Save them
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add items/atlas.png items/items.json
+          git diff --cached --quiet && echo "No changes" || (git commit -q -m "Item icons rendered again" && git push)

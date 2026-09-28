@@ -198,15 +198,21 @@ async function entityQuads(id) {
     const img = await tex("entity/shield_base_nopattern");
     return partsQuads(img, 64, 64, M.s(1, -1, -1), [{tex: [0, 0], box: [-6, -11, -2, 12, 22, 1]}, {tex: [26, 0], box: [-1, -3, -1, 2, 6, 6]}]);
   }
-  // banners: BannerTileEntityRenderer: the stand, the bar, and the cloth in its colour
-  if ((m = /^(\w+)_banner$/.exec(id)) && DYES.includes(m[1])) {
-    const base = await tex("entity/banner_base"), cloth = await tex("entity/banner/base");
+  // banners: BannerTileEntityRenderer: the stand, the bar, and the cloth in its colour, then its patterns in order.
+  // "ominous_banner" is the raid captains' banner (Raid.createIllagerBanner's patterns)
+  const OMINOUS = [["rhombus", "cyan"], ["stripe_bottom", "light_gray"], ["stripe_center", "gray"], ["border", "light_gray"],
+    ["stripe_middle", "black"], ["half_horizontal", "light_gray"], ["circle", "light_gray"], ["border", "black"]];
+  if (id === "ominous_banner" || ((m = /^(\w+)_banner$/.exec(id)) && DYES.includes(m[1]))) {
+    const color = id === "ominous_banner" ? "white" : m[1], patterns = [["base", color], ...(id === "ominous_banner" ? OMINOUS : [])];
+    const base = await tex("entity/banner_base");
     const bm = M.chain(M.t(.5, .5, .5), M.s(2 / 3, -2 / 3, -2 / 3));
     const slate = {tex: [0, 0], box: [-10, 0, -2, 20, 40, 1], rp: [0, -32, 0], rot: [-.0025 * Math.PI, 0, 0]};
-    return [
-      ...partsQuads(base, 64, 64, bm, [{tex: [44, 0], box: [-1, -30, -1, 2, 42, 2]}, {tex: [0, 42], box: [-10, -32, -1, 20, 2, 2]}, slate]),
-      ...partsQuads(cloth, 64, 64, bm, [slate]).map(q => ({...q, tint: DYE_RGB[m[1]], layer: 1})),
-    ];
+    const out = partsQuads(base, 64, 64, bm, [{tex: [44, 0], box: [-1, -30, -1, 2, 42, 2]}, {tex: [0, 42], box: [-10, -32, -1, 20, 2, 2]}, slate]);
+    for (let i = 0; i < patterns.length; i++) {
+      const img = await tex("entity/banner/" + patterns[i][0]); if (!img) continue;
+      out.push(...partsQuads(img, 64, 64, bm, [slate]).map(q => ({...q, tint: DYE_RGB[patterns[i][1]], layer: i + 1})));
+    }
+    return out;
   }
   return null;
 }
@@ -278,7 +284,7 @@ async function render(id) {
     await drawGenerated(ctx, await resolve("item/" + item), item === "tipped_arrow" ? [null, col] : [col]);
     return c;
   }
-  const r = await resolve("item/" + id);
+  const r = await resolve("item/" + (id === "ominous_banner" ? "white_banner" : id));
   if (r.generated) { await drawGenerated(ctx, r, ITEM_TINT[id]); return c; }
   let quads = null;
   if (r.entity) quads = await entityQuads(id);

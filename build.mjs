@@ -19,6 +19,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readGhost } from "./ghost.mjs";
+import { readInventory } from "./inv.mjs";
+import { readPng, writePng, pickSquares } from "./png.mjs";
 
 const code = path.dirname(new URL(import.meta.url).pathname);
 const site = path.resolve(process.argv[2] || ".");
@@ -29,7 +31,7 @@ const read = p => fs.readFileSync(p, "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
 ];
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n") + "\n})();\n";
 const appCss = read(inCode("src/app.css"));
@@ -61,6 +63,7 @@ if (fs.existsSync(inSite("site.json"))) {
 
 const runs = new Map();   // run number -> stored run
 const clocks = new Map(); // run number -> the parsed run (with its clock), for lining up a ghost file
+const logFiles = new Map(); // run number (or "wr") -> its log file, for the inventory replay
 const numOf = f => { const m = /^(\d+)\./.exec(f); return m ? Number(m[1]) : null; };
 
 // 1) already-parsed runs
@@ -73,7 +76,7 @@ if (fs.existsSync(inSite("logs"))) for (const f of fs.readdirSync(inSite("logs")
   const n = numOf(f); if (n == null || !/\.(log|txt|jsonl)$/i.test(f)) continue;
   const r = parseLog(read(inSite("logs/" + f)), f);
   r.id = runKey(r);
-  clocks.set(n, r);
+  clocks.set(n, r); logFiles.set(n, inSite("logs/" + f));
   runs.set(n, encodeRun(r));
   console.log(`Parsed logs/${f} as run ${n}`);
 }
@@ -168,8 +171,20 @@ if (wrLog) {
     const v = ((JSON.parse(read(inWr("wr.stats.json"))).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
     if (v != null) meta.elytraCm = v;
   }
+  logFiles.set("wr", wrLog); clocks.set("wr", r);
   wr = {...encodeRun(r), meta};
   console.log(`Parsed the world record (wr/${path.basename(wrLog)})`);
+}
+
+// 3c) the inventory replay: the inventory through the run, from the log (inv/<N>.json), and the item icons it needs
+const items = JSON.parse(read(inCode("items/items.json")));
+const invs = new Map(), usedIcons = new Set(["barrier"]);
+for (const [n, file] of logFiles) {
+  const run = n === "wr" ? wr : out.find(r => r.meta.num === n); if (!run) continue;
+  const inv = readInventory(read(file), items, clocks.get(n).finalIgt);
+  if (!inv) continue;
+  inv.s.forEach(x => usedIcons.add(x.m));
+  invs.set(n, inv); run.meta.inv = `inv/${n}.json`;
 }
 
 // 4) icons: the built-in ones, then the site's own (which win)
@@ -201,6 +216,15 @@ if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
 // the biome/structure generator for travel maps of runs with a seed (see wasm/)
 if ([...paths.keys()].some(n => (n === "wr" ? wr : out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
 for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
+if (invs.size) {
+  fs.mkdirSync(inSite("dist/inv"), {recursive: true}); fs.mkdirSync(inSite("dist/items"), {recursive: true});
+  for (const [n, inv] of invs) fs.writeFileSync(inSite(`dist/inv/${n}.json`), JSON.stringify(inv));
+  // only the icons these runs use, cut out of the big atlas
+  const keys = [...usedIcons].filter(k => items.index[k] != null), cols = 16;
+  fs.writeFileSync(inSite("dist/items/atlas.png"), writePng(pickSquares(readPng(fs.readFileSync(inCode("items/atlas.png"))), items.size, cols, keys.map(k => items.index[k]))));
+  fs.writeFileSync(inSite("dist/items/items.json"), JSON.stringify({size: items.size, cols, index: Object.fromEntries(keys.map((k, i) => [k, i]))}));
+  for (const f of fs.readdirSync(inCode("items"))) if (f.endsWith(".png") && f !== "atlas.png") fs.copyFileSync(inCode("items/" + f), inSite("dist/items/" + f));
+}
 if (iconFiles.size) { fs.mkdirSync(inSite("dist/icons"), {recursive: true}); for (const [f, src] of iconFiles) fs.copyFileSync(src, inSite("dist/icons/" + f)); }
 for (const rel of copies) { fs.mkdirSync(path.dirname(inSite("dist/" + rel)), {recursive: true}); fs.copyFileSync(inSite(rel), inSite("dist/" + rel)); }
 console.log(`Built ${path.relative(process.cwd(), inSite("dist/index.html")) || "dist/index.html"}: ${out.length} runs, ${Object.keys(icons).length} icons, ${(html.length / 1024).toFixed(0)} KB`);

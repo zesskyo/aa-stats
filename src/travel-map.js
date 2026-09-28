@@ -120,7 +120,7 @@ function travelMount(run, d, P, body) {
   let head = null;
   if (run.uuid || run.player) { head = new Image(); head.onload = () => draw(); head.src = `https://mc-heads.net/avatar/${encodeURIComponent((run.uuid || run.player).replace(/-/g, ""))}/32`; }
 
-  let dim = "o", t = endT, view = null, playing = false;
+  let dim = "o", t = endT, view = null, playing = false, inv = null;
   const pct = v => (Math.max(0, Math.min(1, v / endT)) * 100).toFixed(3) + "%";
   const dimSegs = run.dims.map((x, i) => [x[0], (run.dims[i + 1] || [endT])[0], x[1]]).filter(s => s[1] > s[0]);
   const BASE = 60;   // playing at 1×: one minute of the run per second; fast forward / rewind double it each press
@@ -145,7 +145,8 @@ function travelMount(run, d, P, body) {
         <span class="tvpeek mono" id="tvPeek"></span>
       </div>
       <span class="mono muted tvend">${fmt(endT, 0)}</span>
-    </div>`;
+    </div>
+    ${run.meta.inv ? `<div class="tvinv" id="tvInv"></div>` : ""}`;
 
   const cv = $("#tvCanvas"), ctx = cv.getContext("2d");
   const mask = document.createElement("canvas"), mctx = mask.getContext("2d");
@@ -315,6 +316,7 @@ function travelMount(run, d, P, body) {
     }
     $("#tvWhere").textContent = `${DIMS[p[1]]} · ${Math.round(p[2])}, ${Math.round(p[4])}, ${Math.round(p[3])}`;
     // timeline: the playhead, with what's still to come dimmed
+    if (inv) inv.set(t);
     $("#tvNow").textContent = fmt(t, 0); $("#tvHead").style.left = pct(t);
     $("#tvLater").style.left = pct(t); $("#tvLater").style.width = `calc(100% - ${pct(t)})`;
     $("#tvTrack").setAttribute("aria-valuenow", Math.round(t)); $("#tvTrack").setAttribute("aria-valuetext", fmt(t, 0));
@@ -414,4 +416,5 @@ function travelMount(run, d, P, body) {
   size();
   const startDim = travelAt(P, t)[1];
   setDim(P.pieces[startDim].length ? startDim : "o", true);
+  if (run.meta.inv) invMount($("#tvInv"), run).then(c => { inv = c; if (inv) inv.set(t); });
 }

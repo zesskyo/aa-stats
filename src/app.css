@@ -397,3 +397,11 @@ input.field:disabled{opacity:.6}
 .edfilecard .btn{align-self:flex-start;margin-top:4px}
 .tvfollow{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 .tvfollow[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+/* inventory replay (inventory.js): the game's inventory screen, pixels kept sharp */
+.tvinv{display:flex;justify-content:center;margin-top:18px}
+.invwrap{position:relative;width:352px;max-width:100%;margin:0 auto}
+.invcanvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:manipulation}
+.invtip{position:absolute;display:none;pointer-events:none;image-rendering:pixelated;z-index:5}
+.invbar{display:flex;align-items:center;gap:12px;max-width:352px;width:100%;margin:0 auto}
+.invbar input{flex:1;accent-color:var(--accent)}

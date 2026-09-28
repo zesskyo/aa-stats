@@ -401,6 +401,7 @@ input.field:disabled{opacity:.6}
 /* inventory replay (inventory.js): the game's inventory screen, pixels kept sharp */
 .tvinv{display:flex;justify-content:center;margin-top:18px}
 .invwrap{position:relative;width:352px;max-width:100%;margin:0 auto}
+.invtip{max-width:none}
 .invcanvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:manipulation}
 .invtip{position:absolute;display:none;pointer-events:none;image-rendering:pixelated;z-index:5}
 .invbar{display:flex;align-items:center;gap:12px;max-width:352px;width:100%;margin:0 auto}

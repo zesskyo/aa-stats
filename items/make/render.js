@@ -187,7 +187,6 @@ async function special(ctx, id) {
     const img = await tex("entity/shulker/shulker" + (m[1] ? "_" + m[1] : ""));
     // lid over the top 12, base under it
     const els = [box(img, [0, 0, 0], [16, 8, 16], 0, 28, 16, 8, 16), box(img, [0, 4, 0], [16, 16, 16], 0, 0, 16, 12, 16)];
-    for (const e of els) { const up = e.faces.up; e.faces.up = e.faces.down; e.faces.down = up; }
     draw3d(ctx, els, BLOCK_VIEW, "side"); return true;
   }
   if ((m = /^(chest|trapped_chest|ender_chest)$/.exec(id))) {
@@ -235,9 +234,20 @@ async function special(ctx, id) {
   return false;
 }
 
+// potions, splash/lingering potions and tipped arrows in each potion's colour: "splash_potion@fire_resistance"
+const POTION_COLOR = {water: "#385DC6", night_vision: "#1F1FA1", invisibility: "#7F8392", leaping: "#22FF4C", fire_resistance: "#E49A3A", swiftness: "#7CAFC6",
+  slowness: "#5A6C81", turtle_master: "#755D5C", water_breathing: "#2E5299", healing: "#F82423", harming: "#430A09", poison: "#4E9331", regeneration: "#CD5CAB",
+  strength: "#932423", weakness: "#484D48", luck: "#339900", slow_falling: "#F7F8E0"};
+window.POTION_IDS = ["potion", "splash_potion", "lingering_potion", "tipped_arrow"].flatMap(k => Object.keys(POTION_COLOR).map(p => k + "@" + p));
+
 async function render(id) {
   const c = document.createElement("canvas"); c.width = c.height = SIZE;
   const ctx = c.getContext("2d");
+  if (id.includes("@")) {
+    const [item, pot] = id.split("@"), col = POTION_COLOR[pot];
+    await drawGenerated(ctx, await resolve("item/" + item), item, item === "tipped_arrow" ? [null, col] : [col]);
+    return c;
+  }
   if (await special(ctx, id)) return c;
   const r = await resolve("item/" + id);
   if (r.generated) await drawGenerated(ctx, r, id, ITEM_TINT[id]);

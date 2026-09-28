@@ -203,6 +203,7 @@ const T = {
     shipwreck: "Shipwreck", ocean_ruin: "Ocean ruin", fortress: "Nether fortress", bastion_remnant: "Bastion remnant", end_city: "End city"},
   invTitle: "Inventory",
   invFailed: "Couldn't load the inventory.",
+  invDurability: "Durability: %s / %s",
   travelFollow: "Follow the player",
   travelRewind: "Rewind",
   travelForward: "Fast forward",

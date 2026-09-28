@@ -2,8 +2,13 @@
 // (0–8 hotbar, 9–35 inventory, 36–39 boots/leggings/chestplate/helmet, 40 off hand).
 // Returns {s, e} for the inventory replay (src/inventory.js):
 //   s  the different item stacks: {m: icon, n: tooltip lines [[text, colour], …], g: 1 if enchanted-looking,
-//      c: tint (potions), d: the durability bar's width, 0–13 (only when damaged, like the game)}
-//   e  the changes, 4 numbers each: IGT (tenths of a second, since the change before), slot, stack (index into s, +1; 0 = empty), count
+//      md: most damage it takes (tools, armour…), b: a shulker box's contents [[slot, stack, count], …]}
+//   e  the changes, 4 numbers each: IGT (tenths of a second, since the change before), slot, stack (index into s, +1;
+//      0 = empty), and the count — or, for things that wear out (md), how damaged it is
+//
+// What the log misses, and how it's made up for:
+//   - dying drops everything, but Hermes only logs some of the emptied slots: the whole inventory is emptied at the death
+//   - after the world is loaded again, Hermes logs the filled slots but not the empty ones: that first log is the whole inventory
 const MAX_DAMAGE = {
   wooden: 59, stone: 131, iron: 250, golden: 32, diamond: 1561, netherite: 2031,
   bow: 384, crossbow: 326, trident: 250, shield: 336, flint_and_steel: 64, shears: 238, fishing_rod: 64, elytra: 432,
@@ -35,14 +40,14 @@ export function readInventory(text, items, endIgt) {
   const roman = n => items.text["enchantment.level." + n] || String(n);
   const stack = v => {
     const id = bare(v.id), tag = v.tag || {}, lines = [];
-    let m = id, g = false, c = null, color = WHITE, title = name(id);
+    let m = id, g = false, color = WHITE, title = name(id);
     // icon: the variants the inventory shows
     if (id === "crossbow" && tag.Charged) m = (tag.ChargedProjectiles || []).some(p => bare(p.id) === "firework_rocket") ? "crossbow_firework" : "crossbow_arrow";
     if (id === "compass" && tag.LodestonePos) title = items.names.lodestone_compass || "Lodestone Compass";
     // potions and tipped arrows: colour and name from the potion
     if (/^(potion|splash_potion|lingering_potion|tipped_arrow)$/.test(id)) {
       const p = bare(tag.Potion) || "empty", base = p.replace(/^(long|strong)_/, "");
-      c = POTION_COLOR[base] || POTION_COLOR.water;
+      m = id + "@" + (POTION_COLOR[base] && !PLAIN_POTIONS.has(base) ? base : "water");
       title = (items.potion[id] || {})[base] || title;
       if (!PLAIN_POTIONS.has(base)) {
         if (id !== "tipped_arrow") g = true;
@@ -65,31 +70,38 @@ export function readInventory(text, items, endIgt) {
     }
     if (id === "firework_rocket" && tag.Fireworks && tag.Fireworks.Flight != null) lines.push([(items.text["item.minecraft.firework_rocket.flight"] || "Flight Duration:") + " " + tag.Fireworks.Flight, GRAY]);
     if (id === "crossbow" && tag.ChargedProjectiles && tag.ChargedProjectiles.length) lines.push([(items.text["item.minecraft.crossbow.projectile"] || "Projectile:") + " [" + name(bare(tag.ChargedProjectiles[0].id)) + "]", WHITE]);
-    // shulker boxes: the first five things inside, like the game's tooltip
-    if (/shulker_box$/.test(id) && tag.BlockEntityTag && tag.BlockEntityTag.Items) {
-      const inside = tag.BlockEntityTag.Items;
-      inside.slice(0, 5).forEach(x => lines.push([name(bare(x.id)) + " x" + (x.Count || 1), WHITE]));
-      if (inside.length > 5) lines.push([(items.text["container.shulkerBox.more"] || "and %s more...").replace("%s", inside.length - 5), WHITE]);
-    }
-    const md = maxDamage(id), dmg = +tag.Damage || 0;
+    // shulker boxes: what's inside (shown as a grid in the tooltip)
+    const inside = /shulker_box$/.test(id) && tag.BlockEntityTag && tag.BlockEntityTag.Items || null;
+    const b = inside ? inside.filter(x => x && x.id).map(x => { const [k, n] = stack(x); return [+x.Slot || 0, k, n]; }) : null;
+    const md = maxDamage(id);
     const s = {m: items.index[m] != null ? m : items.index[id] != null ? id : "barrier", n: lines};
     if (g) s.g = 1;
-    if (c) s.c = c;
-    if (md && dmg > 0) s.d = Math.max(0, Math.round(13 - dmg * 13 / md));
+    if (md) s.md = md;
+    if (b && b.length) s.b = b;
     const k = JSON.stringify(s);
     if (!keys.has(k)) { keys.set(k, S.length); S.push(s); }
-    return keys.get(k);
+    return [keys.get(k), md ? +tag.Damage || 0 : v.Count || 1];
   };
+  // one change: the time since the change before goes on the first slot of a log line only
+  let dt = 0;
+  const put = (slot, k, n) => { e.push(dt, slot, k, n); dt = 0; };
+  let fresh = false;   // the world was just loaded: the next inventory log is all of it
   for (const line of text.split("\n")) {
-    if (!line.includes('"inventory_slots"')) continue;
+    const inv = line.includes('"inventory_slots"'), init = line.includes('"type":"initialize"'), died = line.includes("minecraft.custom:minecraft.deaths");
+    if (!inv && !init && !died) continue;
     let x; try { x = JSON.parse(line); } catch { continue; }
+    if (init) { fresh = true; continue; }
     const igt = x.speedrunigt && x.speedrunigt.igt;
-    if (igt == null || (endIgt && igt > endIgt + 1000) || Math.round(igt / 100) < last) continue;
-    const t = Math.max(0, Math.round(igt / 100) - last); last += t;
-    for (const [slot, v] of Object.entries((x.data && x.data.slots) || {})) {
+    if (igt == null || (endIgt && igt > endIgt + 1000)) continue;
+    const now = Math.max(last, Math.round(igt / 100));
+    dt = now - last; last = now;
+    const slots = inv ? (x.data && x.data.slots) || {} : {};
+    // a death, or the whole inventory after loading: every slot not in this log is empty
+    if (died || fresh) { for (let n = 0; n <= 40; n++) if (!(String(n) in slots)) put(n, 0, 0); if (inv) fresh = false; }
+    for (const [slot, v] of Object.entries(slots)) {
       const n = +slot; if (!(n >= 0 && n <= 40)) continue;
-      if (!v || !v.id || bare(v.id) === "air") e.push(t, n, 0, 0);
-      else e.push(t, n, stack(v) + 1, v.Count || 1);
+      if (!v || !v.id || bare(v.id) === "air") put(n, 0, 0);
+      else { const [k, c] = stack(v); put(n, k + 1, c); }
     }
   }
   return e.length ? {s: S, e} : null;

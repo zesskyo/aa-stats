@@ -15,6 +15,7 @@ const b = await chromium.launch({executablePath: "/opt/pw-browsers/chromium"});
 const p = await b.newPage();
 p.on("pageerror", e => console.log("ERR", e.message));
 await p.goto("http://127.0.0.1:8777/render.html");
+if (!only) ids.push(...await p.evaluate(() => window.POTION_IDS));
 const res = await p.evaluate(([ids]) => window.renderAll(ids, 32), [ids]);
 fs.writeFileSync(only ? "test.png" : "atlas.png", Buffer.from(res.png.split(",")[1], "base64"));
 if (!only) fs.writeFileSync("index.json", JSON.stringify(res.index));

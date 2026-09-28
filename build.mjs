@@ -179,6 +179,8 @@ if (wrLog) {
 // 3c) the inventory replay: the inventory through the run, from the log (inv/<N>.json), and the item icons it needs
 const items = JSON.parse(read(inCode("items/items.json")));
 const invs = new Map(), usedIcons = new Set(["barrier", ...Object.values(items.adv || {}).map(a => a[0])]);
+// (criteria that are items, e.g. Balanced Diet's foods, show their own icon in the pop-ups)
+for (const r of [...out, ...(wr ? [wr] : [])]) for (const e of r.events || []) { const p = Array.isArray(e) ? e : String(e).split("|"); if (items.index[p[3]] != null && p[2] === "husbandry/balanced_diet") usedIcons.add(p[3]); }
 for (const [n, file] of logFiles) {
   const run = n === "wr" ? wr : out.find(r => r.meta.num === n); if (!run) continue;
   const inv = readInventory(read(file), items, clocks.get(n).finalIgt);

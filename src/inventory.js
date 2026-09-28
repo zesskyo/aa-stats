@@ -368,18 +368,33 @@ function invOnGraph(run) {
 // at most 5 at once (the oldest go first). Jumping around the timeline doesn't show any.
 async function invToasts(host, run) {
   let A; try { A = await invAssets(); } catch { return null; }
-  const {db, atlas, toasts, font} = A, adv = run.events.filter(e => e[4] && db.adv && db.adv[e[2]]).map(e => ({t: e[0], id: e[2]}));
+  const {db, atlas, toasts, font} = A;
+  // advancements, and the criteria of those that need many (biomes, foods, mobs, animals, cats…): "Dark Forest", "Adventuring Time 12/42"
+  const adv = [], seen = {}, total = id => REQ[id] || run.events.filter(e => e[2] === id).length;
+  for (const e of run.events) {
+    if (!db.adv || !db.adv[e[2]]) continue;
+    if (e[4]) { adv.push({t: e[0], id: e[2]}); continue; }
+    const n = seen[e[2]] = (seen[e[2]] || 0) + 1, tot = total(e[2]);
+    if (tot > 1) adv.push({t: e[0], id: e[2], crit: e[3], n, tot});
+  }
   const TOAST_COLOR = {task: "#FFFF00", goal: "#FFFF00", challenge: "#FF88FF"};
   let last = null;
   const make = a => {
-    const [icon, frame] = db.adv[a.id], G = host.clientWidth < 560 ? 1 : 2, P = Math.max(1, Math.round(G * (devicePixelRatio || 1)));
+    const [advIcon, frame] = db.adv[a.id], crit = a.crit && a.crit.replace(/^.*\//, "").replace(/\.png$/, ""), icon = crit && db.index[crit] != null ? crit : advIcon, G = host.clientWidth < 560 ? 1 : 2, P = Math.max(1, Math.round(G * (devicePixelRatio || 1)));
     const c = document.createElement("canvas"); c.width = 160 * P; c.height = 32 * P; c.className = "advtoast";
     c.style.width = 160 * G + "px"; c.style.height = 32 * G + "px";
     const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
     x.drawImage(toasts, 0, 0, 160, 32, 0, 0, 160 * P, 32 * P);
     const k = db.index[icon]; if (k != null) x.drawImage(atlas, (k % db.cols) * db.size, Math.floor(k / db.cols) * db.size, db.size, db.size, 8 * P, 8 * P, 16 * P, 16 * P);
-    font.draw(x, db.toast[frame] || db.toast.task, 30, 7, TOAST_COLOR[frame] || TOAST_COLOR.task, P);
-    font.draw(x, advName(a.id), 30, 18, "#FFFFFF", P);
+    if (crit) {   // a criterion: its name, and the advancement's progress
+      font.draw(x, titleCase(crit.replace(/_/g, " ")), 30, 7, "#FFFFFF", P);
+      let line = `${advName(a.id)} ${a.n}/${a.tot}`;
+      if (font.width(line) > 128) line = `${MULTI[a.id] || advName(a.id)} ${a.n}/${a.tot}`;   // (too long for the toast)
+      font.draw(x, line, 30, 18, "#AAAAAA", P);
+    } else {
+      font.draw(x, db.toast[frame] || db.toast.task, 30, 7, TOAST_COLOR[frame] || TOAST_COLOR.task, P);
+      font.draw(x, advName(a.id), 30, 18, "#FFFFFF", P);
+    }
     return c;
   };
   const show = a => {

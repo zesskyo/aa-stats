@@ -213,7 +213,7 @@ async function invMount(host, run, opts = {}) {
   if (!host.isConnected) return null;
   const W = 176, H = 166;
   host.innerHTML = `<div class="invwrap"><canvas class="invcanvas" aria-label="${esc(T.invTitle)}"></canvas></div>`;
-  let tipCv = document.querySelector("body > .invtip");   // the tooltip floats over the page, so nothing clips it
+  let tipCv = document.querySelector(".invtip");   // the tooltip floats over the page, so nothing clips it
   if (!tipCv) { tipCv = document.createElement("canvas"); tipCv.className = "invtip"; tipCv.setAttribute("aria-hidden", "true"); document.body.appendChild(tipCv); }
   const wrap = host.querySelector(".invwrap"), cv = host.querySelector(".invcanvas"), ctx = cv.getContext("2d"), tctx = tipCv.getContext("2d");
   const {db, atlas, gui, glint, shulker, empty, font} = A;
@@ -319,6 +319,7 @@ async function invMount(host, run, opts = {}) {
     }
     // next to the pointer, kept inside the page
     const tw = tipCv.width / P * G, th = tipCv.height / P * G, vw = document.documentElement.clientWidth;
+    const root = document.fullscreenElement || document.body; if (tipCv.parentNode !== root) root.appendChild(tipCv);   // (full screen shows only what's inside)
     tipCv.style.width = tw + "px"; tipCv.style.height = th + "px"; tipCv.style.display = "block";
     let left = tipAt[0] + 12, top = tipAt[1] - th - 4;
     if (left + tw > vw - 8) left = Math.max(8, tipAt[0] - tw - 12);
@@ -341,18 +342,23 @@ async function invMount(host, run, opts = {}) {
   return {set(ms) { items = invAt(D, ms); draw(); }};
 }
 
-// ---------- a card of its own (runs without a travel map): the inventory and a slider ----------
-const invCardShell = () => `
-  <section class="card" id="invCard" style="display:flex;flex-direction:column;gap:14px">
-    <h2>${esc(T.invTitle)}</h2>
-    <div id="invBody"><p class="muted" style="margin:0">${esc(T.travelLoading)}</p></div>
-    <div class="invbar"><input type="range" id="invRange" min="0" max="0" step="1000" value="0" aria-label="${esc(T.invTitle)}"><span class="mono" id="invNow"></span></div>
-  </section>`;
-async function drawInvCard(run) {
-  const body = $("#invBody"), range = $("#invRange"); if (!body) return;
-  range.max = run.finalIgt || 0; range.value = run.finalIgt || 0;
-  const ctl = await invMount(body, run);
-  if (!ctl) { range.parentNode.remove(); return; }
-  const go = () => { const v = +range.value; $("#invNow").textContent = fmt(v, 0); ctl.set(v); };
-  range.addEventListener("input", go); go();
+// ---------- no travel map: a button on the progress graph opens the inventory over it, with a slider ----------
+function invOnGraph(run) {
+  const card = $("#progressCard"), fs = $("#fsBtn"); if (!card || !fs) return;
+  fs.insertAdjacentHTML("beforebegin", `<button type="button" class="btn icon" id="pgInvBtn" aria-pressed="false" aria-controls="pgInv" aria-label="${esc(T.invTitle)}" title="${esc(T.invTitle)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M3 12h18M11 12v2h2v-2"/></svg></button>`);
+  card.insertAdjacentHTML("beforeend", `<div class="pginvpop" id="pgInv" hidden><div id="pgInvBody"></div>
+    <div class="invbar"><input type="range" id="invRange" min="0" max="${run.finalIgt || 0}" step="1000" value="${run.finalIgt || 0}" aria-label="${esc(T.invTitle)}"><span class="mono" id="invNow"></span></div></div>`);
+  let ctl = null;
+  $("#pgInvBtn").addEventListener("click", async () => {
+    const pop = $("#pgInv"), open = pop.hidden;
+    pop.hidden = !open; $("#pgInvBtn").setAttribute("aria-pressed", String(open));
+    if (!open) { const tip = document.querySelector(".invtip"); if (tip) tip.style.display = "none"; return; }
+    if (ctl || pop.dataset.loading) return;
+    pop.dataset.loading = "1";
+    ctl = await invMount($("#pgInvBody"), run, {scale: 2, fit: card});
+    const range = $("#invRange");
+    if (!ctl) { range.parentNode.remove(); return; }
+    const go = () => { const v = +range.value; $("#invNow").textContent = fmt(v, 0); ctl.set(v); };
+    range.addEventListener("input", go); go();
+  });
 }

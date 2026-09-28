@@ -411,3 +411,7 @@ input.field:disabled{opacity:.6}
 .tvinvpop[hidden]{display:none}
 .tvinvpop > p{padding:10px 12px;background:var(--surface);border-radius:8px}
 .tvmap .tvinvpop canvas.invcanvas{height:auto;width:100%;cursor:default}
+#progressCard{position:relative}
+.pginvpop{position:absolute;right:24px;top:72px;z-index:6;display:flex;flex-direction:column;gap:10px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.pginvpop[hidden]{display:none}
+#pgInvBtn[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}

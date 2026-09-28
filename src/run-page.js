@@ -17,7 +17,7 @@ function renderRunPage() {
     ${d.category === "Invalid" ? `<div class="card" style="border-color:var(--bad)"><b>${esc(T.invalidRun)}</b> <span class="muted">${esc(T.invalidRunMissing)} ${d.missing.map(id => esc(advName(id))).join(", ")}. ${esc(T.invalidRunNote)}</span></div>` : ""}
     ${splitsCard(d)}
     ${progressCardShell()}
-    ${meta.path ? travelCardShell() : meta.inv ? invCardShell() : ""}
+    ${meta.path ? travelCardShell() : ""}
     <section class="card"><h2 style="margin-bottom:14px">${esc(T.runStatsTitle)}</h2>${runStatCards(run)}</section>
     <div class="grid3">
       ${miniCard(T.debrisTitle, d.debrisSplit.start != null ? d.debrisSplit.dur : null, d.debrisSplit.start != null ? "debrisChart" : null, T.noDebris)}
@@ -28,7 +28,7 @@ function renderRunPage() {
     ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">${esc(T.notesTitle)}</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}`;
 
   drawProgress(run, d);
-  if (meta.path) drawTravel(run, d); else if (meta.inv) drawInvCard(run);
+  if (meta.path) drawTravel(run, d); else if (meta.inv) invOnGraph(run);
   drawDebris(run, d);
   drawSkulls(run, d);
   bindPager(el);

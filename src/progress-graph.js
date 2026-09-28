@@ -8,7 +8,7 @@
 const progressCardShell = () => `
   <section class="card chartcard" id="progressCard" style="display:flex;flex-direction:column;gap:14px">
     <div class="head-row" style="align-items:center">
-      <h2>${esc(T.progressTitle)}</h2>
+      <span></span>
       <div style="display:flex;align-items:center;gap:10px">
         <span class="zoominfo" id="zoomInfo"></span>
         <button type="button" class="btn icon" id="fsBtn" aria-label="${esc(T.fullScreen)}" title="${esc(T.fullScreen)} (F)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>

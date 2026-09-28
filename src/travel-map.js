@@ -15,7 +15,7 @@ const TRAVEL_NEAR = 64;             // a structure this close to the path counts
 const travelCardShell = () => `
   <section class="card chartcard travel" id="travelCard">
     <div class="head-row" style="align-items:center">
-      <h2>${esc(T.travelTitle)}</h2>
+      <span></span>
       <button type="button" class="btn icon" id="tvFsBtn" aria-label="${esc(T.fullScreen)}" title="${esc(T.fullScreen)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </div>
     <div id="travelBody"><p class="muted" style="margin:0">${esc(T.travelLoading)}</p></div>
@@ -422,7 +422,7 @@ function travelMount(run, d, P, body) {
   if (run.meta.inv) $("#tvInvBtn").addEventListener("click", () => {
     const pop = $("#tvInv"), open = pop.hidden;
     pop.hidden = !open; $("#tvInvBtn").setAttribute("aria-pressed", String(open));
-    if (!open) { const tip = document.querySelector("body > .invtip"); if (tip) tip.style.display = "none"; return; }
+    if (!open) { const tip = document.querySelector(".invtip"); if (tip) tip.style.display = "none"; return; }
     if (inv) inv.set(t);
     else if (!pop.dataset.loading) { pop.dataset.loading = "1"; pop.innerHTML = `<p class="muted" style="margin:0">${esc(T.travelLoading)}</p>`; invMount(pop, run, {scale: 2, fit: $("#travelCard .tvmap")}).then(c => { inv = c; if (inv) inv.set(t); }); }
   });

@@ -364,30 +364,51 @@ function invOnGraph(run) {
 }
 
 // ---------- advancement pop-ups over the travel map, like the game's toasts ----------
-// As the timeline moves forward through an advancement, its toast slides in at the top right for 5 seconds;
-// at most 5 at once (the oldest go first). Jumping around the timeline doesn't show any.
+// As the timeline moves forward through an advancement, its toast slides in at the top right for 5 seconds; they stack
+// downwards as far as the map goes (the oldest go first). Jumping around the timeline doesn't show any.
+// The criteria of the advancements that need many (biomes, foods, mobs, animals, cats) get smaller toasts of their own,
+// with the icons in icons/<folder>/ (foods use the item's icon); the one that finishes the advancement shows as the advancement.
+const CRIT_DIR = {"adventure/adventuring_time": "adventuring time", "nether/explore_nether": "hot tourist destinations", "husbandry/complete_catalogue": "acc",
+  "adventure/kill_all_mobs": "monsters hunted", "husbandry/bred_all_animals": "two by two"};
+const CRIT_FILE = {acc: {black: "tuxedo", all_black: "black", british_shorthair: "british"}, "monsters hunted": {vex: "vex_old"}, "adventuring time": {snowy_tundra: "snowy_plains"}};
+const CRIT_NAME = {"husbandry/complete_catalogue": {black: "Tuxedo", all_black: "Black", red: "Ginger"}};
 async function invToasts(host, run) {
   let A; try { A = await invAssets(); } catch { return null; }
   const {db, atlas, toasts, font} = A;
-  // advancements, and the criteria of those that need many (biomes, foods, mobs, animals, cats…): "Dark Forest", "Adventuring Time 12/42"
   const adv = [], seen = {}, total = id => REQ[id] || run.events.filter(e => e[2] === id).length;
+  const finished = {}; for (const e of run.events) if (e[4]) finished[e[2]] = e[3];
   for (const e of run.events) {
     if (!db.adv || !db.adv[e[2]]) continue;
     if (e[4]) { adv.push({t: e[0], id: e[2]}); continue; }
     const n = seen[e[2]] = (seen[e[2]] || 0) + 1, tot = total(e[2]);
-    if (tot > 1) adv.push({t: e[0], id: e[2], crit: e[3], n, tot});
+    if (tot > 1 && e[3] !== finished[e[2]]) adv.push({t: e[0], id: e[2], crit: e[3], n, tot});
   }
   const TOAST_COLOR = {task: "#FFFF00", goal: "#FFFF00", challenge: "#FF88FF"};
+  const critImg = {};
+  const critIcon = (id, crit) => {   // the uploaded icon for a criterion, if there is one
+    const dir = CRIT_DIR[id], file = dir && ((CRIT_FILE[dir] || {})[crit] || crit);
+    if (!dir || !(db.crit && (db.crit[dir] || []).includes(file))) return null;
+    const url = `icons/${encodeURIComponent(dir)}/${encodeURIComponent(file)}.png`;
+    if (!critImg[url]) { critImg[url] = new Image(); critImg[url].src = url; }
+    return critImg[url];
+  };
   let last = null;
   const make = a => {
-    const [advIcon, frame] = db.adv[a.id], crit = a.crit && a.crit.replace(/^.*\//, "").replace(/\.png$/, ""), icon = crit && db.index[crit] != null ? crit : advIcon, G = host.clientWidth < 560 ? 1 : 2, P = Math.max(1, Math.round(G * (devicePixelRatio || 1)));
+    const [advIcon, frame] = db.adv[a.id], crit = a.crit && a.crit.replace(/^.*\//, "").replace(/\.png$/, "");
+    // advancements a little bigger than the game's GUI scale 2, criteria half that
+    const G = (host.parentElement.clientWidth < 560 ? 1.25 : 2.5) / (crit ? 2 : 1), P = Math.max(1, Math.ceil(G * (devicePixelRatio || 1)));
     const c = document.createElement("canvas"); c.width = 160 * P; c.height = 32 * P; c.className = "advtoast";
     c.style.width = 160 * G + "px"; c.style.height = 32 * G + "px";
     const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
     x.drawImage(toasts, 0, 0, 160, 32, 0, 0, 160 * P, 32 * P);
-    const k = db.index[icon]; if (k != null) x.drawImage(atlas, (k % db.cols) * db.size, Math.floor(k / db.cols) * db.size, db.size, db.size, 8 * P, 8 * P, 16 * P, 16 * P);
+    const img = crit && critIcon(a.id, crit), key = crit && db.index[crit] != null ? crit : advIcon;
+    const drawIcon = () => {
+      if (img && img.naturalWidth) { x.imageSmoothingEnabled = img.naturalWidth > 32; x.drawImage(img, 8 * P, 8 * P, 16 * P, 16 * P); x.imageSmoothingEnabled = false; return; }
+      const k = db.index[key]; if (k != null) x.drawImage(atlas, (k % db.cols) * db.size, Math.floor(k / db.cols) * db.size, db.size, db.size, 8 * P, 8 * P, 16 * P, 16 * P);
+    };
+    if (img && !img.complete) img.addEventListener("load", drawIcon, {once: true}); else drawIcon();
     if (crit) {   // a criterion: its name, and the advancement's progress
-      font.draw(x, titleCase(crit.replace(/_/g, " ")), 30, 7, "#FFFFFF", P);
+      font.draw(x, (CRIT_NAME[a.id] || {})[crit] || titleCase(crit.replace(/_/g, " ")), 30, 7, "#FFFFFF", P);
       let line = `${advName(a.id)} ${a.n}/${a.tot}`;
       if (font.width(line) > 128) line = `${MULTI[a.id] || advName(a.id)} ${a.n}/${a.tot}`;   // (too long for the toast)
       font.draw(x, line, 30, 18, "#AAAAAA", P);
@@ -399,7 +420,8 @@ async function invToasts(host, run) {
   };
   const show = a => {
     const el = make(a); host.appendChild(el);
-    while (host.children.length > 5) host.firstChild.remove();
+    const room = host.parentElement.clientHeight - 16;   // stacked down as far as the map goes
+    while (host.children.length > 1 && host.scrollHeight > room) host.firstChild.remove();
     requestAnimationFrame(() => el.classList.add("in"));
     setTimeout(() => { el.classList.remove("in"); setTimeout(() => el.remove(), 600); }, 5000);
   };

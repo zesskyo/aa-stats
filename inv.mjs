@@ -62,7 +62,8 @@ export function readInventory(text, items, endIgt) {
     const ench = [...(tag.Enchantments || []), ...(tag.StoredEnchantments || [])];
     if (ench.length || GLINTS.has(id)) g = true;
     color = EPIC.has(id) ? PINK : ench.length && !(tag.StoredEnchantments) ? AQUA : RARE.has(id) ? AQUA : UNCOMMON.has(id) ? YELLOW : WHITE;
-    if (tag.display && tag.display.Name) color = color === WHITE ? WHITE : color;
+    // the raid captains' banner: its own icon and gold name
+    if (id === "white_banner" && tag.BlockEntityTag && tag.BlockEntityTag.Patterns && /ominous_banner/.test((tag.display && tag.display.Name) || "")) { m = "ominous_banner"; title = "Ominous Banner"; color = "#FFAA00"; }
     lines.unshift([title, color]);
     for (const en of ench) {
       const k = bare(en.id), nm = items.ench[k] || k;

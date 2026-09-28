@@ -224,7 +224,16 @@ if (invs.size) {
   // only the icons these runs use, cut out of the big atlas
   const keys = [...usedIcons].filter(k => items.index[k] != null), cols = 16;
   fs.writeFileSync(inSite("dist/items/atlas.png"), writePng(pickSquares(readPng(fs.readFileSync(inCode("items/atlas.png"))), items.size, cols, keys.map(k => items.index[k]))));
-  fs.writeFileSync(inSite("dist/items/items.json"), JSON.stringify({size: items.size, cols, index: Object.fromEntries(keys.map((k, i) => [k, i])), adv: items.adv,
+  // icons for the criteria of multi-part advancements: icons/<folder>/<criterion>.png, copied as they are
+  const crit = {};
+  for (const dir of [inCode("icons"), inSite("icons")]) if (fs.existsSync(dir)) for (const sub of fs.readdirSync(dir, {withFileTypes: true})) {
+    if (!sub.isDirectory()) continue;
+    const names = fs.readdirSync(path.join(dir, sub.name)).filter(f => /\.png$/i.test(f));
+    fs.mkdirSync(inSite("dist/icons/" + sub.name), {recursive: true});
+    for (const f of names) fs.copyFileSync(path.join(dir, sub.name, f), inSite(`dist/icons/${sub.name}/${f}`));
+    crit[sub.name] = [...new Set([...(crit[sub.name] || []), ...names.map(f => f.replace(/\.png$/i, ""))])];
+  }
+  fs.writeFileSync(inSite("dist/items/items.json"), JSON.stringify({size: items.size, cols, index: Object.fromEntries(keys.map((k, i) => [k, i])), adv: items.adv, crit,
     toast: {task: items.text["advancements.toast.task"], goal: items.text["advancements.toast.goal"], challenge: items.text["advancements.toast.challenge"]}}));
   for (const f of fs.readdirSync(inCode("items"))) if (f.endsWith(".png") && f !== "atlas.png") fs.copyFileSync(inCode("items/" + f), inSite("dist/items/" + f));
   fs.mkdirSync(inSite("dist/items/armor"), {recursive: true});

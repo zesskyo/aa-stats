@@ -364,8 +364,8 @@ function invOnGraph(run) {
 }
 
 // ---------- advancement pop-ups over the travel map, like the game's toasts ----------
-// As the timeline moves forward through an advancement, its toast slides in at the top right for 5 seconds; they stack
-// downwards as far as the map goes (the oldest go first). Jumping around the timeline doesn't show any.
+// As the timeline moves forward through an advancement, its toast slides in at the top right for 5 seconds; up to 5 stack
+// downwards, never over the open inventory (the oldest go first). Jumping around the timeline doesn't show any.
 // The criteria of the advancements that need many (biomes, foods, mobs, animals, cats) get smaller toasts of their own,
 // with the icons in icons/<folder>/ (foods use the item's icon); the last one shows too, then the advancement's toast.
 const CRIT_DIR = {"adventure/adventuring_time": "adventuring time", "nether/explore_nether": "hot tourist destinations", "husbandry/complete_catalogue": "acc",
@@ -428,9 +428,12 @@ async function invToasts(host, run) {
     return c;
   };
   const show = a => {
-    const el = make(a); host.appendChild(el);
-    const room = host.parentElement.clientHeight - 16;   // stacked down as far as the map goes
-    while (host.children.length > 1 && host.scrollHeight > room) host.firstChild.remove();
+    const el = make(a); if (a.crit) el.classList.add("crit"); host.appendChild(el);
+    // at most 5 at once (a criterion's counts as half), and never down over the inventory when it's open
+    const map = host.parentElement, pop = map.querySelector(".tvinvpop:not([hidden])");
+    const room = (pop ? pop.offsetTop : map.clientHeight) - 16;
+    const weight = () => [...host.children].reduce((s, c) => s + (c.classList.contains("crit") ? .5 : 1), 0);
+    while (host.children.length > 1 && (host.scrollHeight > room || weight() > 5)) host.firstChild.remove();
     requestAnimationFrame(() => el.classList.add("in"));
     setTimeout(() => { el.classList.remove("in"); setTimeout(() => el.remove(), 600); }, 5000);
   };

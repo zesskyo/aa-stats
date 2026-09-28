@@ -367,21 +367,21 @@ function invOnGraph(run) {
 // As the timeline moves forward through an advancement, its toast slides in at the top right for 5 seconds; they stack
 // downwards as far as the map goes (the oldest go first). Jumping around the timeline doesn't show any.
 // The criteria of the advancements that need many (biomes, foods, mobs, animals, cats) get smaller toasts of their own,
-// with the icons in icons/<folder>/ (foods use the item's icon); the one that finishes the advancement shows as the advancement.
+// with the icons in icons/<folder>/ (foods use the item's icon); the last one shows too, then the advancement's toast.
 const CRIT_DIR = {"adventure/adventuring_time": "adventuring time", "nether/explore_nether": "hot tourist destinations", "husbandry/complete_catalogue": "acc",
   "adventure/kill_all_mobs": "monsters hunted", "husbandry/bred_all_animals": "two by two"};
 const CRIT_FILE = {acc: {black: "tuxedo", all_black: "black", british_shorthair: "british"}, "monsters hunted": {vex: "vex_old"}, "adventuring time": {snowy_tundra: "snowy_plains"}};
-const CRIT_NAME = {"husbandry/complete_catalogue": {black: "Tuxedo", all_black: "Black", red: "Ginger"}};
+const CRIT_NAME = {"husbandry/complete_catalogue": {black: "Tuxedo", all_black: "Black", british_shorthair: "British"}};
 async function invToasts(host, run) {
   let A; try { A = await invAssets(); } catch { return null; }
   const {db, atlas, toasts, font} = A;
   const adv = [], seen = {}, total = id => REQ[id] || run.events.filter(e => e[2] === id).length;
-  const finished = {}; for (const e of run.events) if (e[4]) finished[e[2]] = e[3];
   for (const e of run.events) {
     if (!db.adv || !db.adv[e[2]]) continue;
-    if (e[4]) { adv.push({t: e[0], id: e[2]}); continue; }
-    const n = seen[e[2]] = (seen[e[2]] || 0) + 1, tot = total(e[2]);
-    if (tot > 1 && e[3] !== finished[e[2]]) adv.push({t: e[0], id: e[2], crit: e[3], n, tot});
+    const tot = total(e[2]);
+    // every criterion gets a small toast (the last one too, e.g. "42/42"), and finishing gets the advancement's
+    if (tot > 1 && (!e[4] || seen[e[2]])) { const n = seen[e[2]] = (seen[e[2]] || 0) + 1; adv.push({t: e[0], id: e[2], crit: e[3], n: e[4] ? tot : n, tot}); }
+    if (e[4]) adv.push({t: e[0], id: e[2]});
   }
   const TOAST_COLOR = {task: "#FFFF00", goal: "#FFFF00", challenge: "#FF88FF"};
   const critImg = {};
@@ -393,28 +393,37 @@ async function invToasts(host, run) {
     return critImg[url];
   };
   let last = null;
+  // text that fits in maxW GUI pixels: made smaller (and kept centred on its line) when it's too long
+  const fit = (x, s, x0, y, maxW, color, P) => {
+    const w = font.width(s) - 1;
+    if (w <= maxW) return font.draw(x, s, x0, y, color, P);
+    const f = maxW / w;
+    font.draw(x, s, x0 / f, (y + 4 - 4 * f) / f, color, P * f);
+  };
+  const short = id => MULTI[id] || advName(id).split(/\s+/).map(w => w[0]).join("").toUpperCase();   // "AT", "HTD"…
   const make = a => {
     const [advIcon, frame] = db.adv[a.id], crit = a.crit && a.crit.replace(/^.*\//, "").replace(/\.png$/, "");
-    // advancements a little bigger than the game's GUI scale 2, criteria half that
-    const G = (host.parentElement.clientWidth < 560 ? 1.25 : 2.5) / (crit ? 2 : 1), P = Math.max(1, Math.ceil(G * (devicePixelRatio || 1)));
-    const c = document.createElement("canvas"); c.width = 160 * P; c.height = 32 * P; c.className = "advtoast";
-    c.style.width = 160 * G + "px"; c.style.height = 32 * G + "px";
+    // the game's toast at GUI scale 2 (1 on a small map); a criterion's is as wide but half as tall
+    const G = host.parentElement.clientWidth < 560 ? 1 : 2, P = Math.max(1, Math.ceil(G * (devicePixelRatio || 1))), H = crit ? 16 : 32;
+    const c = document.createElement("canvas"); c.width = 160 * P; c.height = H * P; c.className = "advtoast";
+    c.style.width = 160 * G + "px"; c.style.height = H * G + "px";
     const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
-    x.drawImage(toasts, 0, 0, 160, 32, 0, 0, 160 * P, 32 * P);
+    if (crit) { x.drawImage(toasts, 0, 0, 160, 8, 0, 0, 160 * P, 8 * P); x.drawImage(toasts, 0, 24, 160, 8, 0, 8 * P, 160 * P, 8 * P); }   // (its top and bottom edges)
+    else x.drawImage(toasts, 0, 0, 160, 32, 0, 0, 160 * P, 32 * P);
     const img = crit && critIcon(a.id, crit), key = crit && db.index[crit] != null ? crit : advIcon;
+    const [ix, iy, is] = crit ? [3, 2, 12] : [8, 8, 16];
     const drawIcon = () => {
-      if (img && img.naturalWidth) { x.imageSmoothingEnabled = img.naturalWidth > 32; x.drawImage(img, 8 * P, 8 * P, 16 * P, 16 * P); x.imageSmoothingEnabled = false; return; }
-      const k = db.index[key]; if (k != null) x.drawImage(atlas, (k % db.cols) * db.size, Math.floor(k / db.cols) * db.size, db.size, db.size, 8 * P, 8 * P, 16 * P, 16 * P);
+      if (img && img.naturalWidth) { x.imageSmoothingEnabled = img.naturalWidth > 32; x.drawImage(img, ix * P, iy * P, is * P, is * P); x.imageSmoothingEnabled = false; return; }
+      const k = db.index[key]; if (k != null) { x.imageSmoothingEnabled = true; x.drawImage(atlas, (k % db.cols) * db.size, Math.floor(k / db.cols) * db.size, db.size, db.size, ix * P, iy * P, is * P, is * P); x.imageSmoothingEnabled = false; }
     };
     if (img && !img.complete) img.addEventListener("load", drawIcon, {once: true}); else drawIcon();
-    if (crit) {   // a criterion: its name, and the advancement's progress
-      font.draw(x, (CRIT_NAME[a.id] || {})[crit] || titleCase(crit.replace(/_/g, " ")), 30, 7, "#FFFFFF", P);
-      let line = `${advName(a.id)} ${a.n}/${a.tot}`;
-      if (font.width(line) > 128) line = `${MULTI[a.id] || advName(a.id)} ${a.n}/${a.tot}`;   // (too long for the toast)
-      font.draw(x, line, 30, 18, "#AAAAAA", P);
+    if (crit) {   // a criterion, on one line: its name, and the advancement's progress on the right ("AT 12/42")
+      const prog = `${short(a.id)} ${a.n}/${a.tot}`, pw = font.width(prog) - 1;
+      font.draw(x, prog, 160 - 5 - pw, 4, "#AAAAAA", P);
+      fit(x, (CRIT_NAME[a.id] || {})[crit] || titleCase(crit.replace(/_/g, " ")), 18, 4, 160 - 5 - pw - 6 - 18, "#FFFFFF", P);
     } else {
-      font.draw(x, db.toast[frame] || db.toast.task, 30, 7, TOAST_COLOR[frame] || TOAST_COLOR.task, P);
-      font.draw(x, advName(a.id), 30, 18, "#FFFFFF", P);
+      fit(x, db.toast[frame] || db.toast.task, 30, 7, 124, TOAST_COLOR[frame] || TOAST_COLOR.task, P);
+      fit(x, advName(a.id), 30, 18, 124, "#FFFFFF", P);
     }
     return c;
   };

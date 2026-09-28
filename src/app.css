@@ -399,10 +399,15 @@ input.field:disabled{opacity:.6}
 .tvfollow[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 
 /* inventory replay (inventory.js): the game's inventory screen, pixels kept sharp */
-.tvinv{display:flex;justify-content:center;margin-top:18px}
 .invwrap{position:relative;width:352px;max-width:100%;margin:0 auto}
 .invtip{max-width:none}
 .invcanvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:manipulation}
-.invtip{position:absolute;display:none;pointer-events:none;image-rendering:pixelated;z-index:5}
+.invtip{position:fixed;display:none;pointer-events:none;image-rendering:pixelated;z-index:100}
 .invbar{display:flex;align-items:center;gap:12px;max-width:352px;width:100%;margin:0 auto}
 .invbar input{flex:1;accent-color:var(--accent)}
+.tvinvbtn{position:absolute;right:8px;bottom:8px;width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;z-index:3}
+.tvinvbtn[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tvinvpop{position:absolute;right:8px;bottom:52px;z-index:3;filter:drop-shadow(0 4px 14px rgba(0,0,0,.4))}
+.tvinvpop[hidden]{display:none}
+.tvinvpop > p{padding:10px 12px;background:var(--surface);border-radius:8px}
+.tvmap .tvinvpop canvas.invcanvas{height:auto;width:100%;cursor:default}

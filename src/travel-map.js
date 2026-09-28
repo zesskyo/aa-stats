@@ -130,7 +130,9 @@ function travelMount(run, d, P, body) {
     <div class="tvtop"><div class="tabs-inline" id="tvTabs">${"one".split("").filter(k => P.pieces[k].length).map(k => `<button type="button" data-d="${k}">${esc(DIMS[k])}</button>`).join("")}</div></div>
     <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><span class="tvhover mono" id="tvHover"></span>
       <button type="button" class="tvfollow" id="tvFollow" aria-pressed="false" title="${esc(T.travelFollow)}" aria-label="${esc(T.travelFollow)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
-      <div class="tvover"><span class="mono" id="tvWhere"></span></div></div>
+      <div class="tvover"><span class="mono" id="tvWhere"></span></div>
+      ${run.meta.inv ? `<button type="button" class="tvinvbtn" id="tvInvBtn" aria-pressed="false" aria-controls="tvInv" title="${esc(T.invTitle)}" aria-label="${esc(T.invTitle)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M3 12h18M11 12v2h2v-2"/></svg></button>
+      <div class="tvinvpop" id="tvInv" hidden></div>` : ""}</div>
     <div class="tvtl">
       <div class="tvctl">
         <button type="button" class="tvbtn" id="tvRw" aria-label="${esc(T.travelRewind)}" title="${esc(T.travelRewind)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 6v12L2.5 12zM21 6v12l-8.5-6z"/></svg></button>
@@ -146,7 +148,7 @@ function travelMount(run, d, P, body) {
       </div>
       <span class="mono muted tvend">${fmt(endT, 0)}</span>
     </div>
-    ${run.meta.inv ? `<div class="tvinv" id="tvInv"></div>` : ""}`;
+`;
 
   const cv = $("#tvCanvas"), ctx = cv.getContext("2d");
   const mask = document.createElement("canvas"), mctx = mask.getContext("2d");
@@ -316,7 +318,7 @@ function travelMount(run, d, P, body) {
     }
     $("#tvWhere").textContent = `${DIMS[p[1]]} · ${Math.round(p[2])}, ${Math.round(p[4])}, ${Math.round(p[3])}`;
     // timeline: the playhead, with what's still to come dimmed
-    if (inv) inv.set(t);
+    if (inv && !$("#tvInv").hidden) inv.set(t);
     $("#tvNow").textContent = fmt(t, 0); $("#tvHead").style.left = pct(t);
     $("#tvLater").style.left = pct(t); $("#tvLater").style.width = `calc(100% - ${pct(t)})`;
     $("#tvTrack").setAttribute("aria-valuenow", Math.round(t)); $("#tvTrack").setAttribute("aria-valuetext", fmt(t, 0));
@@ -416,5 +418,12 @@ function travelMount(run, d, P, body) {
   size();
   const startDim = travelAt(P, t)[1];
   setDim(P.pieces[startDim].length ? startDim : "o", true);
-  if (run.meta.inv) invMount($("#tvInv"), run).then(c => { inv = c; if (inv) inv.set(t); });
+  // the inventory: a pop-up over the map (button at the bottom right), following the timeline
+  if (run.meta.inv) $("#tvInvBtn").addEventListener("click", () => {
+    const pop = $("#tvInv"), open = pop.hidden;
+    pop.hidden = !open; $("#tvInvBtn").setAttribute("aria-pressed", String(open));
+    if (!open) { const tip = document.querySelector("body > .invtip"); if (tip) tip.style.display = "none"; return; }
+    if (inv) inv.set(t);
+    else if (!pop.dataset.loading) { pop.dataset.loading = "1"; pop.innerHTML = `<p class="muted" style="margin:0">${esc(T.travelLoading)}</p>`; invMount(pop, run, {scale: 2, fit: $("#travelCard .tvmap")}).then(c => { inv = c; if (inv) inv.set(t); }); }
+  });
 }

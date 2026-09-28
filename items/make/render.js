@@ -70,11 +70,10 @@ const M = {
   ap: (m, p) => [0, 1, 2].map(r => m[r * 4] * p[0] + m[r * 4 + 1] * p[1] + m[r * 4 + 2] * p[2] + m[r * 4 + 3]),
   dir: (m, v) => [0, 1, 2].map(r => m[r * 4] * v[0] + m[r * 4 + 1] * v[1] + m[r * 4 + 2] * v[2]),
 };
-// The inventory's view of an item model: its gui display (translation, rotation, scale) around the block's centre, as the
-// game applies it, seen mirrored left to right (as the inventory shows it: a furnace's front on the left)
+// The inventory's view of an item model: its gui display (translation, rotation, scale) around the block's centre, as the game applies it
 function guiMatrix(d) {
   const r = d.rotation || [0, 0, 0], t = d.translation || [0, 0, 0], s = d.scale || [1, 1, 1];
-  return M.chain(M.s(-1, 1, 1), M.t(t[0] / 16, t[1] / 16, t[2] / 16), M.rx(r[0]), M.ry(r[1]), M.rz(r[2]), M.s(s[0], s[1], s[2]), M.t(-.5, -.5, -.5));
+  return M.chain(M.t(t[0] / 16, t[1] / 16, t[2] / 16), M.rx(r[0]), M.ry(r[1]), M.rz(r[2]), M.s(s[0], s[1], s[2]), M.t(-.5, -.5, -.5));
 }
 
 // A quad: 4 corners in block units, 4 texture coordinates (0–1), the image, its outward normal, tint and whether it's shaded
@@ -234,11 +233,12 @@ function texFor(img) {
   glTex.set(img, t); return t;
 }
 const norm = v => { const l = Math.hypot(...v) || 1; return v.map(x => x / l); };
-// the inventory's lighting for 3D items: tops brightest, the left side a little darker, the right side darker still
+// the inventory's lighting for 3D items (the game's two GUI lights, 0.6 each, plus 0.4 ambient), in view space (x right, y up, z out)
+const LIGHTS = [[-.2225, .1715, .9598], [-.2150, .9719, .0966]];
 function shadeOf(n, light) {
   if (light === "front") return 1;
-  const [x, y] = norm(n);
-  return y > .3 ? 1 : y < -.3 ? .5 : x < 0 ? .8 : .6;
+  const v = norm(n);
+  return Math.min(1, .4 + .6 * LIGHTS.reduce((a, l) => a + Math.max(0, v[0] * l[0] + v[1] * l[1] + v[2] * l[2]), 0));
 }
 function drawQuads(quads, view, light) {
   gl.viewport(0, 0, SIZE, SIZE); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

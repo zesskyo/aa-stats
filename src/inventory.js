@@ -29,11 +29,11 @@ function invAssets() {
   const img = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
   invAssetsP = Promise.all([
     fetch("items/items.json").then(r => { if (!r.ok) throw 0; return r.json(); }),
-    img("items/atlas.png"), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"),
+    img("items/atlas.png"), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"), img("items/steve.png"), img("items/elytra.png"),
     ...Object.values(INV_EMPTY).map(k => img(`items/${k}.png`)),
-  ]).then(([db, atlas, gui, font, glint, shulker, ...empties]) => {
+  ]).then(([db, atlas, gui, font, glint, shulker, steve, elytra, ...empties]) => {
     const empty = {}; Object.values(INV_EMPTY).forEach((k, i) => { empty[k] = empties[i]; });
-    return {db, atlas, gui, glint, shulker, empty, font: invFont(font)};
+    return {db, atlas, gui, glint, shulker, steve, elytra, empty, font: invFont(font)};
   });
   invAssetsP.catch(() => { invAssetsP = null; });
   return invAssetsP;
@@ -88,8 +88,123 @@ function invAt(D, ms) {
   return items;
 }
 
+// ---------- the player in the black box: the game's player model with their skin and the armour they wear ----------
+// Boxes are made as the game's ModelRenderer makes them (texture layout, rotation points), drawn with WebGL.
+const INV_M = {
+  mul(a, b) { const o = new Array(16).fill(0); for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) for (let k = 0; k < 4; k++) o[r * 4 + c] += a[r * 4 + k] * b[k * 4 + c]; return o; },
+  t: (x, y, z) => [1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1],
+  s: (x, y, z) => [x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1],
+  rx: a => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0, 1]; },
+  ry: a => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, 0, 1]; },
+  rz: a => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; },
+  chain: (...ms) => ms.reduce((a, b) => INV_M.mul(a, b)),
+  ap: (m, p) => [0, 1, 2].map(r => m[r * 4] * p[0] + m[r * 4 + 1] * p[1] + m[r * 4 + 2] * p[2] + m[r * 4 + 3]),
+  dir: (m, v) => [0, 1, 2].map(r => m[r * 4] * v[0] + m[r * 4 + 1] * v[1] + m[r * 4 + 2] * v[2]),
+};
+// part: {tex: [u, v], box: [x, y, z, dx, dy, dz], grow, mirror, rp, rot: [x, y, z] radians}; w, h: the texture's size
+function invBox(img, w, h, m, part, tint) {
+  const [u, v] = part.tex, [bx, by, bz, dx, dy, dz] = part.box, g = part.grow || 0;
+  let x = (bx - g) / 16, x1 = (bx + dx + g) / 16;
+  const y = (by - g) / 16, z = (bz - g) / 16, y1 = (by + dy + g) / 16, z1 = (bz + dz + g) / 16;
+  if (part.mirror) [x, x1] = [x1, x];
+  const V = [[x1, y, z], [x1, y1, z], [x, y1, z], [x, y, z1], [x1, y, z1], [x1, y1, z1], [x, y1, z1], [x, y, z]];
+  const f4 = u, f5 = u + dz, f6 = f5 + dx, f7 = f6 + dx, f8 = f6 + dz, f9 = f8 + dx, f10 = v, f11 = v + dz, f12 = f11 + dy, mx = part.mirror ? -1 : 1;
+  const faces = [[[4, 3, 7, 0], f5, f10, f6, f11, [0, -1, 0]], [[1, 2, 6, 5], f6, f11, f7, f10, [0, 1, 0]], [[7, 3, 6, 2], f4, f11, f5, f12, [-mx, 0, 0]],
+    [[0, 7, 2, 1], f5, f11, f6, f12, [0, 0, -1]], [[4, 0, 1, 5], f6, f11, f8, f12, [mx, 0, 0]], [[3, 4, 5, 6], f8, f11, f9, f12, [0, 0, 1]]];
+  const rp = (part.rp || [0, 0, 0]).map(q => q / 16), r = part.rot || [0, 0, 0];
+  const pm = INV_M.chain(m, INV_M.t(rp[0], rp[1], rp[2]), INV_M.rz(r[2]), INV_M.ry(r[1]), INV_M.rx(r[0]));
+  return faces.map(([vi, u1, v1, u2, v2, n]) => ({p: vi.map(i => INV_M.ap(pm, V[i])), uv: [[u2, v1], [u1, v1], [u1, v2], [u2, v2]].map(([a, b]) => [a / w, b / h]), img, n: INV_M.dir(pm, n), tint}));
+}
+const INV_BODY = (g, skin) => ({
+  head: {tex: [0, 0], box: [-4, -8, -4, 8, 8, 8], grow: g}, hat: {tex: [32, 0], box: [-4, -8, -4, 8, 8, 8], grow: g + .5},
+  body: {tex: [16, 16], box: [-4, 0, -2, 8, 12, 4], grow: g},
+  rightArm: {tex: [40, 16], box: [-3, -2, -2, 4, 12, 4], grow: g, rp: [-5, 2, 0], rot: [0, 0, .05]},
+  leftArm: skin ? {tex: [32, 48], box: [-1, -2, -2, 4, 12, 4], grow: g, rp: [5, 2, 0], rot: [0, 0, -.05]} : {tex: [40, 16], box: [-1, -2, -2, 4, 12, 4], grow: g, mirror: true, rp: [5, 2, 0], rot: [0, 0, -.05]},
+  rightLeg: {tex: [0, 16], box: [-2, 0, -2, 4, 12, 4], grow: g, rp: [-1.9, 12, 0]},
+  leftLeg: skin ? {tex: [16, 48], box: [-2, 0, -2, 4, 12, 4], grow: g, rp: [1.9, 12, 0]} : {tex: [0, 16], box: [-2, 0, -2, 4, 12, 4], grow: g, mirror: true, rp: [1.9, 12, 0]},
+});
+const INV_LAYERS = {jacket: [16, 32, "body"], rightSleeve: [40, 32, "rightArm"], leftSleeve: [48, 48, "leftArm"], rightPants: [0, 32, "rightLeg"], leftPants: [0, 48, "leftLeg"]};
+const INV_MATERIAL = {leather: "leather", chainmail: "chainmail", iron: "iron", golden: "gold", diamond: "diamond", netherite: "netherite"};
+
+function invPlayerRenderer(A, skinUrl) {
+  const c = document.createElement("canvas"), gl = c.getContext("webgl", {antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true, alpha: true});
+  if (!gl) return null;
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, "attribute vec3 pos; attribute vec2 uv; varying vec2 vuv; void main() { vuv = uv; gl_Position = vec4(pos.x, pos.y, -pos.z * 0.1, 1.0); }"));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, "precision mediump float; varying vec2 vuv; uniform sampler2D tex; uniform vec3 col; void main() { vec4 c = texture2D(tex, vuv); if (c.a < 0.1) discard; gl_FragColor = vec4(c.rgb * col, c.a); }"));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  const aPos = gl.getAttribLocation(prog, "pos"), aUv = gl.getAttribLocation(prog, "uv"), uCol = gl.getUniformLocation(prog, "col"), buf = gl.createBuffer(), texs = new Map();
+  const texFor = img => {
+    if (texs.has(img)) return texs.get(img);
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); } catch { return null; }
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    texs.set(img, t); return t;
+  };
+  // the skin: from the player's account if it can be loaded, otherwise Steve's
+  let skin = A.steve, onChange = null;
+  if (skinUrl) { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => { skin = im; if (onChange) onChange(); }; im.src = skinUrl; }
+  const armorImg = {}, loadArmor = name => {
+    if (!(name in armorImg)) { armorImg[name] = null; const im = new Image(); im.onload = () => { armorImg[name] = im; if (onChange) onChange(); }; im.src = `items/armor/${name}.png`; }
+    return armorImg[name];
+  };
+  const L = [[-.2225, .1715, .9598], [-.2150, .9719, .0966]];
+  return {
+    set onChange(f) { onChange = f; },
+    // armour: {head, chest, legs, feet} item names (or null); w, h: pixels; k: pixels per block
+    render(armor, w, h, k) {
+      c.width = w; c.height = h;
+      gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      // facing you, turned a little, at eye level (LivingRenderer: turn, flip, player scale, lift by 1.501)
+      const ent = INV_M.chain(INV_M.ry(Math.PI + .35), INV_M.s(-1, -1, 1), INV_M.s(.9375, .9375, .9375), INV_M.t(0, -1.501, 0));
+      if (!texFor(skin)) skin = A.steve;   // (a skin the browser won't let us use)
+      const quads = [], legacy = skin.height === 32, parts = INV_BODY(0, !legacy);
+      for (const p of Object.values(parts)) quads.push(...invBox(skin, 64, skin.height, ent, p));
+      if (!legacy) {
+        quads.push(...invBox(skin, 64, 64, ent, parts.hat));
+        for (const [u, v, of] of Object.values(INV_LAYERS)) quads.push(...invBox(skin, 64, 64, ent, {...parts[of], tex: [u, v], grow: .25}));
+      }
+      // armour (the game's armour layer: layer 1 grown by 1, leggings on layer 2 grown by 0.5)
+      const piece = (id, slot) => {
+        if (!id) return;
+        if (slot === "chest" && id === "elytra") {   // wings on the back
+          const img = A.elytra, m = INV_M.chain(ent, INV_M.t(0, 0, .125)), rot = [.2617994, 0, -.2617994];
+          quads.push(...invBox(img, 64, 32, m, {tex: [22, 0], box: [-10, 0, 0, 10, 20, 2], grow: 1, rp: [5, 0, 0], rot}), ...invBox(img, 64, 32, m, {tex: [22, 0], box: [0, 0, 0, 10, 20, 2], grow: 1, mirror: true, rp: [-5, 0, 0], rot: [rot[0], 0, -rot[2]]}));
+          return;
+        }
+        const mt = /^(\w+?)_(helmet|chestplate|leggings|boots)$/.exec(id), mat = id === "turtle_helmet" ? "turtle" : mt && INV_MATERIAL[mt[1]];
+        if (!mat) return;
+        const layer = slot === "legs" ? 2 : 1, img = loadArmor(`${mat}_layer_${layer}`); if (!img) return;
+        const ap = INV_BODY(slot === "legs" ? .5 : 1, false), use = {head: ["head", "hat"], chest: ["body", "rightArm", "leftArm"], legs: ["body", "rightLeg", "leftLeg"], feet: ["rightLeg", "leftLeg"]}[slot];
+        const tint = mat === "leather" ? [160 / 255, 101 / 255, 64 / 255] : null;
+        for (const k of use) quads.push(...invBox(img, 64, 32, ent, ap[k], tint));
+        if (mat === "leather") { const ov = loadArmor(`leather_layer_${layer}_overlay`); if (ov) for (const k of use) quads.push(...invBox(ov, 64, 32, ent, ap[k])); }
+      };
+      piece(armor.head, "head"); piece(armor.chest, "chest"); piece(armor.legs, "legs"); piece(armor.feet, "feet");
+      // to the canvas: k pixels per block, feet 3 GUI pixels above the bottom (a tenth of a block)
+      const sx = 2 * k / w, sy = 2 * k / h, lift = 2 * (k / 10) / h;
+      const qs = quads.map(q => ({...q, p: q.p.map(p => [p[0] * sx, p[1] * sy - 1 + lift, p[2]]), z: q.p.reduce((a, p) => a + p[2], 0) / 4}))
+        .filter(q => q.n[2] > -1e-4).sort((a, b) => a.z - b.z);
+      for (const q of qs) {
+        const t = texFor(q.img); if (!t) continue;
+        const d = []; for (const i of [0, 1, 2, 0, 2, 3]) d.push(...q.p[i], ...q.uv[i]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(d), gl.STREAM_DRAW);
+        gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 20, 0);
+        gl.enableVertexAttribArray(aUv); gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 20, 12);
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        const n = q.n, l = Math.hypot(...n) || 1, s = Math.min(1, .4 + .6 * L.reduce((a, v) => a + Math.max(0, (n[0] * v[0] + n[1] * v[1] + n[2] * v[2]) / l), 0)), tc = q.tint || [1, 1, 1];
+        gl.uniform3f(uCol, tc[0] * s, tc[1] * s, tc[2] * s);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+      return c;
+    },
+  };
+}
+
 // Draws the inventory into `host` for run; returns {set(ms)} (null if there's nothing to show)
-async function invMount(host, run) {
+async function invMount(host, run, opts = {}) {
   let A, D = invData[run.id];
   try {
     A = await invAssets();
@@ -97,20 +212,25 @@ async function invMount(host, run) {
   } catch { host.innerHTML = `<p class="muted" style="margin:0">${esc(T.invFailed)}</p>`; return null; }
   if (!host.isConnected) return null;
   const W = 176, H = 166;
-  host.innerHTML = `<div class="invwrap"><canvas class="invcanvas" aria-label="${esc(T.invTitle)}"></canvas><canvas class="invtip" aria-hidden="true"></canvas></div>`;
-  const wrap = host.querySelector(".invwrap"), cv = host.querySelector(".invcanvas"), ctx = cv.getContext("2d"), tipCv = host.querySelector(".invtip"), tctx = tipCv.getContext("2d");
+  host.innerHTML = `<div class="invwrap"><canvas class="invcanvas" aria-label="${esc(T.invTitle)}"></canvas></div>`;
+  let tipCv = document.querySelector("body > .invtip");   // the tooltip floats over the page, so nothing clips it
+  if (!tipCv) { tipCv = document.createElement("canvas"); tipCv.className = "invtip"; tipCv.setAttribute("aria-hidden", "true"); document.body.appendChild(tipCv); }
+  const wrap = host.querySelector(".invwrap"), cv = host.querySelector(".invcanvas"), ctx = cv.getContext("2d"), tctx = tipCv.getContext("2d");
   const {db, atlas, gui, glint, shulker, empty, font} = A;
   // the scale: the game's GUI scale (3 when there's room, else 2, shrunk to fit a phone) × pixel density
   let G = 2, P = 2;
   const sizeUp = () => {
     const room = host.clientWidth || W * 2;
-    G = room >= W * 3 + 40 ? 3 : 2;
+    G = opts.scale || (room >= W * 3 + 40 ? 3 : 2);
     P = Math.max(1, Math.round(G * (devicePixelRatio || 1)));
     cv.width = W * P; cv.height = H * P;
-    wrap.style.width = W * G + "px";
+    let w = W * G;
+    if (opts.fit) { const r = opts.fit.getBoundingClientRect(); w = Math.max(W, Math.min(w, r.width - 16, (r.height - 60) * W / H)); }   // shrunk to fit over the map
+    wrap.style.width = w + "px";
   };
-  let body = null;
-  if (run.uuid || run.player) { body = new Image(); body.onload = () => draw(); body.src = `https://mc-heads.net/body/${encodeURIComponent((run.uuid || run.player).replace(/-/g, ""))}/120`; }
+  const who = (run.uuid || run.player || "").replace(/-/g, "");
+  const player = invPlayerRenderer(A, who ? `https://mc-heads.net/skin/${encodeURIComponent(who)}` : null);
+  if (player) player.onChange = () => draw();
   let items = [], hover = -1, glinting = false, raf = 0, visible = true;
 
   // ---- drawing one item: icon, enchantment glint, durability bar, count (GUI pixels x, y; into context c at scale p) ----
@@ -149,10 +269,10 @@ async function invMount(host, run) {
     ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.drawImage(gui, 0, 0, W, H, 0, 0, W * P, H * P);
     // the player, in the black box (their skin from mc-heads.net)
-    if (body && body.complete && body.naturalWidth) {
-      const bh = 62 * P, bw = body.naturalWidth / body.naturalHeight * bh;
-      ctx.save(); ctx.beginPath(); ctx.rect(26 * P, 8 * P, 49 * P, 70 * P); ctx.clip();
-      ctx.imageSmoothingEnabled = true; ctx.drawImage(body, 51 * P - bw / 2, 12 * P, bw, bh); ctx.restore();
+    if (player) {   // the player, 30 GUI pixels to a block as in the game, wearing their armour
+      const worn = n => items[n] ? D.s[items[n][0]].m : null;
+      const pc = player.render({head: worn(39), chest: worn(38), legs: worn(37), feet: worn(36)}, 49 * P, 70 * P, 30 * P);
+      ctx.drawImage(pc, 26 * P, 8 * P);
     }
     glinting = false;
     INV_SLOTS.forEach(([x, y], slot) => {
@@ -198,24 +318,25 @@ async function invMount(host, run) {
       for (const [slot, k, n] of s.b) if (slot < 27) itemAt(tctx, D.s[k], n, X + 8 + 18 * (slot % 9), gy + 5 + 18 * Math.floor(slot / 9), P, now);
     }
     // next to the pointer, kept inside the page
-    const tw = tipCv.width / P * G, th = tipCv.height / P * G, r = wrap.getBoundingClientRect();
+    const tw = tipCv.width / P * G, th = tipCv.height / P * G, vw = document.documentElement.clientWidth;
     tipCv.style.width = tw + "px"; tipCv.style.height = th + "px"; tipCv.style.display = "block";
     let left = tipAt[0] + 12, top = tipAt[1] - th - 4;
-    if (r.left + left + tw > document.documentElement.clientWidth - 8) left = Math.max(-r.left + 8, tipAt[0] - tw - 12);
-    if (r.top + top < 8) top = tipAt[1] + 20;
+    if (left + tw > vw - 8) left = Math.max(8, tipAt[0] - tw - 12);
+    if (top < 8) top = tipAt[1] + 20;
     tipCv.style.left = left + "px"; tipCv.style.top = top + "px";
   }
   const slotAt = ev => {
     const r = cv.getBoundingClientRect(), gx = (ev.clientX - r.left) / r.width * W, gy = (ev.clientY - r.top) / r.height * H;
-    tipAt = [ev.clientX - r.left, ev.clientY - r.top];
+    tipAt = [ev.clientX, ev.clientY];
     return INV_SLOTS.findIndex(([x, y]) => gx >= x - 1 && gx < x + 17 && gy >= y - 1 && gy < y + 17);
   };
   cv.addEventListener("pointermove", ev => { const s = slotAt(ev); if (s !== hover || s >= 0) { hover = s; draw(); } });
   cv.addEventListener("pointerdown", ev => { hover = slotAt(ev); draw(); });
   cv.addEventListener("pointerleave", ev => { if (ev.pointerType === "mouse") { hover = -1; draw(); } });
+  window.addEventListener("scroll", () => { if (hover >= 0) { hover = -1; draw(); } }, {passive: true});
   // only animate the glint while it's on screen
   if ("IntersectionObserver" in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible) draw(); }).observe(cv);
-  if ("ResizeObserver" in window) new ResizeObserver(() => { const g = G, p = P; sizeUp(); if (g !== G || p !== P) draw(); }).observe(host);
+  if ("ResizeObserver" in window) new ResizeObserver(() => { const g = G, p = P; sizeUp(); if (g !== G || p !== P) draw(); }).observe(opts.fit || host);
   sizeUp();
   return {set(ms) { items = invAt(D, ms); draw(); }};
 }

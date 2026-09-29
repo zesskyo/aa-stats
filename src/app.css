@@ -418,3 +418,4 @@ input.field:disabled{opacity:.6}
 .advtoasts{position:absolute;top:8px;right:52px;z-index:4;display:flex;flex-direction:column;align-items:flex-end;pointer-events:none}
 .advtoast{display:block;image-rendering:pixelated;transform:translateX(calc(100% + 60px));opacity:0;transition:transform .5s ease,opacity .5s ease}
 .advtoast.in{transform:none;opacity:1}
+.wrhist tr.here td{background:var(--surface2)}

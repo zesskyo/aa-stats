@@ -13,8 +13,8 @@
 //
 // The world record (AA No Reset, 1.16) is the same for every site, so it lives here with the code, in wr/:
 //   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video, notes}.
-//   Past records go in wr/archive/<date runner>/ (the same files; only wr.log and wr.json are needed): they're
-//   listed with the record on its page.
+//   Past records go in wr/archive/<date runner>/ (the same files): they're listed with the record on its page,
+//   and each has a page of its own.
 // Sites rebuild every day, so a new record shows up on all of them by the next day. It's changed here only (not from the sites).
 //
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
@@ -150,55 +150,50 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   out.push({...run, meta});
 }
 
-// 3b) the world record (from the code's wr/, the same for every site): read like a run, but kept apart
-let wr = null;
-const wrLog = ["log", "txt", "jsonl"].map(e => inCode("wr/wr." + e)).find(f => fs.existsSync(f));
+// 3b) the world record (from the code's wr/, the same for every site): read like a run, but kept apart.
+// Past records (wr/archive/<date runner>/, the same files) are read the same way, so their pages have all their stats.
 const inWr = f => inCode("wr/" + f);
-if (wrLog) {
-  const r = parseLog(read(wrLog), path.basename(wrLog));
-  if (!/^1\.16(\.|$)/.test(r.mc || "")) throw new Error(`wr/${path.basename(wrLog)} is from Minecraft ${r.mc || "(unknown)"}, but the record is for 1.16`);
+function readWr(dir, key, former) {
+  const where = dir ? `wr/${dir}/` : "wr/", at = f => inWr((dir ? dir + "/" : "") + f);
+  const log = ["log", "txt", "jsonl"].map(e => at("wr." + e)).find(f => fs.existsSync(f));
+  if (!log) { if (dir) console.warn(`${where} has no wr.log, so it's skipped`); return null; }
+  const r = parseLog(read(log), path.basename(log));
+  if (!/^1\.16(\.|$)/.test(r.mc || "")) throw new Error(`${where}${path.basename(log)} is from Minecraft ${r.mc || "(unknown)"}, but the record is for 1.16`);
   r.id = "wr-" + runKey(r);
-  const d = fs.existsSync(inWr("wr.json")) ? JSON.parse(read(inWr("wr.json"))) : {};
+  const d = fs.existsSync(at("wr.json")) ? JSON.parse(read(at("wr.json"))) : {};
   const meta = {wr: true};
+  if (former) meta.former = true;
   for (const k of ["runner", "date", "seed", "video", "notes"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]).slice(0, 2000);
   if (!meta.seed && r.seed) meta.seed = String(r.seed);
-  if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error("wr/wr.json: date must look like 2026-09-22");
-  if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error("wr/wr.json: video must start with http:// or https://");
-  if (fs.existsSync(inWr("wr.ghost"))) {
-    const g = readGhost(fs.readFileSync(inWr("wr.ghost")), r);
-    if (g) { paths.set("wr", g); meta.path = "paths/wr.json"; console.log(`Read wr/wr.ghost: ${g.t.length} points`); }
-    else console.warn("wr/wr.ghost doesn't match wr/wr.log (another world?), so it's skipped");
+  if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error(`${where}wr.json: date must look like 2026-09-22`);
+  if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error(`${where}wr.json: video must start with http:// or https://`);
+  if (fs.existsSync(at("wr.ghost"))) {
+    const g = readGhost(fs.readFileSync(at("wr.ghost")), r);
+    if (g) { paths.set(key, g); meta.path = `paths/${key}.json`; console.log(`Read ${where}wr.ghost: ${g.t.length} points`); }
+    else console.warn(`${where}wr.ghost doesn't match its wr.log (another world?), so it's skipped`);
   }
-  if (fs.existsSync(inWr("wr.stats.json"))) {
-    const v = ((JSON.parse(read(inWr("wr.stats.json"))).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
+  if (fs.existsSync(at("wr.stats.json"))) {
+    const v = ((JSON.parse(read(at("wr.stats.json"))).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
     if (v != null) meta.elytraCm = v;
   }
-  logFiles.set("wr", wrLog); clocks.set("wr", r);
-  wr = {...encodeRun(r), meta};
-  console.log(`Parsed the world record (wr/${path.basename(wrLog)})`);
+  logFiles.set(key, log); clocks.set(key, r);
+  console.log(`Parsed the ${former ? "past " : ""}world record (${where}${path.basename(log)})`);
+  return {...encodeRun(r), meta};
 }
-
-// 3b') past world records (wr/archive/*/): their times from their logs, listed with the record, newest first
-const wrHistory = [];
-if (wr) wrHistory.push({t: clocks.get("wr").finalIgt, ...pick(wr.meta), now: 1});
-if (fs.existsSync(inWr("archive"))) for (const dir of fs.readdirSync(inWr("archive")).sort()) {
-  const f = ["log", "txt", "jsonl"].map(e => inWr(`archive/${dir}/wr.${e}`)).find(x => fs.existsSync(x));
-  const j = inWr(`archive/${dir}/wr.json`), d = fs.existsSync(j) ? JSON.parse(read(j)) : {};
-  const t = f ? parseLog(read(f), path.basename(f)).finalIgt : d.time != null ? parseTime(d.time, `wr/archive/${dir}/wr.json`) : null;
-  if (t == null) { console.warn(`wr/archive/${dir} has no wr.log (or a time in wr.json), so it's skipped`); continue; }
-  wrHistory.push({t, ...pick(d)});
-}
-wrHistory.sort((a, b) => a.t - b.t);
-function pick(d) { const o = {}; for (const k of ["runner", "date", "seed", "video"]) if (d[k] != null && d[k] !== "") o[k] = String(d[k]).slice(0, 300); return o; }
-if (wrHistory.length > 1) console.log(`World record history: ${wrHistory.length} records`);
+const wr = readWr("", "wr", false);
+const wrs = [], wrByKey = new Map(wr ? [["wr", wr]] : []);
+if (fs.existsSync(inWr("archive"))) fs.readdirSync(inWr("archive"), {withFileTypes: true}).filter(e => e.isDirectory()).map(e => e.name).sort().forEach((dir, i) => {
+  const run = readWr("archive/" + dir, "wr" + (i + 1), true);
+  if (run) { wrs.push(run); wrByKey.set("wr" + (i + 1), run); }
+});
 
 // 3c) the inventory replay: the inventory through the run, from the log (inv/<N>.json), and the item icons it needs
 const items = JSON.parse(read(inCode("items/items.json")));
 const invs = new Map(), usedIcons = new Set(["barrier", ...Object.values(items.adv || {}).map(a => a[0])]);
 // (criteria that are items, e.g. Balanced Diet's foods, show their own icon in the pop-ups)
-for (const r of [...out, ...(wr ? [wr] : [])]) for (const e of r.events || []) { const p = Array.isArray(e) ? e : String(e).split("|"); if (items.index[p[3]] != null && p[2] === "husbandry/balanced_diet") usedIcons.add(p[3]); }
+for (const r of [...out, ...wrByKey.values()]) for (const e of r.events || []) { const p = Array.isArray(e) ? e : String(e).split("|"); if (items.index[p[3]] != null && p[2] === "husbandry/balanced_diet") usedIcons.add(p[3]); }
 for (const [n, file] of logFiles) {
-  const run = n === "wr" ? wr : out.find(r => r.meta.num === n); if (!run) continue;
+  const run = wrByKey.get(n) || out.find(r => r.meta.num === n); if (!run) continue;
   const inv = readInventory(read(file), items, clocks.get(n).finalIgt);
   if (!inv) continue;
   inv.s.forEach(x => usedIcons.add(x.m));
@@ -226,13 +221,13 @@ const head = `<meta charset="utf-8">
 `;
 // Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
-const json = JSON.stringify({runs: out, wr, wrHistory: wrHistory.length > 1 ? wrHistory : undefined, icons, text, repo}).replace(/</g, "\\u003c");
+const json = JSON.stringify({runs: out, wr, wrs: wrs.length ? wrs : undefined, icons, text, repo}).replace(/</g, "\\u003c");
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);
 if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
 // the biome/structure generator for travel maps of runs with a seed (see wasm/)
-if ([...paths.keys()].some(n => (n === "wr" ? wr : out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
+if ([...paths.keys()].some(n => (wrByKey.get(n) || out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
 for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
 if (invs.size) {
   fs.mkdirSync(inSite("dist/inv"), {recursive: true}); fs.mkdirSync(inSite("dist/items"), {recursive: true});

@@ -26,13 +26,14 @@ function renderRunPage() {
     </div>
     ${shotCard(run)}
     ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">${esc(T.notesTitle)}</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}
-    ${isWr(run) ? wrHistoryCard() : ""}`;
+    ${isWr(run) ? wrHistoryCard(run) : ""}`;
 
   drawProgress(run, d);
   if (meta.path) drawTravel(run, d); else if (meta.inv) invOnGraph(run);
   drawDebris(run, d);
   drawSkulls(run, d);
   bindPager(el);
+  el.querySelectorAll(".wrhist [data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
   mountRunBar(run, d);
 }
 
@@ -51,19 +52,18 @@ function renderManualRun(el, run, d) {
   mountRunBar(run, d);
 }
 
-// ---------- The world record's page: every record so far, and how much each was beaten by ----------
-function wrHistoryCard() {
+// ---------- A world record's page: every record so far (each opens its own page, with all its stats) ----------
+function wrHistoryCard(run) {
   if (WR_HISTORY.length < 2) return "";
-  const [cTime, cRunner, cDate, cBeaten] = T.wrHistoryCols;
-  const rows = WR_HISTORY.map((h, i) => {
-    const next = WR_HISTORY[i - 1], vid = okUrl(h.video) ? videoLink({meta: {video: h.video}}) : "";
-    return `<tr><td class="mono">${fmt(h.t, 0)}${h.now ? `<span class="badge">${esc(T.wrCurrent)}</span>` : ""}</td>
-      <td>${esc(h.runner || "—")} ${vid}</td>
-      <td class="muted">${h.date ? esc(fmtDay(h.date + "T12:00:00")) : "—"}</td>
-      <td class="mono muted">${next ? fmtShort(h.t - next.t) : "—"}</td></tr>`;
+  const [cTime, cRunner, cDate] = T.wrHistoryCols;
+  const rows = WR_HISTORY.map(h => {
+    const here = h.id === run.id, who = esc(h.meta.runner || T.wrWord);
+    return `<tr${here ? ' class="here"' : ""}><td class="mono">${fmt(h.finalIgt, 0)}${h === WR ? `<span class="badge">${esc(T.wrCurrent)}</span>` : ""}</td>
+      <td>${here ? `<b>${who}</b>` : `<button type="button" class="linkbtn" style="padding:0" data-open="${esc(h.id)}">${who}</button>`} ${videoLink(h)}</td>
+      <td class="muted">${h.meta.date ? esc(fmtDay(h.meta.date + "T12:00:00")) : "—"}</td></tr>`;
   }).join("");
-  return `<section class="card" style="padding:0"><div class="tablebar"><h2>${esc(T.wrHistoryTitle)}</h2></div>
-    <div class="tablewrap"><table><thead><tr><th scope="col">${esc(cTime)}</th><th scope="col">${esc(cRunner)}</th><th scope="col">${esc(cDate)}</th><th scope="col">${esc(cBeaten)}</th></tr></thead>
+  return `<section class="card wrhist" style="padding:0"><div class="tablebar"><h2>${esc(T.wrHistoryTitle)}</h2></div>
+    <div class="tablewrap"><table><thead><tr><th scope="col">${esc(cTime)}</th><th scope="col">${esc(cRunner)}</th><th scope="col">${esc(cDate)}</th></tr></thead>
     <tbody>${rows}</tbody></table></div></section>`;
 }
 

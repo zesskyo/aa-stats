@@ -9,8 +9,9 @@ if (DATA.text && typeof DATA.text === "object") for (const [k, v] of Object.entr
 const RUNS = (DATA.runs || []).map(decodeRun);
 // The world record (someone else's run, from the site's wr/ folder): shown next to the PB, never counted in this site's stats
 const WR = DATA.wr && typeof DATA.wr === "object" ? decodeRun(DATA.wr) : null;
-// every world record so far, fastest (the current one) first: {t, runner, date, seed, video, now}
-const WR_HISTORY = Array.isArray(DATA.wrHistory) ? DATA.wrHistory.filter(h => h && typeof h.t === "number") : [];
+// the records it beat (wr/archive/), each with a page of its own; and every record so far, fastest (the current one) first
+const WRS = Array.isArray(DATA.wrs) ? DATA.wrs.filter(r => r && typeof r === "object").map(decodeRun) : [];
+const WR_HISTORY = [...(WR ? [WR] : []), ...WRS].filter(r => r.finalIgt != null).sort((a, b) => a.finalIgt - b.finalIgt);
 const ICONS = (DATA.icons && typeof DATA.icons === "object") ? DATA.icons : {};
 
 // ---------- Icons ----------
@@ -23,11 +24,11 @@ const icAt = (key, x, y, size) => okIcon(ICONS[key]) ? `<image href="${ICONS[key
 // ---------- About a run ----------
 const runNum = r => r.meta && r.meta.num ? r.meta.num : RUNS.slice().sort((a, b) => a.start - b.start).indexOf(r) + 1;
 const isWr = r => !!(r && r.meta && r.meta.wr);
-const runTitle = r => isWr(r) ? T.wrWord + (r.meta.runner ? " · " + r.meta.runner : "") : T.runWord + " " + runNum(r);
+const runTitle = r => isWr(r) ? (r.meta.former ? T.wrFormerWord : T.wrWord) + (r.meta.runner ? " · " + r.meta.runner : "") : T.runWord + " " + runNum(r);
 // The run's final time: with milliseconds, unless it was typed into runs.json without them
 const runTime = r => fmt(r.finalIgt, r.manual && r.finalIgt % 1000 === 0 ? 0 : 3);
 const byNumber = () => RUNS.slice().sort((a, b) => runNum(a) - runNum(b));
-const findRun = id => RUNS.find(r => r.id === id) || (WR && WR.id === id ? WR : undefined);
+const findRun = id => RUNS.find(r => r.id === id) || (WR && WR.id === id ? WR : undefined) || WRS.find(r => r.id === id);
 
 // Date shown for a run: the date from runs.json, otherwise the day the run finished
 const doneAt = r => r.start + (r.finalRta || 0);

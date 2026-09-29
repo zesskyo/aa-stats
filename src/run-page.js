@@ -25,7 +25,8 @@ function renderRunPage() {
       ${rareCard(d.rare)}
     </div>
     ${shotCard(run)}
-    ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">${esc(T.notesTitle)}</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}`;
+    ${meta.notes ? `<div class="card notes"><div style="flex:1;min-width:0"><span class="label">${esc(T.notesTitle)}</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(meta.notes)}</p></div></div>` : ""}
+    ${isWr(run) ? wrHistoryCard() : ""}`;
 
   drawProgress(run, d);
   if (meta.path) drawTravel(run, d); else if (meta.inv) invOnGraph(run);
@@ -48,6 +49,22 @@ function renderManualRun(el, run, d) {
     <div class="card"><b>${esc(T.noLogTitle)}</b> <span class="muted">${esc(T.noLogNote)}</span></div>`;
   bindPager(el);
   mountRunBar(run, d);
+}
+
+// ---------- The world record's page: every record so far, and how much each was beaten by ----------
+function wrHistoryCard() {
+  if (WR_HISTORY.length < 2) return "";
+  const [cTime, cRunner, cDate, cBeaten] = T.wrHistoryCols;
+  const rows = WR_HISTORY.map((h, i) => {
+    const next = WR_HISTORY[i - 1], vid = okUrl(h.video) ? videoLink({meta: {video: h.video}}) : "";
+    return `<tr><td class="mono">${fmt(h.t, 0)}${h.now ? `<span class="badge">${esc(T.wrCurrent)}</span>` : ""}</td>
+      <td>${esc(h.runner || "—")} ${vid}</td>
+      <td class="muted">${h.date ? esc(fmtDay(h.date + "T12:00:00")) : "—"}</td>
+      <td class="mono muted">${next ? fmtShort(h.t - next.t) : "—"}</td></tr>`;
+  }).join("");
+  return `<section class="card" style="padding:0"><div class="tablebar"><h2>${esc(T.wrHistoryTitle)}</h2></div>
+    <div class="tablewrap"><table><thead><tr><th scope="col">${esc(cTime)}</th><th scope="col">${esc(cRunner)}</th><th scope="col">${esc(cDate)}</th><th scope="col">${esc(cBeaten)}</th></tr></thead>
+    <tbody>${rows}</tbody></table></div></section>`;
 }
 
 // ---------- Screenshot of the run (proof), if there is one ----------

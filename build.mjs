@@ -13,6 +13,8 @@
 //
 // The world record (AA No Reset, 1.16) is the same for every site, so it lives here with the code, in wr/:
 //   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video, notes}.
+//   Past records go in wr/archive/<date runner>/ (the same files; only wr.log and wr.json are needed): they're
+//   listed with the record on its page.
 // Sites rebuild every day, so a new record shows up on all of them by the next day. It's changed here only (not from the sites).
 //
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
@@ -176,6 +178,20 @@ if (wrLog) {
   console.log(`Parsed the world record (wr/${path.basename(wrLog)})`);
 }
 
+// 3b') past world records (wr/archive/*/): their times from their logs, listed with the record, newest first
+const wrHistory = [];
+if (wr) wrHistory.push({t: clocks.get("wr").finalIgt, ...pick(wr.meta), now: 1});
+if (fs.existsSync(inWr("archive"))) for (const dir of fs.readdirSync(inWr("archive")).sort()) {
+  const f = ["log", "txt", "jsonl"].map(e => inWr(`archive/${dir}/wr.${e}`)).find(x => fs.existsSync(x));
+  const j = inWr(`archive/${dir}/wr.json`), d = fs.existsSync(j) ? JSON.parse(read(j)) : {};
+  const t = f ? parseLog(read(f), path.basename(f)).finalIgt : d.time != null ? parseTime(d.time, `wr/archive/${dir}/wr.json`) : null;
+  if (t == null) { console.warn(`wr/archive/${dir} has no wr.log (or a time in wr.json), so it's skipped`); continue; }
+  wrHistory.push({t, ...pick(d)});
+}
+wrHistory.sort((a, b) => a.t - b.t);
+function pick(d) { const o = {}; for (const k of ["runner", "date", "seed", "video"]) if (d[k] != null && d[k] !== "") o[k] = String(d[k]).slice(0, 300); return o; }
+if (wrHistory.length > 1) console.log(`World record history: ${wrHistory.length} records`);
+
 // 3c) the inventory replay: the inventory through the run, from the log (inv/<N>.json), and the item icons it needs
 const items = JSON.parse(read(inCode("items/items.json")));
 const invs = new Map(), usedIcons = new Set(["barrier", ...Object.values(items.adv || {}).map(a => a[0])]);
@@ -210,7 +226,7 @@ const head = `<meta charset="utf-8">
 `;
 // Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
-const json = JSON.stringify({runs: out, wr, icons, text, repo}).replace(/</g, "\\u003c");
+const json = JSON.stringify({runs: out, wr, wrHistory: wrHistory.length > 1 ? wrHistory : undefined, icons, text, repo}).replace(/</g, "\\u003c");
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);

@@ -9,6 +9,8 @@ if (DATA.text && typeof DATA.text === "object") for (const [k, v] of Object.entr
 const RUNS = (DATA.runs || []).map(decodeRun);
 // The world record (someone else's run, from the site's wr/ folder): shown next to the PB, never counted in this site's stats
 const WR = DATA.wr && typeof DATA.wr === "object" ? decodeRun(DATA.wr) : null;
+// every world record so far, fastest (the current one) first: {t, runner, date, seed, video, now}
+const WR_HISTORY = Array.isArray(DATA.wrHistory) ? DATA.wrHistory.filter(h => h && typeof h.t === "number") : [];
 const ICONS = (DATA.icons && typeof DATA.icons === "object") ? DATA.icons : {};
 
 // ---------- Icons ----------

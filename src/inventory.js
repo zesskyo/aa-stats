@@ -29,11 +29,11 @@ function invAssets() {
   const img = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
   invAssetsP = Promise.all([
     fetch("items/items.json").then(r => { if (!r.ok) throw 0; return r.json(); }),
-    img("items/atlas.png"), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"), img("items/steve.png"), img("items/elytra.png"), img("items/toasts.png"),
+    img("items/atlas.png"), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"), img("items/steve.png"), img("items/elytra.png"), img("items/toasts.png"), img("items/widgets.png"),
     ...Object.values(INV_EMPTY).map(k => img(`items/${k}.png`)),
-  ]).then(([db, atlas, gui, font, glint, shulker, steve, elytra, toasts, ...empties]) => {
+  ]).then(([db, atlas, gui, font, glint, shulker, steve, elytra, toasts, widgets, ...empties]) => {
     const empty = {}; Object.values(INV_EMPTY).forEach((k, i) => { empty[k] = empties[i]; });
-    return {db, atlas, gui, glint, shulker, steve, elytra, toasts, empty, font: invFont(font)};
+    return {db, atlas, gui, glint, shulker, steve, elytra, toasts, widgets, empty, font: invFont(font)};
   });
   invAssetsP.catch(() => { invAssetsP = null; });
   return invAssetsP;
@@ -438,10 +438,95 @@ async function invToasts(host, run) {
     setTimeout(() => { el.classList.remove("in"); setTimeout(() => el.remove(), 600); }, 5000);
   };
   return {
-    // t: where the timeline is now; toasts only for moving forward a little (playing, or a short step)
+    // t: where the timeline is now; toasts only for moving a little (playing, rewinding, or a short step)
     set(t) {
-      if (last != null && t > last && t - last <= 180000) { for (const a of adv) if (a.t > last && a.t <= t) show(a); }
-      else if (last != null && t !== last) host.replaceChildren();
+      if (last != null && t !== last && Math.abs(t - last) <= 180000) {
+        const lo = Math.min(t, last), hi = Math.max(t, last), passed = adv.filter(a => a.t > lo && a.t <= hi);
+        (t < last ? passed.reverse() : passed).forEach(show);
+      } else if (last != null && t !== last) host.replaceChildren();
+      last = t;
+    },
+  };
+}
+
+// ---------- goals down the travel map's left side, like AATool's ----------
+// Each goal is a chain of steps (TNT → Debris → the netherite advancements; Skulls → Summon Wither → … → How Did We Get
+// Here), each done at a time in the run, so what's shown depends only on where the timeline is: forwards or backwards.
+// A goal that's done turns gold and fades away after a few seconds (if the timeline moved through it; jumping past hides it).
+async function invGoals(host, run, d) {
+  let A; try { A = await invAssets(); } catch { return null; }
+  const {db, atlas, font, widgets} = A, st = run.st || {};
+  const count = (a, t) => { let n = 0; for (const x of a || []) if ((Array.isArray(x) ? x[0] : x) <= t) n++; return n; };
+  const held = (a, t) => { let v = 0; for (const x of a || []) { if (x[0] > t) break; v = x[1]; } return Math.max(0, v); };
+  const nth = (a, n) => a && a.length >= n ? a[n - 1] : null;
+  const crit = (id, c) => { const e = run.events.find(x => x[2] === id && x[3] === c); return e ? e[0] : null; };
+  const one = (name, at, icon) => ({at, icon, title: "Need:", sub: () => name});
+  const needAll = list => {   // several things in any order: the ones still to do
+    const left = t => list.filter(x => x[1] == null || x[1] > t);
+    return {at: list.every(x => x[1] != null) ? Math.max(...list.map(x => x[1])) : null, icon: t => (left(t)[0] || list[0])[2], title: "Need:", sub: t => left(t).map(x => x[0]).join(", ")};
+  };
+  const debris = d.splits[4] || {}, enchDone = d.splits[2] && d.splits[2].end;
+  const god = st.gapple ?? crit("husbandry/balanced_diet", "enchanted_golden_apple");
+  const GOALS = [
+    {adv: "nether/create_full_beacon", steps: [{at: advTime(run, "nether/create_full_beacon"), icon: "gold_block", title: "Gold Blocks", sub: t => `(${held(st.gold, t)} / 164)`}]},
+    {adv: "husbandry/obtain_netherite_hoe", steps: [
+      {at: debris.start ?? nth(st.debris, 1), icon: "tnt", title: "TNT", sub: t => `(${held(st.tntHeld, t)})`},
+      {at: debris.end ?? (st.debris || []).slice(-1)[0] ?? null, icon: "ancient_debris", title: "Debris", sub: t => `(${count(st.debris, t)})`},
+      needAll([["Lodestone", advTime(run, "nether/use_lodestone"), "lodestone"], ["Netherite Armor", advTime(run, "nether/netherite_armor"), "netherite_chestplate"], ["Netherite Hoe", advTime(run, "husbandry/obtain_netherite_hoe"), "netherite_hoe"]])]},
+    {adv: "adventure/honey_block_slide", steps: [
+      {at: (st.campfire || []).find(t => t > (enchDone ?? 0)) ?? null, icon: "bee_nest", title: "Hives", sub: t => `(${count(st.hives, t)})`},
+      needAll([["Bee Our Guest", advTime(run, "husbandry/safely_harvest_honey"), "honey_bottle"], ["Sticky Situation", advTime(run, "adventure/honey_block_slide"), "honey_block"], ["Honey", crit("husbandry/balanced_diet", "honey_bottle"), "honey_bottle"]])]},
+    {adv: "nether/all_effects", steps: [
+      {at: nth(st.skulls, 3), icon: "wither_skeleton_skull", title: "Skulls", sub: t => `(${Math.min(3, count(st.skulls, t))} / 3)`},
+      one("Summon Wither", advTime(run, "nether/summon_wither"), "nether_star"), one("Kill Wither", nth(st.wither, 1), "nether_star"),
+      one("Wither Rose", nth(st.rose, 1), "wither_rose"), one("Raid", advTime(run, "adventure/hero_of_the_village"), "ominous_banner"),
+      one("How Did We Get Here", advTime(run, "nether/all_effects"), (db.adv["nether/all_effects"] || [])[0])]},
+    {adv: "adventure/very_very_frightening", steps: [{at: nth(st.trident, 1), icon: "trident", title: "Trident", sub: () => "Obtain (0/1)"}, one("Thunder", advTime(run, "adventure/very_very_frightening"), "trident")]},
+    {adv: "husbandry/balanced_diet", done: "Obtained", steps: [{at: god, icon: "enchanted_golden_apple", title: "God Apple", sub: () => "Need"}]},
+  ];
+  // a step counts as done once any later one is (e.g. How Did We Get Here without a wither rose)
+  for (const g of GOALS) {
+    for (let i = g.steps.length - 2; i >= 0; i--) { const n = g.steps[i + 1].at; if (n != null) g.steps[i].at = Math.min(g.steps[i].at ?? Infinity, n); }
+    g.at = g.steps[g.steps.length - 1].at;
+    g.frame = (db.adv[g.adv] || [])[1] || "task";
+    g.el = document.createElement("canvas"); g.el.className = "advgoal"; g.el.setAttribute("aria-hidden", "true"); host.appendChild(g.el);
+  }
+  const FRAME_U = {task: 0, challenge: 26, goal: 52};
+  const draw = (g, key, icon, title, sub, done) => {
+    if (g.key === key && g.G === G) return;
+    g.key = key; g.G = G;
+    const TW = 100, W = 29 + TW + 3, H = 26, P = Math.max(1, Math.ceil(G * (devicePixelRatio || 1))), c = g.el;
+    c.width = W * P; c.height = H * P; c.style.width = W * G + "px"; c.style.height = H * G + "px";
+    const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+    x.fillStyle = "rgba(0,0,0,.6)"; x.fillRect(13 * P, 2 * P, (W - 13) * P, 22 * P);
+    x.drawImage(widgets, FRAME_U[g.frame] ?? 0, done ? 128 : 154, 26, 26, 0, 0, 26 * P, 26 * P);
+    const k = db.index[icon] ?? db.index.barrier;
+    if (k != null) { x.imageSmoothingEnabled = true; x.drawImage(atlas, (k % db.cols) * db.size, Math.floor(k / db.cols) * db.size, db.size, db.size, 5 * P, 5 * P, 16 * P, 16 * P); x.imageSmoothingEnabled = false; }
+    const fitAt = (s, y, color) => { const w = font.width(s) - 1; if (w <= TW) return font.draw(x, s, 30, y, color, P); const f = TW / w; font.draw(x, s, 30 / f, (y + 4 - 4 * f) / f, color, P * f); };
+    fitAt(title, 4, done ? "#FFFF55" : "#FFFFFF"); fitAt(sub, 14, done ? "#FFFF55" : "#AAAAAA");
+  };
+  let last = null, G = 2;
+  return {
+    set(t) {
+      const map = host.parentElement;
+      G = map.clientWidth >= 560 && map.clientHeight >= GOALS.length * 58 + 40 ? 2 : 1;
+      const moved = last != null && Math.abs(t - last) <= 180000;
+      for (const g of GOALS) {
+        if (g.at != null && g.at <= t) {   // done: gold for a moment if the timeline just went through it, otherwise hidden
+          const s = g.steps[g.steps.length - 1];
+          if (moved && last < g.at && !g.timer) {
+            draw(g, "done", typeof s.icon === "function" ? s.icon(g.at - 1) : s.icon, g.done ? g.steps[0].title : s.title === "Need:" ? s.sub(g.at - 1) : s.title, g.done || "Done", true);
+            g.el.classList.remove("gone", "fade");
+            g.timer = setTimeout(() => { g.el.classList.add("fade"); g.timer = setTimeout(() => { g.el.classList.add("gone"); g.timer = null; }, 600); }, 3000);
+          } else if (!g.timer) g.el.classList.add("gone");
+          continue;
+        }
+        if (g.timer) { clearTimeout(g.timer); g.timer = null; }
+        const s = g.steps.find(x => x.at == null || x.at > t), icon = typeof s.icon === "function" ? s.icon(t) : s.icon;
+        const sub = s.sub(t);
+        draw(g, `${g.steps.indexOf(s)}|${icon}|${sub}`, icon, s.title, sub, false);
+        g.el.classList.remove("gone", "fade");
+      }
       last = t;
     },
   };

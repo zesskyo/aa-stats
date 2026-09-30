@@ -189,7 +189,10 @@ if (fs.existsSync(inWr("archive"))) fs.readdirSync(inWr("archive"), {withFileTyp
 
 // 3c) the inventory replay: the inventory through the run, from the log (inv/<N>.json), and the item icons it needs
 const items = JSON.parse(read(inCode("items/items.json")));
-const invs = new Map(), usedIcons = new Set(["barrier", ...Object.values(items.adv || {}).map(a => a[0])]);
+const invs = new Map(), usedIcons = new Set(["barrier", ...Object.values(items.adv || {}).map(a => a[0]),
+  // the travel map's goals (src/inventory.js, GOALS)
+  "gold_block", "tnt", "ancient_debris", "lodestone", "netherite_chestplate", "netherite_hoe", "bee_nest", "honey_bottle", "honey_block",
+  "wither_skeleton_skull", "nether_star", "wither_rose", "ominous_banner", "trident", "enchanted_golden_apple"]);
 // (criteria that are items, e.g. Balanced Diet's foods, show their own icon in the pop-ups)
 for (const r of [...out, ...wrByKey.values()]) for (const e of r.events || []) { const p = Array.isArray(e) ? e : String(e).split("|"); if (items.index[p[3]] != null && p[2] === "husbandry/balanced_diet") usedIcons.add(p[3]); }
 for (const [n, file] of logFiles) {

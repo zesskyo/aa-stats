@@ -14,7 +14,7 @@ const T = {
   // Overview page
   pb: "PB",
   wr: "WR · 1.16 AA No Reset",
-  wrWord: "World record",
+  wrWord: "WR",
   wrHistoryTitle: "WRs",
   wrFormerWord: "FWR",
   wrHistoryCols: ["Time", "Runner", "Date"],

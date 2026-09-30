@@ -8,7 +8,9 @@
  *   Debris        first netherrack mined after entering the Nether for the main debris session
  *                 → back in the Overworld after the last debris of that session
  *   Endgame       → Overworld after The End... Again..., or the end of the run
- *   Post-endgame  from there to the final advancement; only counted if it lasts at least RULES.postEndgameMin
+ *   Post-endgame  from there to the final advancement; only counted if it lasts at least RULES.postEndgameMin.
+ *                 If How Did We Get Here was done without the god apple, it starts earlier: at the trip to the Nether
+ *                 the god apple came from (and debris mined on that trip isn't the Debris split).
  *
  * Early Endgame: placing a campfire (setting up bees) after Enchanting starts Endgame. If that's before
  * debris, Endgame is paused while Debris happens and continues back in the Overworld.
@@ -54,11 +56,21 @@ function findSplits(run, comp) {
   // Post-endgame: back in the Overworld after The End... Again...
   const endAgain = advTime(run, "end/respawn_dragon");
   let postStart = firstDimAfter(run, endAgain, x => x === "o");
+  // ...or, when How Did We Get Here was done without the god apple, the Nether trip the god apple came from
+  const hdwgh = advTime(run, "nether/all_effects");
+  const godE = run.events.find(x => x[2] === "husbandry/balanced_diet" && x[3] === "enchanted_golden_apple"), god = godE ? godE[0] : null;
+  if (hdwgh != null && god != null && god > hdwgh && hdwgh > (enchDone ?? Infinity)) {
+    const trip = run.dims.filter(x => x[0] > hdwgh && x[0] <= god && x[1] === "n").pop();
+    if (trip && (postStart == null || trip[0] < postStart)) {
+      postStart = trip[0];
+      if (debrisStart != null && debrisStart >= postStart) debrisStart = debrisEnd = null;   // (that trip's debris)
+    }
+  }
   if (postStart != null && run.finalIgt - postStart < RULES.postEndgameMin) postStart = null;
 
-  // Early Endgame (campfire placed before debris)
+  // Early Endgame (campfire placed before debris, or no Debris split)
   const campT = (st.campfire || []).find(t => t > (enchDone ?? Infinity));
-  const earlyEnd = campT != null && debrisStart != null && campT < debrisStart;
+  const earlyEnd = campT != null && (debrisStart == null || campT < debrisStart);
   const endgameEnd = postStart ?? run.finalIgt;
 
   const seg = (a, b) => a != null && b != null && b >= a ? [[a, b]] : [];
@@ -68,7 +80,7 @@ function findSplits(run, comp) {
     seg(outerEnd, enchDone),
     seg(enchDone, earlyEnd ? campT : debrisStart),
     seg(debrisStart, debrisEnd),
-    earlyEnd ? [...seg(campT, debrisStart), ...seg(debrisEnd, endgameEnd)] : seg(debrisEnd, endgameEnd),
+    earlyEnd ? (debrisStart == null ? seg(campT, endgameEnd) : [...seg(campT, debrisStart), ...seg(debrisEnd, endgameEnd)]) : seg(debrisEnd, endgameEnd),
     postStart != null ? seg(postStart, run.finalIgt) : [],
   ];
 

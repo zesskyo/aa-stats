@@ -13,7 +13,7 @@ const T = {
 
   // Overview page
   pb: "PB",
-  wr: "WR · AA No Reset 1.16",
+  wr: "WR · 1.16 AA No Reset",
   wrWord: "World record",
   wrHistoryTitle: "WRs",
   wrFormerWord: "FWR",

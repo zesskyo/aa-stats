@@ -85,7 +85,7 @@ function chartSVG({series, W = 1280, H = 460, strip = null, bands = null, deaths
     o += g0 + (icAt(m.icon, X(m.t) - 10, cy - 10, 20) || `<circle cx="${X(m.t)}" cy="${cy}" r="${m.end ? 4.5 : 5}" style="fill:${m.color};stroke:var(--surface);stroke-width:1.5"/>`) + g1;
     if (!markersDim && m.text && m.t >= xmin && m.t <= xmax) hot.push({x: X(m.t), y: cy, text: m.text, sub: m.sub, t: m.realT ?? m.t});
   }); o += "</g>"; }
-  if (vlines) vlines.forEach(v => { o += `<line class="c-pause" x1="${X(v.t)}" x2="${X(v.t)}" y1="${padT}" y2="${padT + ih}"/><text class="c-pausetext" x="${X(v.t) + 4}" y="${padT + 12}">${esc(v.label)}</text>`; });
+  if (vlines) vlines.forEach(v => { const left = X(v.t) > padL + iw * .7; o += `<line class="c-pause" x1="${X(v.t)}" x2="${X(v.t)}" y1="${padT}" y2="${padT + ih}"/>` + (v.label ? `<text class="c-pausetext" x="${X(v.t) + (left ? -4 : 4)}" y="${padT + 12}"${left ? ' text-anchor="end"' : ""}>${esc(v.label)}</text>` : ""); });
   if (rug) { const ry = padT + ih + 4; rug.forEach(t => { o += `<line class="c-tnt" x1="${X(t)}" x2="${X(t)}" y1="${ry}" y2="${ry + 10}"/>`; }); if (rugLabel) o += `</g><text class="c-endlabel c-tntlabel" x="${W - padR + 8}" y="${ry + 9}">${esc(rugLabel)}</text><g clip-path="url(#${cid})">`; }
   if (lanes) lanes.forEach((ln, li) => {
     const ly = padT + ih + 10 + li * 22;

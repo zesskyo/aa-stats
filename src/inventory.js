@@ -471,7 +471,7 @@ async function invGoals(host, run, d) {
     {adv: "nether/create_full_beacon", steps: [{at: advTime(run, "nether/create_full_beacon"), icon: "gold_block", title: "Gold Blocks", sub: t => `(${held(st.gold, t)} / 164)`}]},
     {adv: "husbandry/obtain_netherite_hoe", steps: [
       {at: debris.start ?? nth(st.debris, 1), icon: "tnt", title: "TNT", sub: t => `(${held(st.tntHeld, t)})`},
-      {at: debris.end ?? (st.debris || []).slice(-1)[0] ?? null, icon: "ancient_debris", title: "Debris", sub: t => `(${count(st.debris, t)})`},
+      {at: (debris.segs && debris.segs.length ? debris.segs[0][1] : null) ?? (st.debris || []).slice(-1)[0] ?? null, icon: "ancient_debris", title: "Debris", sub: t => `(${count(st.debris, t)})`},
       needAll([["Lodestone", advTime(run, "nether/use_lodestone"), "lodestone"], ["Netherite Armor", advTime(run, "nether/netherite_armor"), "netherite_chestplate"], ["Netherite Hoe", advTime(run, "husbandry/obtain_netherite_hoe"), "netherite_hoe"]])]},
     {adv: "adventure/honey_block_slide", steps: [
       {at: (st.campfire || []).find(t => t > (enchDone ?? 0)) ?? null, icon: "bee_nest", title: "Hives", sub: t => `(${count(st.hives, t)})`},

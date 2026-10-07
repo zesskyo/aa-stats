@@ -56,7 +56,7 @@ function derive(run) {
   // the build works that out from the ghost file (st.debrisTnt); without one, debris mined within 90 seconds of TNT
   // with under 100 netherrack mined since
   const debrisSplit = splits[4];
-  const inDebris = arr => debrisSplit.start == null ? [] : (arr || []).filter(t => t >= debrisSplit.start && t <= debrisSplit.end);
+  const inDebris = arr => (arr || []).filter(t => debrisSplit.segs.some(g => t >= g[0] && t <= g[1]));
   const rackAt = t => { let v = 0; for (const p of st.rack || []) { if (p[0] > t) break; v = p[1]; } return v; };
   const fromTnt = st.debrisTnt || (st.debris || []).filter(d => { const lt = (st.tnt || []).filter(t => t <= d).pop(); return lt != null && d - lt <= 90000 && rackAt(d) - rackAt(lt) < 100; });
   const tntD = inDebris(st.tnt).length, debD = inDebris(fromTnt).length;

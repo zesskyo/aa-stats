@@ -135,16 +135,22 @@ const rareCard = rare => `<section class="card" style="display:flex;flex-directi
 function drawDebris(run, d) {
   const dp = d.debrisSplit, box = $("#debrisChart");
   if (dp.start == null || !box) return;
-  const inSplit = t => t >= dp.start && t <= dp.end;
-  const debris = (run.st.debris || []).filter(inSplit).map((t, i) => [t, i + 1]);
-  const tnt = (run.st.tnt || []).filter(inSplit);
-  const rack0 = (lastBefore(run.st.rack || [], dp.start) || [0, 0])[1];
-  const rack = (run.st.rack || []).filter(p => inSplit(p[0])).map(p => [p[0], p[1] - rack0]);
+  // like the skull graph, the time between debris trips is squeezed out: x is time spent on debris
+  const segs = dp.segs, active = t => { let acc = 0; for (const [a, b] of segs) { if (t <= b) return acc + Math.max(0, t - a); acc += b - a; } return acc; };
+  const realTime = a => { let acc = 0; for (const [s0, e0] of segs) { if (a <= acc + (e0 - s0)) return s0 + (a - acc); acc += e0 - s0; } return dp.end; };
+  const inSplit = t => segs.some(g => t >= g[0] && t <= g[1]);
+  const debrisT = (run.st.debris || []).filter(inSplit), debris = debrisT.map((t, i) => [active(t), i + 1]);
+  const tntT = (run.st.tnt || []).filter(inSplit), tnt = tntT.map(active);
+  // netherrack mined during the split (not between trips)
+  let rackN = 0, prev = null; const rack = [];
+  for (const p of run.st.rack || []) { if (prev != null && inSplit(p[0])) { rackN += p[1] - prev; rack.push([active(p[0]), rackN]); } prev = p[1]; }
   const series = [{points: debris, color: "var(--s3)", label: T.labelDebris + " " + debris.length}];
   if (rack.length) series.push({points: rack, color: "var(--muted)", axis: "r", w: 1.5, label: T.labelNetherrack + " " + num(rack[rack.length - 1][1])});
-  mountChart(box, {series, W: 480, H: 260, xmin: dp.start, xmaxFix: dp.end, ystepFix: 5, rug: tnt, rugLabel: T.labelTnt + " " + tnt.length, noY: true, noXAxis: true, clean: true}, t => {
+  let acc = 0; const vlines = [];
+  segs.forEach((g, i) => { if (i) vlines.push({t: acc, label: fmtShort(g[0] - segs[i - 1][1])}); acc += g[1] - g[0]; });
+  mountChart(box, {series, W: 480, H: 260, xmin: 0, xmaxFix: Math.max(1000, dp.dur), ystepFix: 5, rug: tnt, rugLabel: T.labelTnt + " " + tnt.length, noY: true, noXAxis: true, clean: true, vlines}, t => {
     const l = lastBefore(debris, t), rl = lastBefore(rack, t);
-    return `<div class="thead"><span class="mono">${fmt(t, 0)}</span><span class="mono">${fmtShort(t - dp.start)}</span></div><div>${T.debrisHover(l ? l[1] : 0, tnt.filter(x => x <= t).length, rack.length ? (rl ? rl[1] : 0) : null)}</div>`;
+    return `<div class="thead"><span class="mono">${fmt(realTime(t), 0)}</span><span class="mono">${fmtShort(t)}</span></div><div>${T.debrisHover(l ? l[1] : 0, tnt.filter(x => x <= t).length, rack.length ? (rl ? rl[1] : 0) : null)}</div>`;
   });
 }
 

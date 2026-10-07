@@ -6,7 +6,8 @@
  *   Enchanting    → last enchanting-table pickup of the first pickup session after leaving the End
  *   Midgame       → debris starts (or Endgame starts early, see below)
  *   Debris        first netherrack mined after entering the Nether for the main debris session
- *                 → back in the Overworld after the last debris of that session
+ *                 → back in the Overworld after the last debris of that session; then any later Nether trip where
+ *                 more debris was got (mined, or from a chest) is more Debris, paused in between
  *   Endgame       → Overworld after The End... Again..., or the end of the run
  *   Post-endgame  from there to the final advancement; only counted if it lasts at least RULES.postEndgameMin.
  *                 If How Did We Get Here was done before getting a god apple, it starts earlier: the next time
@@ -52,6 +53,15 @@ function findSplits(run, comp) {
     debrisStart = firstRack ? firstRack[0] : nIn != null ? nIn : d0;
     debrisEnd = firstDimAfter(run, debrisSession[debrisSession.length - 1], x => x === "o");
   }
+  // more debris later on (more netherite needed): each Nether trip after that where debris was mined or turned up in the
+  // inventory (from a chest) is more Debris, with what's between paused
+  const moreDebris = [];
+  if (debrisEnd != null) run.dims.forEach((x, i) => {
+    if (x[1] !== "n" || x[0] < debrisEnd) return;
+    const out = i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt;
+    if ([...(st.debris || []), ...(st.debrisGot || [])].some(t => t >= x[0] && t <= out)) moreDebris.push([x[0], out]);
+  });
+  const debrisSegs = debrisStart != null && debrisEnd != null ? [[debrisStart, debrisEnd], ...moreDebris] : [];
 
   // Post-endgame: back in the Overworld after The End... Again...
   const endAgain = advTime(run, "end/respawn_dragon");
@@ -75,15 +85,16 @@ function findSplits(run, comp) {
   // a stretch with Debris taken out of it (Endgame and Post-endgame pause for it)
   const noDebris = (a, b) => {
     if (a == null || b == null || b < a) return [];
-    if (debrisStart == null || debrisEnd == null || debrisEnd <= a || debrisStart >= b) return [[a, b]];
-    return [...(debrisStart > a ? [[a, debrisStart]] : []), ...(debrisEnd < b ? [[debrisEnd, b]] : [])];
+    let out = [[a, b]];
+    for (const [ds, de] of debrisSegs) out = out.flatMap(([x, y]) => de <= x || ds >= y ? [[x, y]] : [...(ds > x ? [[x, ds]] : []), ...(de < y ? [[de, y]] : [])]);
+    return out;
   };
   const segsBySplit = [
     seg(0, anyEnd),
     seg(anyEnd, outerEnd),
     seg(outerEnd, enchDone),
     seg(enchDone, [earlyEnd ? campT : debrisStart, postStart].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null)),
-    seg(debrisStart, debrisEnd),
+    debrisSegs,
     noDebris(earlyEnd ? campT : debrisEnd, endgameEnd),
     postStart != null ? noDebris(postStart, run.finalIgt) : [],
   ];

@@ -20,7 +20,7 @@
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
 import fs from "node:fs";
 import path from "node:path";
-import { readGhost, tntDebris } from "./ghost.mjs";
+import { readGhost } from "./ghost.mjs";
 import { readInventory } from "./inv.mjs";
 import { readPng, writePng, pickSquares } from "./png.mjs";
 
@@ -139,7 +139,7 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   const ghostFile = inSite(`logs/${n}.ghost`);
   if (fs.existsSync(ghostFile)) {
     const g = clocks.has(n) ? readGhost(fs.readFileSync(ghostFile), clocks.get(n)) : null;
-    if (g) { paths.set(n, g); meta.path = `paths/${n}.json`; run.st.debrisTnt = tntDebris(g, run.st); console.log(`Read logs/${n}.ghost: ${g.t.length} points`); }
+    if (g) { paths.set(n, g); meta.path = `paths/${n}.json`; console.log(`Read logs/${n}.ghost: ${g.t.length} points`); }
     else console.warn(`logs/${n}.ghost: ${clocks.has(n) ? "doesn't match the run's log (another world?)" : "needs logs/" + n + ".log to line it up"}, so it's skipped`);
   }
   const statsFile = inSite(`logs/${n}.stats.json`);
@@ -169,7 +169,7 @@ function readWr(dir, key, former) {
   if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error(`${where}wr.json: video must start with http:// or https://`);
   if (fs.existsSync(at("wr.ghost"))) {
     const g = readGhost(fs.readFileSync(at("wr.ghost")), r);
-    if (g) { paths.set(key, g); meta.path = `paths/${key}.json`; r.st.debrisTnt = tntDebris(g, r.st); console.log(`Read ${where}wr.ghost: ${g.t.length} points`); }
+    if (g) { paths.set(key, g); meta.path = `paths/${key}.json`; console.log(`Read ${where}wr.ghost: ${g.t.length} points`); }
     else console.warn(`${where}wr.ghost doesn't match its wr.log (another world?), so it's skipped`);
   }
   if (fs.existsSync(at("wr.stats.json"))) {

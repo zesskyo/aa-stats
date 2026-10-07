@@ -58,14 +58,3 @@ export function readGhost(buf, run) {
   return out.t.length ? out : null;
 }
 
-// Which debris came from TNT: mined within 12 blocks of where TNT was used in the 5 minutes before (it's dug out of
-// the blast); strip-mined debris is found away from it. Returns the times of the TNT debris.
-export function tntDebris(g, st) {
-  const at = t => { const k = t / 100; let lo = 0, hi = g.t.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (g.t[m] <= k) lo = m; else hi = m - 1; } return lo; };
-  const pos = t => { const i = at(t); return [g.x[i], g.y[i], g.z[i], g.d[i]]; };
-  const tnt = (st.tnt || []).map(t => [t, pos(t)]);
-  return (st.debris || []).filter(d => {
-    const p = pos(d);
-    return tnt.some(([t, q]) => t <= d && d - t < 300000 && q[3] === p[3] && Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) <= 12);
-  });
-}

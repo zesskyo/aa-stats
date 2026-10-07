@@ -14,9 +14,9 @@
 function parseLog(text, filename) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: only if one was typed in
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
-  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
+  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
   const tot = {}, clock = [];
-  const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [], dbHeld = 0, dbOwed = 0; const dbInv = {};   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
+  const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [], dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null; const dbInv = {}, rackRecent = [];   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
   let killedBy = null; const hits = [];   // for working out how each death happened
   const TRACK = {
     "minecraft.used:minecraft.tnt": "tnt", "minecraft.mined:minecraft.ancient_debris": "debris",
@@ -82,6 +82,15 @@ function parseLog(text, filename) {
       if (k === "minecraft.picked_up:minecraft.tnt" || k === "minecraft.crafted:minecraft.tnt") { tg = diff; tot.tntGot = (tot.tntGot || 0) + diff; }
       else if (k === "minecraft.used:minecraft.tnt") tg = -diff;
       if (tg) { tntCum += tg; st.tntHeld.push([igt, tntCum]); }
+      // debris from TNT: TNT used in the 5 minutes before, and no more than a few netherrack mined in the 15 seconds before
+      // (checking around the blast); debris hit while mining netherrack non-stop (strip mining, digging the TNT tunnel) isn't
+      if (k === "minecraft.used:minecraft.tnt") lastTnt = igt;
+      if (k === "minecraft.mined:minecraft.netherrack") { rackNow = d.value; rackRecent.push([igt, rackNow]); while (rackRecent.length && rackRecent[0][0] < igt - 60000) rackRecent.shift(); }
+      if (k === "minecraft.mined:minecraft.ancient_debris" && lastTnt != null && igt - lastTnt <= 300000) {
+        const b = rackRecent.filter(p => p[0] <= igt - 15000).pop(), first = rackRecent.find(p => p[0] > igt - 15000);
+        const before = b ? b[1] : first ? first[1] - 1 : rackNow;   // (netherrack mined just before: the first in the 15 seconds counts too)
+        if (rackNow - before <= 20) for (let i = 0; i < diff; i++) st.debrisTnt.push(igt);
+      }
       if (k === "minecraft.mined:minecraft.netherrack") {
         const lr = st.rack[st.rack.length - 1];
         if (lr && igt - lr[0] < 2000) lr[1] = d.value; else st.rack.push([igt, d.value]);

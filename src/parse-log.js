@@ -16,7 +16,7 @@ function parseLog(text, filename) {
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
   const tot = {}, clock = [];
-  const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0;
+  const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [];   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
   let killedBy = null; const hits = [];   // for working out how each death happened
   const TRACK = {
     "minecraft.used:minecraft.tnt": "tnt", "minecraft.mined:minecraft.ancient_debris": "debris",
@@ -42,7 +42,8 @@ function parseLog(text, filename) {
     }
     const q = line.indexOf('"type":"'); if (q < 0) continue;
     const type = line.slice(q + 8, line.indexOf('"', q + 8));
-    if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null")) continue;
+    // (inventory lines are only read for god apples and skulls: while skulls are held, every one, as any slot could lose one)
+    if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null") && !line.includes("wither_skeleton_skull") && !(skHeld.length && skHeld[skHeld.length - 1][1] > 0)) continue;
     if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots"].includes(type)) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
@@ -62,10 +63,14 @@ function parseLog(text, filename) {
     } else if (type === "stat") {
       const k = d.stat, diff = Math.max(1, d.diff || 1);
       if (TOT[k]) tot[TOT[k]] = d.value;
-      if (TRACK[k]) for (let i = 0; i < diff; i++) st[TRACK[k]].push(igt);
+      // (skulls dropped by dying and picked up again aren't new skulls)
+      if (k === "minecraft.picked_up:minecraft.wither_skeleton_skull" && skOwed > 0) { const again = Math.min(diff, skOwed); skOwed -= again; for (let i = again; i < diff; i++) st.skulls.push(igt); }
+      else if (TRACK[k]) for (let i = 0; i < diff; i++) st[TRACK[k]].push(igt);
       if (k === "minecraft.custom:minecraft.damage_taken") { hits.push([igt, d.diff || 0]); if (hits.length > 12) hits.shift(); }
       if (k.startsWith("minecraft.killed_by:")) killedBy = [igt, k.slice(k.indexOf(":") + 1).replace(/^minecraft\./, "")];
-      if (k === "minecraft.custom:minecraft.deaths") { deaths.push([igt, dim, deathCause(igt, dim, killedBy, hits)]); killedBy = null; hits.length = 0; }
+      if (k === "minecraft.custom:minecraft.deaths") { deaths.push([igt, dim, deathCause(igt, dim, killedBy, hits)]); killedBy = null; hits.length = 0; // (the slots are often emptied just before the death is logged: what was held in the seconds before)
+        skOwed += Math.max(0, ...skHeld.filter(h => h[0] >= igt - 5000).map(h => h[1]), skHeld.length ? skHeld[skHeld.length - 1][1] : 0);
+        for (const sl in skInv) skInv[sl] = 0; skHeld.push([igt, 0]); }
       let g = 0;
       if (k === "minecraft.mined:minecraft.gold_block" || k === "minecraft.crafted:minecraft.gold_block") g = diff;
       else if (k === "minecraft.used:minecraft.gold_block") g = -diff;
@@ -85,12 +90,15 @@ function parseLog(text, filename) {
       if (now && !inDesert) st.desert.push(igt);
       inDesert = now;
     } else if (type === "inventory_slots") {
-      for (const [slot, v] of Object.entries(d.slots || {})) inv[slot] = v && v.id === "minecraft:enchanted_golden_apple" ? (v.Count || 1) : 0;
+      for (const [slot, v] of Object.entries(d.slots || {})) { inv[slot] = v && v.id === "minecraft:enchanted_golden_apple" ? (v.Count || 1) : 0; skInv[slot] = v && v.id === "minecraft:wither_skeleton_skull" ? (v.Count || 1) : 0; }
+      const sk = Object.values(skInv).reduce((a, b) => a + b, 0), prev = skHeld.length ? skHeld[skHeld.length - 1] : null;
+      if (!prev || prev[1] !== sk) { if (prev && sk < prev[1]) skHeld.push([igt, prev[1]]); skHeld.push([igt, sk]); }
       const n = Object.values(inv).reduce((a, b) => a + b, 0);
       if (n > 0 && st.gapple == null) st.gapple = igt;
       st.gappleMax = Math.max(st.gappleMax, n);
     }
   }
+  tot.skulls = st.skulls.length;   // (not the picked-up stat, which counts skulls picked up again after dying)
   if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
   const comp = events.filter(e => e[4]);
   const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];

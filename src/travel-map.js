@@ -277,7 +277,7 @@ function travelMount(run, d, P, body) {
   }
   let follow = false;
   function draw() {
-    if (!view) return;
+    if (!view || !cv.isConnected) return;   // (an image that loads after another run was opened)
     if (follow) { const p = travelAt(P, t); if (p[1] === dim) { view.cx = p[2]; view.cz = p[3]; } }
     const r = box(); ctx.clearRect(0, 0, r.width, r.height);
     const pth = pathSoFar(), bio = world && !world.failed;

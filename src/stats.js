@@ -52,10 +52,14 @@ function derive(run) {
   const lastSkull = skulls.length ? skulls[skulls.length - 1] : null;
   const skullRate = {skulls: skulls.length, kills: lastSkull != null ? ws.filter(t => t <= lastSkull).length : ws.length};
 
-  // TNT per debris, counted inside the Debris split only
+  // TNT per debris, counted inside the Debris split only, and only the debris that came from TNT (not strip-mined):
+  // the build works that out from the ghost file (st.debrisTnt); without one, debris mined within 90 seconds of TNT
+  // with under 100 netherrack mined since
   const debrisSplit = splits[4];
   const inDebris = arr => debrisSplit.start == null ? [] : (arr || []).filter(t => t >= debrisSplit.start && t <= debrisSplit.end);
-  const tntD = inDebris(st.tnt).length, debD = inDebris(st.debris).length;
+  const rackAt = t => { let v = 0; for (const p of st.rack || []) { if (p[0] > t) break; v = p[1]; } return v; };
+  const fromTnt = st.debrisTnt || (st.debris || []).filter(d => { const lt = (st.tnt || []).filter(t => t <= d).pop(); return lt != null && d - lt <= 90000 && rackAt(d) - rackAt(lt) < 100; });
+  const tntD = inDebris(st.tnt).length, debD = inDebris(fromTnt).length;
 
   return run._d = {
     comp, missing, category, splits, deaths, multis, skullRate, debrisSplit, tntD, debD,

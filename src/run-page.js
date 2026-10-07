@@ -159,6 +159,15 @@ function drawSkulls(run, d) {
   const skulls = d.lanes.skull.filter(t => t <= sp.end).slice(0, 3);
   const killsAt = t => kills.filter(x => x <= t).length;
   const markers = skulls.map((t, i) => ({t: active(t), realT: t, v: killsAt(t), icon: "s_skulls", color: "var(--s0)", text: T.skullOnChart(i + 1, killsAt(t))}));
-  mountChart(box, {series: [{points: killPts, color: "var(--muted)", w: 2, endLabel: v => T.labelWitherSkeletons + " " + v}], W: 480, H: 260, xmin: 0, xmaxFix: Math.max(1000, sp.dur), noY: true, noXAxis: true, clean: true, markers},
-    t => { const l = lastBefore(killPts, t); return `<div class="thead"><span class="mono">${fmt(realTime(t), 0)}</span><span class="mono">${fmtShort(t)}</span></div><div>${T.skullsHover(l ? l[1] : 0, skulls.filter(x => active(x) <= t).length)}</div>`; });
+  // where it paused (squeezed out): a dashed line, with how long for the longer ones
+  let acc = 0, lastLabel = -Infinity;
+  const vlines = [];
+  sp.segs.forEach((g, i) => {
+    if (i) { const gap = g[0] - sp.segs[i - 1][1], far = acc - lastLabel > sp.dur * .18 && gap >= 120000; vlines.push({t: acc, label: far ? fmtShort(gap) : ""}); if (far) lastLabel = acc; }
+    acc += g[1] - g[0];
+  });
+  // a little room either side, so the first and last skulls aren't cut off and can be hovered
+  const edge = Math.max(1000, sp.dur * .04);
+  mountChart(box, {series: [{points: killPts, color: "var(--muted)", w: 2, endLabel: v => T.labelWitherSkeletons + " " + v}], W: 480, H: 260, xmin: -edge, xmaxFix: Math.max(1000, sp.dur) + edge, noY: true, noXAxis: true, clean: true, markers, vlines},
+    t => { t = Math.max(0, Math.min(sp.dur, t)); const l = lastBefore(killPts, t); return `<div class="thead"><span class="mono">${fmt(realTime(t), 0)}</span><span class="mono">${fmtShort(t)}</span></div><div>${T.skullsHover(l ? l[1] : 0, skulls.filter(x => active(x) <= t).length)}</div>`; });
 }

@@ -1,6 +1,6 @@
 /*
  * seed-map.js — the world from a run's seed, for the travel map: biomes and structures, worked out in the
- * browser by cubiomes (github.com/Cubitect/cubiomes, compiled to cubiomes.wasm — see wasm/ in aa-stats).
+ * browser by cubiomes (xpple's fork, github.com/xpple/cubiomes, compiled to cubiomes.wasm — see wasm/ in aa-stats).
  * It runs in a background worker, in square tiles, so the page stays smooth while you pan and zoom.
  *
  *   const w = seedWorld(run)                 null if the run has no seed or isn't Minecraft 1.16
@@ -19,7 +19,7 @@ const STRUCTS = {
       ["swamp_hut", 3, "SH", 9000, true], ["igloo", 4, "IG", 9000, true], ["ruined_portal", 11, "RP", 4000, false],
       ["shipwreck", 7, "SW", 4000, false], ["ocean_ruin", 6, "OR", 4000, false]],
   n: [["fortress", 18, "NF", 4500, true], ["bastion_remnant", 19, "BR", 4500, true], ["ruined_portal", 12, "RP", 2500, false]],
-  e: [["end_city", 20, "EC", 6000, true]],
+  e: [["end_city", 21, "EC", 6000, true]],
 };
 const STRUCT_TILE = 2048;
 

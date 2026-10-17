@@ -13,7 +13,8 @@
  *                 If How Did We Get Here was done before getting a god apple, it starts earlier: the next time
  *                 they go into the Nether. Debris during Post-endgame pauses it, as with Endgame.
  *
- * Early Endgame: placing a campfire (setting up bees) after Enchanting starts Endgame. If that's before
+ * Early Endgame: placing a campfire (setting up bees) after Enchanting starts Endgame, if the honey is collected soon
+ * after (pre-placed hives: Endgame starts at the honey instead). If that's before
  * debris, Endgame is paused while Debris happens and continues back in the Overworld.
  *
  * Each split can have more than one stretch ("segs"), which is how a paused Endgame (or Post-endgame) is stored.
@@ -76,8 +77,13 @@ function findSplits(run, comp) {
   }
   if (postStart != null && run.finalIgt - postStart < RULES.postEndgameMin) postStart = null;
 
-  // Early Endgame (campfire placed before debris, or no Debris split)
-  const campT = (st.campfire || []).find(t => t > (enchDone ?? Infinity));
+  // Early Endgame (campfire placed before debris, or no Debris split). Only a campfire that's used for honey soon after
+  // counts (Bee Our Guest within RULES.campfireToHoney): hives set up long before, e.g. while passing 0,0 in Midgame,
+  // don't start Endgame; then it starts when the honey is collected.
+  const honey = advTime(run, "husbandry/safely_harvest_honey");
+  const camps = (st.campfire || []).filter(t => t > (enchDone ?? Infinity));
+  let campT = honey == null ? camps[0] : camps.find(t => t <= honey && honey - t <= RULES.campfireToHoney);
+  if (campT == null && honey != null && camps.some(t => t <= honey)) campT = honey;
   const earlyEnd = campT != null && (debrisStart == null || campT < debrisStart);
   const endgameEnd = postStart ?? run.finalIgt;
 

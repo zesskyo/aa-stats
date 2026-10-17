@@ -116,6 +116,7 @@ const CRIT_RENAME = {"British Shorthair": "British", "All Black": "Black"};
 
 // ---------- Rules of thumb (times in milliseconds: 60000 = 1 minute) ----------
 const RULES = {
+  campfireToHoney: 45 * 60000,     // a campfire starts (early) Endgame only if Bee Our Guest comes within this after it
   postEndgameMin: 5 * 60000,        // a Post-endgame shorter than this is folded into Endgame
   enchantPickupGap: 15 * 60000,     // enchanting-table pickups closer than this count as one enchanting session
   debrisSessionGap: 10 * 60000,     // debris mined closer together than this counts as one debris session

@@ -31,7 +31,10 @@ const T = {
   noRunYet: "No run yet",
   averagePrefix: "avg",
   slowestPrefix: "slowest",
-  firstElytra: "First elytra",
+  firstElytra: "Elytra",
+  elytraMarker: "Elytra",
+  leaderboard: "Leaderboard",
+  leaderboardUrl: "https://docs.google.com/spreadsheets/d/1RMPL2zGM0Bkxsz-UFAbShVXP4arD8E7C-kBvGzSyRv0/edit?gid=0#gid=0",
   openRunAvg: "the run closest to the average",
 
   // Runs table column headings

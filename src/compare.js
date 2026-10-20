@@ -248,7 +248,7 @@ const cmpDelta = (v, ref, prev) => {
   if (v == null || ref == null) return "";
   const d = v - ref; if (Math.abs(d) < 1000) return `<span class="delta">±0</span>`;
   const seg = prev != null ? d - prev : null, pale = seg != null && (d < 0 ? seg > 0 : seg < 0);
-  return `<span class="delta ${d > 0 ? "pos" : "neg"}${pale ? " pale" : ""}"${seg != null ? ` title="${esc(T.cmpSegment)} ${Math.abs(seg) < 1000 ? "±0" : cmpSigned(seg)}"` : ""}>${cmpSigned(d)}</span>`;
+  return `<span class="delta ${d > 0 ? "pos" : "neg"}${pale ? " pale" : ""}">${cmpSigned(d)}</span>`;
 };
 const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>${list.map(c => `<th scope="col"><span class="swatch" style="background:${c.color};margin-right:8px"></span>${esc(c.label)} ${catPill(c.d, "margin-left:6px")}</th>`).join("")}</tr></thead>`;
 

@@ -76,6 +76,7 @@ function travelMount(run, d, P, body) {
     ...d.lanes.trident.slice(0, 1).map(t => place(t, {k: "trident", icon: "trident", text: T.travelTrident})),   // where it was obtained
     ...d.lanes.nautilus.map((t, i, all) => place(t, {k: "nautilus", icon: "g_nautilus", text: T.nautilusMarker(i + 1, all.length)})),
     ...(run.st.gapple != null ? [place(run.st.gapple, {k: "gapple", icon: "s_gapple", text: T.godAppleMarker})] : []),
+    ...(advTime(run, "end/elytra") != null ? [place(advTime(run, "end/elytra"), {k: "elytra", icon: "elytra", text: T.elytraMarker})] : []),
     ...d.lanes.skull.map(t => place(t, {k: "skull", icon: "s_skulls", text: T.skullsTitle})),   // wither skeleton skulls picked up
   ].sort((a, b) => a.t - b.t);
   // riptide: only drawn over the path in blue (an icon would look like a trident being picked up)
@@ -417,7 +418,7 @@ function travelMount(run, d, P, body) {
   window.addEventListener("resize", travelResize);
 
   // icons load in the background; draw again once they have
-  ["skull", "thunder", "trident", "g_nautilus", "s_gapple", ...Object.values(STRUCTS).flat().map(s => "st_" + s[0])].forEach(k => { const im = okIcon(ICONS[k]) && (travelIcon(k) || travelImg[k]); if (im && !im.complete) im.addEventListener("load", () => draw(), {once: true}); });
+  ["skull", "thunder", "trident", "g_nautilus", "s_gapple", "elytra", ...Object.values(STRUCTS).flat().map(s => "st_" + s[0])].forEach(k => { const im = okIcon(ICONS[k]) && (travelIcon(k) || travelImg[k]); if (im && !im.complete) im.addEventListener("load", () => draw(), {once: true}); });
 
   size();
   const startDim = travelAt(P, t)[1];

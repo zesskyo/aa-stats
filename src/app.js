@@ -12,7 +12,7 @@ document.getElementById("app").innerHTML = `
     <button data-view="run">${esc(T.tabStats)}</button>
     <button data-view="compare">${esc(T.tabCompare)}</button>
   </nav>
-  <span class="ownerbox" id="ownerBox"></span>
+  <span style="display:flex;align-items:center;gap:4px;justify-self:end"><a class="toplink" href="${esc(T.leaderboardUrl)}" target="_blank" rel="noopener noreferrer">${esc(T.leaderboard)} <span aria-hidden="true">↗</span></a><span class="ownerbox" id="ownerBox"></span></span>
 </header>
 <main id="view-runs">
   <div id="welcome" style="display:contents"></div>

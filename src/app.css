@@ -3,9 +3,9 @@
   --accent:#A8640C;--on-accent:#FFFFFF;--blue:#2F6FA8;--gold:#8A6A00;
   --ow:#4F8A58;--ne:#A8452F;--en:#C9C27E;--s0:#A8640C;--s1:#2F6FA8;--s2:#2E7D4A;--s3:#B23A2A;--s4:#6B5BA6;--s5:#B8457A;--good:#2E7D4A;--bad:#B23A2A;
   --split0:#A8640C;--split1:#6B5BA6;--split2:#1F7F86;--split3:#2F6FA8;--split4:#A8452F;--split5:#2E7D4A;--split6:#6E6A60;--death:#C0392B;
-  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
-  --body:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --display:"Minecraft",ui-sans-serif,system-ui,sans-serif;
+  --body:"Minecraft",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Minecraft",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
@@ -112,7 +112,7 @@ tr.split-row td{background:var(--surface2);font-weight:600;font-size:14px}
 .splitbar > div{display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--on-accent);min-width:0;overflow:hidden;white-space:nowrap;padding:0 6px}
 .splitcard{display:flex;flex-direction:column;gap:4px;padding:16px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
 .splitcard .t{font-family:var(--mono);font-size:24px;font-weight:600}
-.linkbtn.inl{min-height:0;padding:0;font:inherit;color:inherit;font-weight:inherit;text-decoration:underline dotted;text-underline-offset:3px}
+.linkbtn.inl{min-height:0;padding:0;font:inherit;color:inherit;font-weight:inherit}
 .linkbtn.inl:hover{color:var(--accent)}
 .splitcard .sw{width:24px;height:4px;border-radius:2px;margin-bottom:6px}
 .timeline{max-height:520px;overflow-y:auto}
@@ -341,8 +341,8 @@ input.field:disabled{opacity:.6}
 .welcome{display:flex;flex-direction:column;gap:12px;border-color:var(--accent)}
 .edradio{display:flex;gap:20px;flex-wrap:wrap}
 .edpick{min-width:220px}
-.hint{border-bottom:1px dotted currentColor;cursor:help}
-.hint.tipped:hover::after,.hint.tipped:focus-visible::after{white-space:normal;width:max-content;max-width:300px;left:0;transform:none;font-family:var(--body);font-weight:500;font-size:13px;line-height:1.45}
+.hint{cursor:default}
+.hint.tipped:hover::after,.hint.tipped:focus-visible::after{display:none;white-space:normal;width:max-content;max-width:300px;left:0;transform:none;font-family:var(--body);font-weight:500;font-size:13px;line-height:1.45}
 .eddeath{display:flex;align-items:center}
 @media (max-width:700px){.eddeath{grid-template-columns:minmax(0,1fr)}}
 
@@ -425,3 +425,11 @@ input.field:disabled{opacity:.6}
 .advgoal.fade{opacity:0}
 .advgoal.gone{display:none}
 .wrhist tr.here td{background:var(--surface2)}
+
+/* the leaderboard link in the header */
+.toplink{color:var(--muted);text-decoration:none;font-size:14px;padding:0 12px;min-height:44px;display:inline-flex;align-items:center;gap:6px;border-radius:8px}
+.toplink:hover{background:var(--surface2);color:var(--text)}
+
+/* no hover notes on headings */
+.notemark{display:none}
+th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:none}

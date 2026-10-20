@@ -45,6 +45,7 @@ function progressParts(run, d) {
     ...onAdvLine(d.lanes.skull, "s_skulls", "var(--muted)", (k, n, t) => T.skullMarker(k, n, killsBy(t))),
     ...onAdvLine(d.lanes.nautilus, "g_nautilus", "var(--s4)", (k, n) => T.nautilusMarker(k, n)),
     ...(run.st.gapple != null ? onAdvLine([run.st.gapple], "s_gapple", "var(--gold)", () => T.godAppleMarker) : []),
+    ...(advTime(run, "end/elytra") != null ? onAdvLine([advTime(run, "end/elytra")], "elytra", "var(--s2)", () => T.elytraMarker) : []),
     // rare biomes sit on the Adventuring Time line; faded (with "Missing …" on hover) if that visit left the group unfinished
     ...d.rare.flatMap(g => g.visits.map(v => ({t: v.t, v: atAt(v.t), icon: g.key, color: "var(--s1)", faded: !v.complete,
       text: g.name, sub: v.complete ? T.rareComplete : T.missing + " " + v.missing.map(critName).join(", ")}))),

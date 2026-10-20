@@ -36,7 +36,9 @@ const FILES = [
   "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
 ];
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n") + "\n})();\n";
-const appCss = read(inCode("src/app.css"));
+// the Minecraft font (fonts/), inside the page
+const fontFace = (file, weight) => `@font-face{font-family:"Minecraft";src:url(data:font/otf;base64,${fs.readFileSync(inCode("fonts/" + file)).toString("base64")}) format("opentype");font-weight:${weight};font-display:swap}`;
+const appCss = fontFace("MinecraftRegular.otf", "400 500") + fontFace("MinecraftBold.otf", "600 800") + read(inCode("src/app.css"));
 
 // Reuse the site's own log reader so the build and the website always agree
 const { parseLog, encodeRun, runKey } = new Function(read(inCode("src/parse-log.js")) + "\nreturn { parseLog, encodeRun, runKey };")();
@@ -218,9 +220,6 @@ const escHtml = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&l
 const head = `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${escHtml((T.siteTitle + " " + T.siteSubtitle).trim())}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 `;
 // Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;

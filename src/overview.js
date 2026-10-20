@@ -37,14 +37,14 @@ function renderOverview() {
   // ---------- Fastest Splits ----------
   // A card: icon, name, the fastest (and which run), the average and the slowest; each opens its run
   // (the average opens the run closest to it)
-  const open = (r, html, title) => r ? `<button type="button" class="linkbtn inl" data-open="${esc(r.id)}" title="${esc(title || runTitle(r))}">${html}</button>` : html;
+  const open = (r, html) => r ? `<button type="button" class="linkbtn inl" data-open="${esc(r.id)}" aria-label="${esc(runTitle(r))}">${html}</button>` : html;
   const splitCard = (icon, name, f, format) => {
     const b = fastest(f), avgV = average(valid.map(f)), near = nearest(f, avgV), w = slowest(f), many = valid.filter(r => f(r) != null).length > 1;
     return `
     <div class="splitcard">
       <div style="display:flex;align-items:center;gap:8px">${ic(icon)}<span class="label">${esc(name)}</span></div>
       <span class="t">${b.v != null ? open(b.r, format(b.v)) : "—"}</span>
-      <span class="note">${b.r ? open(b.r, esc(runTitle(b.r))) : esc(T.noRunYet)}${many ? ` · ${open(near.r, esc(T.averagePrefix) + " " + format(avgV), T.openRunAvg + ": " + (near.r ? runTitle(near.r) : ""))} · ${open(w.r, esc(T.slowestPrefix) + " " + format(w.v))}` : ""}</span>
+      <span class="note">${b.r ? (many ? `${open(near.r, esc(T.averagePrefix) + " " + format(avgV))} · ${open(w.r, esc(T.slowestPrefix) + " " + format(w.v))}` : "") : esc(T.noRunYet)}</span>
     </div>`;
   };
   $("#bestSplits").innerHTML = FASTEST_SPLITS.map(i => splitCard(SPLITS[i].icon, SPLITS[i].name, r => derive(r).splits[i].dur, fmtShort)).join("");

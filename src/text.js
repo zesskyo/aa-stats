@@ -30,7 +30,7 @@ const T = {
   noRunsYet: "No runs yet.",
   noRunYet: "No run yet",
   averagePrefix: "avg",
-  slowestPrefix: "slowest",
+  slowestPrefix: "worst",
   firstElytra: "Elytra",
   elytraMarker: "Elytra",
   leaderboard: "Leaderboard",

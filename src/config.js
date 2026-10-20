@@ -92,7 +92,7 @@ const SPLIT_CARDS = [0, 3, 5, 6];
 // Which splits appear under "Fastest Splits" on Overview
 const FASTEST_SPLITS = [0, 1, 2, 3, 4, 5];
 // Extra splits shown after the splits: "skulls" or an advancement id (shows when it was completed)
-const OTHER_SPLITS = ["skulls", "adventure/adventuring_time", "husbandry/complete_catalogue"];
+const OTHER_SPLITS = ["end/elytra", "skulls", "adventure/adventuring_time", "husbandry/complete_catalogue"];
 
 // Post-endgame icon depends on the last advancement of the run
 const LAST_ICON = {...MICON, "adventure/throw_trident": "trident", "end/respawn_dragon": "dragon", "adventure/very_very_frightening": "trident"};

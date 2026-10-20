@@ -35,23 +35,26 @@ function renderOverview() {
   $("#pbCard").querySelectorAll("[data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
 
   // ---------- Fastest Splits ----------
-  // A card: icon, name, best time, which run, and the average
-  const splitCard = (icon, name, bestV, bestRun, avgV, format) => `
+  // A card: icon, name, the fastest (and which run), the average and the slowest; each opens its run
+  // (the average opens the run closest to it)
+  const open = (r, html, title) => r ? `<button type="button" class="linkbtn inl" data-open="${esc(r.id)}" title="${esc(title || runTitle(r))}">${html}</button>` : html;
+  const splitCard = (icon, name, f, format) => {
+    const b = fastest(f), avgV = average(valid.map(f)), near = nearest(f, avgV), w = slowest(f), many = valid.filter(r => f(r) != null).length > 1;
+    return `
     <div class="splitcard">
       <div style="display:flex;align-items:center;gap:8px">${ic(icon)}<span class="label">${esc(name)}</span></div>
-      <span class="t">${bestV != null ? format(bestV) : "—"}</span>
-      <span class="note">${bestRun ? esc(runTitle(bestRun)) : esc(T.noRunYet)}${avgV != null && valid.length > 1 ? " · " + esc(T.averagePrefix) + " " + format(avgV) : ""}</span>
+      <span class="t">${b.v != null ? open(b.r, format(b.v)) : "—"}</span>
+      <span class="note">${b.r ? open(b.r, esc(runTitle(b.r))) : esc(T.noRunYet)}${many ? ` · ${open(near.r, esc(T.averagePrefix) + " " + format(avgV), T.openRunAvg + ": " + (near.r ? runTitle(near.r) : ""))} · ${open(w.r, esc(T.slowestPrefix) + " " + format(w.v))}` : ""}</span>
     </div>`;
-  $("#bestSplits").innerHTML = FASTEST_SPLITS.map(i =>
-    splitCard(SPLITS[i].icon, SPLITS[i].name, best[i] && best[i].dur, best[i] && best[i].run, average(valid.map(r => derive(r).splits[i].dur)), fmtShort)).join("");
+  };
+  $("#bestSplits").innerHTML = FASTEST_SPLITS.map(i => splitCard(SPLITS[i].icon, SPLITS[i].name, r => derive(r).splits[i].dur, fmtShort)).join("");
 
   const otherSplit = key => key === "skulls"
     ? {icon: "s_skulls", name: T.skullsSplit, f: r => { const x = derive(r).skullSplit; return x ? x.dur : null; }, format: fmtShort}
+    : key === "end/elytra" ? {icon: "elytra", name: T.firstElytra, f: r => advTime(r, key), format: t => fmt(t, 0)}
     : {icon: MICON[key], name: advName(key), f: r => { const m = derive(r).multis.find(q => q.id === key); return m ? m.done : null; }, format: t => fmt(t, 0)};
-  $("#otherSplits").innerHTML = OTHER_SPLITS.map(otherSplit).map(o => {
-    const b = fastest(o.f);
-    return splitCard(o.icon, o.name, b.v, b.r, average(valid.map(o.f)), o.format);
-  }).join("");
+  $("#otherSplits").innerHTML = OTHER_SPLITS.map(otherSplit).map(o => splitCard(o.icon, o.name, o.f, o.format)).join("");
+  for (const id of ["#bestSplits", "#otherSplits"]) $(id).querySelectorAll("[data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
 
   // ---------- Average stats ----------
   $("#aggregates").innerHTML = `<div class="card"><h2 style="margin-bottom:12px">${esc(T.averageStats)}</h2>${averageStatCards()}</div>`;

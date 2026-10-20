@@ -77,7 +77,9 @@ function derive(run) {
  */
 function findRiptide(run) {
   const uses = [];
-  for (const t of ((run.st || {}).tridentUse || [])) if (!uses.length || t - uses[uses.length - 1] >= RULES.riptideMinSpacing) uses.push(t);
+  // (only uses while a riptide trident was in the inventory, so throwing a plain one again and again isn't riptide)
+  const st = run.st || {};
+  for (const t of (st.riptideUse || st.tridentUse || [])) if (!uses.length || t - uses[uses.length - 1] >= RULES.riptideMinSpacing) uses.push(t);
   return clusters(uses, RULES.riptideGap).filter(c => c.length >= RULES.riptideMinUses)
     .map(c => ({start: c[0], end: c[c.length - 1], uses: c.length}));
 }
@@ -155,3 +157,6 @@ const nonIntentionalDeaths = r => derive(r).deaths.filter(d => !d.intentional).l
 const average = xs => { xs = xs.filter(x => x != null && !isNaN(x)); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
 // Fastest value of f(run) among valid runs: {v, r}
 function fastest(f) { let b = null; validRuns().forEach(r => { const v = f(r); if (v != null && (b == null || v < b.v)) b = {v, r}; }); return b || {}; }
+function slowest(f) { let b = null; validRuns().forEach(r => { const v = f(r); if (v != null && (b == null || v > b.v)) b = {v, r}; }); return b || {}; }
+// the run closest to the average (what clicking "avg" opens)
+function nearest(f, avg) { let b = null; if (avg == null) return {}; validRuns().forEach(r => { const v = f(r); if (v != null && (b == null || Math.abs(v - avg) < Math.abs(b.v - avg))) b = {v, r}; }); return b || {}; }

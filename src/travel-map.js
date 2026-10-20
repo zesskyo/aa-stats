@@ -2,7 +2,7 @@
  * travel-map.js — the "Travel map" on a run's page: where the player went, from Hermes' ghost file.
  * build.mjs turns logs/<N>.ghost into paths/<N>.json (columns t, d, x, z, y, h — see ghost.mjs); this draws it:
  * one map per dimension with the path as a single line, the same icons as the progress graph where things
- * happened (deaths, thunder, riptide, trident, nautilus shells, the god apple, wither skeleton skulls), the player's head,
+ * happened (deaths, thunder, trident, nautilus shells, the god apple, wither skeleton skulls; riptide in blue on the path), the player's head,
  * and a timeline with the dimensions coloured like the progress graph.
  * With the run's seed, the world's biomes and structures are drawn underneath (see seed-map.js): bright near
  * where the player has been so far, faded everywhere else.
@@ -73,12 +73,13 @@ function travelMount(run, d, P, body) {
   const events = [
     ...d.deaths.map(x => place(x.t - 250, {t: x.t, k: "death", icon: "skull", text: T.deathLabel, faded: x.intentional})),
     ...(d.thunder != null ? [place(d.thunder, {k: "thunder", icon: "thunder", text: T.thunderMarker})] : []),
-    ...d.riptide.map(r => place(r.start, {k: "riptide", icon: "trident", text: T.riptideMarker(r.uses, fmtShort(r.end - r.start)), end: r.end})),
     ...d.lanes.trident.slice(0, 1).map(t => place(t, {k: "trident", icon: "trident", text: T.travelTrident})),   // where it was obtained
     ...d.lanes.nautilus.map((t, i, all) => place(t, {k: "nautilus", icon: "g_nautilus", text: T.nautilusMarker(i + 1, all.length)})),
     ...(run.st.gapple != null ? [place(run.st.gapple, {k: "gapple", icon: "s_gapple", text: T.godAppleMarker})] : []),
     ...d.lanes.skull.map(t => place(t, {k: "skull", icon: "s_skulls", text: T.skullsTitle})),   // wither skeleton skulls picked up
   ].sort((a, b) => a.t - b.t);
+  // riptide: only drawn over the path in blue (an icon would look like a trident being picked up)
+  const riptides = d.riptide.map(r => place(r.start, {end: r.end}));
   const eventIcon = e => e.k === "thunder" && !okIcon(ICONS.thunder) ? `<span class="tvdot thunder"></span>` : ic(e.icon, 16);
 
   // ---------- the world from the seed, and where the player went ----------
@@ -291,7 +292,7 @@ function travelMount(run, d, P, body) {
     ctx.strokeStyle = "rgba(20,10,10,.55)"; ctx.lineWidth = 4.5; ctx.stroke(pth);
     ctx.strokeStyle = "#E0342B"; ctx.lineWidth = 2.5; ctx.stroke(pth);
     // riptide: the stretch drawn over in blue
-    for (const e of events) if (e.k === "riptide" && e.dim === dim && e.t <= t) {
+    for (const e of riptides) if (e.dim === dim && e.t <= t) {
       const seg = new Path2D(); let on = false;
       for (const pc of P.pieces[dim]) for (const p of pc) { if (p[0] < e.t || p[0] > Math.min(e.end, t)) continue; const [x, z] = toS(p[2], p[3]); if (on) seg.lineTo(x, z); else { seg.moveTo(x, z); on = true; } }
       ctx.strokeStyle = "#3B8FD9"; ctx.lineWidth = 3; ctx.stroke(seg);

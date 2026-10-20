@@ -30,6 +30,9 @@ const T = {
   noRunsYet: "No runs yet.",
   noRunYet: "No run yet",
   averagePrefix: "avg",
+  slowestPrefix: "slowest",
+  firstElytra: "First elytra",
+  openRunAvg: "the run closest to the average",
 
   // Runs table column headings
   colRun: "Run",

@@ -35,7 +35,10 @@ const FILES = [
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
   "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
 ];
-const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n") + "\n})();\n";
+// (and the ghost and inventory readers, for a run looked at on the Compare page)
+const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n")
+  + "\n/* ======== ghost.mjs ======== */\nconst readGhost = (() => {\n" + read(inCode("ghost.mjs")).replace("export function readGhost", "function readGhost") + "\nreturn readGhost;\n})();"
+  + "\n/* ======== inv.mjs ======== */\nconst readInventory = (() => {\n" + read(inCode("inv.mjs")).replace("export function readInventory", "function readInventory") + "\nreturn readInventory;\n})();\n})();\n";
 // the Minecraft font (fonts/), inside the page
 const fontFace = (file, weight) => `@font-face{font-family:"Minecraft";src:url(data:font/otf;base64,${fs.readFileSync(inCode("fonts/" + file)).toString("base64")}) format("opentype");font-weight:${weight};font-display:swap}`;
 const appCss = fontFace("MinecraftRegular.otf", "400 500") + fontFace("MinecraftBold.otf", "600 800") + read(inCode("src/app.css"));
@@ -231,7 +234,7 @@ if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
 // the biome/structure generator for travel maps of runs with a seed (see wasm/)
 if ([...paths.keys()].some(n => (wrByKey.get(n) || out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
 for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
-if (invs.size) {
+{   // (always: a run looked at on the Compare page can have an inventory even if no run here has one)
   fs.mkdirSync(inSite("dist/inv"), {recursive: true}); fs.mkdirSync(inSite("dist/items"), {recursive: true});
   for (const [n, inv] of invs) fs.writeFileSync(inSite(`dist/inv/${n}.json`), JSON.stringify(inv));
   // only the icons these runs use, cut out of the big atlas
@@ -249,6 +252,9 @@ if (invs.size) {
   fs.writeFileSync(inSite("dist/items/items.json"), JSON.stringify({size: items.size, cols, index: Object.fromEntries(keys.map((k, i) => [k, i])), adv: items.adv, crit,
     toast: {task: items.text["advancements.toast.task"], goal: items.text["advancements.toast.goal"], challenge: items.text["advancements.toast.challenge"]}}));
   for (const f of fs.readdirSync(inCode("items"))) if (f.endsWith(".png") && f !== "atlas.png") fs.copyFileSync(inCode("items/" + f), inSite("dist/items/" + f));
+  // every icon (only loaded for a run looked at on the Compare page, which can have any item)
+  fs.copyFileSync(inCode("items/atlas.png"), inSite("dist/items/all.png"));
+  fs.writeFileSync(inSite("dist/items/all.json"), JSON.stringify({...items, crit, toast: {task: items.text["advancements.toast.task"], goal: items.text["advancements.toast.goal"], challenge: items.text["advancements.toast.challenge"]}}));
   fs.mkdirSync(inSite("dist/items/armor"), {recursive: true});
   for (const f of fs.readdirSync(inCode("items/armor"))) fs.copyFileSync(inCode("items/armor/" + f), inSite("dist/items/armor/" + f));
 }

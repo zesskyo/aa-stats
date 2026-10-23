@@ -32,6 +32,34 @@ function cmpFind(id) {
 // PB against the latest run (or the one before, if the PB is the latest)
 const cmpDefault = () => { const pb = pbRun(), all = byNumber(), other = all.filter(r => r !== pb).pop(); return [pb || all[0], other].filter(Boolean).map(r => r.id); };
 
+// ---------- Looking at one run on its own: its play.log (and .ghost, stats.json), read here, opened on the Stats page ----------
+let viewStatus = "";
+async function viewFiles(files) {
+  files = [...(files || [])]; if (!files.length) return;
+  const logF = files.find(f => !/\.ghost$/i.test(f.name) && !/stats\.json$/i.test(f.name) && /\.(log|txt|jsonl)$/i.test(f.name));
+  if (!logF) { viewStatus = T.viewNoLog; renderCompare(); return; }
+  viewStatus = T.viewReading; renderCompare();
+  let r;
+  try {
+    const text = await logF.text();
+    r = parseLog(text, logF.name);
+    r.id = "view-" + runKey(r);
+    r.meta = {viewed: true, label: r.player + " · " + fmt(r.finalIgt, 0)};
+    if (r.seed) r.meta.seed = String(r.seed);
+    // elytra distance (stats.json)
+    const statsF = files.find(f => /\.json$/i.test(f.name));
+    if (statsF) try { const v = ((JSON.parse(await statsF.text()).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"]; if (v != null) r.meta.elytraCm = v; } catch {}
+    // the travel map (the .ghost, lined up with the log)
+    const ghostF = files.find(f => /\.ghost$/i.test(f.name));
+    if (ghostF) { const g = readGhost(new Uint8Array(await ghostF.arrayBuffer()), r); if (g) { travelCache[r.id] = travelPrep(g); r.meta.path = "-"; } }
+    // the inventory (every icon, as it can have any item)
+    try { const items = await (await fetch("items/all.json")).json(); const inv = readInventory(text, items, r.finalIgt); if (inv) { invData[r.id] = invPrep(inv); r.meta.inv = "-"; } } catch {}
+  } catch (e) { viewStatus = T.viewFailed; renderCompare(); return; }
+  const {clock, ...rest} = r;
+  VIEWED = decodeRun(rest); viewStatus = "";
+  state.runId = VIEWED.id; go("run");
+}
+
 // ---------- Reading files ----------
 async function cmpFiles(files, slot) {
   if (!files || !files.length) return;
@@ -127,6 +155,11 @@ function renderCompare() {
     </section>`;
 
   el.innerHTML = `
+    <section class="card viewcard" id="viewDrop">
+      <div style="flex:1;min-width:0"><h2>${esc(T.viewTitle)}</h2><p class="muted" style="margin:6px 0 0">${esc(T.viewHelp)}</p>${viewStatus ? `<p class="cmp-status" role="status" style="margin:6px 0 0">${esc(viewStatus)}</p>` : ""}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${VIEWED ? `<button type="button" class="btn" id="viewAgain">${esc(T.viewOpen)}</button>` : ""}<button type="button" class="btn" id="viewPick">${esc(T.viewPick)}</button></div>
+      <input type="file" id="viewFile" accept=".log,.txt,.jsonl,.json,.ghost" multiple hidden>
+    </section>
     <section class="card" style="display:flex;flex-direction:column;gap:12px">
       <div class="cmp-slots">${slot(0)}${slot(1)}</div>
       <input type="file" id="cmpFile" accept=".log,.txt,.jsonl,.json" hidden>
@@ -136,6 +169,15 @@ function renderCompare() {
     <section class="card tablewrap" style="padding:0">${cmpSplitsTable(list)}</section>
     ${graphs}
     ${withLog ? `<section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}` : ""}`;
+
+  // looking at one run
+  $("#viewPick").addEventListener("click", () => $("#viewFile").click());
+  $("#viewFile").addEventListener("change", e => viewFiles(e.target.files));
+  if ($("#viewAgain")) $("#viewAgain").addEventListener("click", () => { state.runId = VIEWED.id; go("run"); });
+  const vd = $("#viewDrop");
+  vd.addEventListener("dragover", e => { e.preventDefault(); vd.classList.add("over"); });
+  vd.addEventListener("dragleave", () => vd.classList.remove("over"));
+  vd.addEventListener("drop", e => { e.preventDefault(); vd.classList.remove("over"); viewFiles(e.dataTransfer.files); });
 
   // controls
   let uploadSlot = 1;

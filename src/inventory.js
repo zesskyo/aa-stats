@@ -24,19 +24,25 @@ const INV_DYE = {white: "#F9FFFE", orange: "#F9801D", magenta: "#C74EBD", light_
 
 let invAssetsP = null;
 const invData = {};
-function invAssets() {
+const invAssetsAll = {};
+// full: every icon (items/all.*), for a run looked at on the Compare page; otherwise just the ones this site's runs use
+function invAssets(full) {
+  if (full) { if (!invAssetsAll.p) { invAssetsAll.p = invLoad("all.json", "all.png"); invAssetsAll.p.catch(() => { invAssetsAll.p = null; }); } return invAssetsAll.p; }
   if (invAssetsP) return invAssetsP;
+  invAssetsP = invLoad("items.json", "atlas.png");
+  invAssetsP.catch(() => { invAssetsP = null; });
+  return invAssetsP;
+}
+function invLoad(json, atlasFile) {
   const img = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
-  invAssetsP = Promise.all([
-    fetch("items/items.json").then(r => { if (!r.ok) throw 0; return r.json(); }),
-    img("items/atlas.png"), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"), img("items/steve.png"), img("items/elytra.png"), img("items/toasts.png"), img("items/widgets.png"),
+  return Promise.all([
+    fetch("items/" + json).then(r => { if (!r.ok) throw 0; return r.json(); }),
+    img("items/" + atlasFile), img("items/inventory.png"), img("items/ascii.png"), img("items/glint.png"), img("items/shulker_box.png"), img("items/steve.png"), img("items/elytra.png"), img("items/toasts.png"), img("items/widgets.png"),
     ...Object.values(INV_EMPTY).map(k => img(`items/${k}.png`)),
   ]).then(([db, atlas, gui, font, glint, shulker, steve, elytra, toasts, widgets, ...empties]) => {
     const empty = {}; Object.values(INV_EMPTY).forEach((k, i) => { empty[k] = empties[i]; });
     return {db, atlas, gui, glint, shulker, steve, elytra, toasts, widgets, empty, font: invFont(font)};
   });
-  invAssetsP.catch(() => { invAssetsP = null; });
-  return invAssetsP;
 }
 
 // ---------- the game's font (textures/font/ascii.png: 16×16 characters of 8×8) ----------
@@ -207,7 +213,7 @@ function invPlayerRenderer(A, skinUrl) {
 async function invMount(host, run, opts = {}) {
   let A, D = invData[run.id];
   try {
-    A = await invAssets();
+    A = await invAssets(isViewed(run));
     if (!D) { const r = await fetch(run.meta.inv); if (!r.ok) throw 0; D = invData[run.id] = invPrep(await r.json()); }
   } catch { host.innerHTML = `<p class="muted" style="margin:0">${esc(T.invFailed)}</p>`; return null; }
   if (!host.isConnected) return null;
@@ -373,7 +379,7 @@ const CRIT_DIR = {"adventure/adventuring_time": "adventuring time", "nether/expl
 const CRIT_FILE = {acc: {black: "tuxedo", all_black: "black", british_shorthair: "british"}, "monsters hunted": {vex: "vex_old"}, "adventuring time": {snowy_tundra: "snowy_plains"}};
 const CRIT_NAME = {"husbandry/complete_catalogue": {black: "Tuxedo", all_black: "Black", british_shorthair: "British"}};
 async function invToasts(host, run) {
-  let A; try { A = await invAssets(); } catch { return null; }
+  let A; try { A = await invAssets(isViewed(run)); } catch { return null; }
   const {db, atlas, toasts, font} = A;
   const adv = [], seen = {}, total = id => REQ[id] || run.events.filter(e => e[2] === id).length;
   for (const e of run.events) {
@@ -454,7 +460,7 @@ async function invToasts(host, run) {
 // Here), each done at a time in the run, so what's shown depends only on where the timeline is: forwards or backwards.
 // A goal that's done turns gold and fades away after a few seconds (if the timeline moved through it; jumping past hides it).
 async function invGoals(host, run, d) {
-  let A; try { A = await invAssets(); } catch { return null; }
+  let A; try { A = await invAssets(isViewed(run)); } catch { return null; }
   const {db, atlas, font, widgets} = A, st = run.st || {};
   const count = (a, t) => { let n = 0; for (const x of a || []) if ((Array.isArray(x) ? x[0] : x) <= t) n++; return n; };
   const held = (a, t) => { let v = 0; for (const x of a || []) { if (x[0] > t) break; v = x[1]; } return Math.max(0, v); };

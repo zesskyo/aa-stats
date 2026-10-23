@@ -433,3 +433,7 @@ input.field:disabled{opacity:.6}
 /* no hover notes on headings */
 .notemark{display:none}
 th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:none}
+
+/* Compare: looking at one run */
+.viewcard{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-style:dashed}
+.viewcard.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}

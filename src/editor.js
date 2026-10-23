@@ -99,7 +99,7 @@ function mountOwnerControls() {
   }));
 }
 // "Edit" button on a run's page (only when signed in)
-const editButton = run => signedIn() && !isWr(run) ? `<button type="button" class="btn" data-edit-run="${esc(run.id)}">${esc(T.edEdit)}</button>` : "";
+const editButton = run => signedIn() && !isWr(run) && !isViewed(run) ? `<button type="button" class="btn" data-edit-run="${esc(run.id)}">${esc(T.edEdit)}</button>` : "";
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-edit-run]"); if (b) openEditor(findRun(b.dataset.editRun)); });
 
 // ---------- Sign in ----------

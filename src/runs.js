@@ -24,11 +24,14 @@ const icAt = (key, x, y, size) => okIcon(ICONS[key]) ? `<image href="${ICONS[key
 // ---------- About a run ----------
 const runNum = r => r.meta && r.meta.num ? r.meta.num : RUNS.slice().sort((a, b) => a.start - b.start).indexOf(r) + 1;
 const isWr = r => !!(r && r.meta && r.meta.wr);
-const runTitle = r => isWr(r) ? (r.meta.former ? T.wrFormerWord : T.wrWord) + (r.meta.runner ? " · " + r.meta.runner : "") : T.runWord + " " + runNum(r);
+// a run looked at on its own (read from files on the Compare page; only in this tab, never saved)
+let VIEWED = null;
+const isViewed = r => !!(r && r.meta && r.meta.viewed);
+const runTitle = r => isViewed(r) ? r.meta.label : isWr(r) ? (r.meta.former ? T.wrFormerWord : T.wrWord) + (r.meta.runner ? " · " + r.meta.runner : "") : T.runWord + " " + runNum(r);
 // The run's final time: with milliseconds, unless it was typed into runs.json without them
 const runTime = r => fmt(r.finalIgt, r.manual && r.finalIgt % 1000 === 0 ? 0 : 3);
 const byNumber = () => RUNS.slice().sort((a, b) => runNum(a) - runNum(b));
-const findRun = id => RUNS.find(r => r.id === id) || (WR && WR.id === id ? WR : undefined) || WRS.find(r => r.id === id);
+const findRun = id => RUNS.find(r => r.id === id) || (WR && WR.id === id ? WR : undefined) || WRS.find(r => r.id === id) || (VIEWED && VIEWED.id === id ? VIEWED : undefined);
 
 // Date shown for a run: the date from runs.json, otherwise the day the run finished
 const doneAt = r => r.start + (r.finalRta || 0);

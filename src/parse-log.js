@@ -37,7 +37,7 @@ function parseLog(text, filename) {
     if (!line) continue;
     // clock: real time and IGT from any kind of line (cheap: no JSON parsing), a few times a second
     if (line.startsWith('{"time":')) {
-      const w = parseInt(line.slice(8), 10), gi = line.lastIndexOf('"igt":');
+      const w = parseInt(line.slice(8), 10), ri = line.lastIndexOf('"retime":'), gi = ri > 0 ? ri + 3 : line.lastIndexOf('"igt":');
       if (gi > 0 && (!clock.length || w - clock[clock.length - 1][0] >= 250)) clock.push([w, parseInt(line.slice(gi + 6), 10)]);
     }
     const q = line.indexOf('"type":"'); if (q < 0) continue;
@@ -49,7 +49,9 @@ function parseLog(text, filename) {
     if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots"].includes(type)) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
-    const igt = e.speedrunigt ? e.speedrunigt.igt : 0, rta = e.speedrunigt ? e.speedrunigt.rta : 0, d = e.data || {};
+    // (times are SpeedRunIGT's retimed IGT, the IGT rounded to game ticks, which is what runs are timed with; logs
+    // from before SpeedRunIGT had it use the IGT)
+    const igt = e.speedrunigt ? e.speedrunigt.retime ?? e.speedrunigt.igt : 0, rta = e.speedrunigt ? e.speedrunigt.rta : 0, d = e.data || {};
     if (!player && d.player && d.player.name) { player = d.player.name; if (/^[0-9a-f-]{32,36}$/i.test(d.player.uuid || "")) uuid = d.player.uuid; }
     if (type === "initialize") { mc = d.mc_version; if (e.time) start = e.time; if (d.entered_seed) seed = String(d.entered_seed); }
     else if (type === "dimension") {

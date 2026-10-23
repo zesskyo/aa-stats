@@ -92,7 +92,7 @@ export function readInventory(text, items, endIgt) {
     if (!inv && !init && !died) continue;
     let x; try { x = JSON.parse(line); } catch { continue; }
     if (init) { fresh = true; continue; }
-    const igt = x.speedrunigt && x.speedrunigt.igt;
+    const igt = x.speedrunigt && (x.speedrunigt.retime ?? x.speedrunigt.igt);   // (retimed IGT, as parse-log.js uses)
     if (igt == null || (endIgt && igt > endIgt + 1000)) continue;
     const now = Math.max(last, Math.round(igt / 100));
     dt = now - last; last = now;

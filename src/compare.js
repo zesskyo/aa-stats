@@ -34,9 +34,23 @@ const cmpDefault = () => { const pb = pbRun(), all = byNumber(), other = all.fil
 
 // ---------- Looking at one run on its own: its play.log (and .ghost, stats.json), read here, opened on the Stats page ----------
 let viewStatus = "";
-async function viewFiles(files) {
-  files = [...(files || [])]; if (!files.length) return;
-  const logF = files.find(f => !/\.ghost$/i.test(f.name) && !/stats\.json$/i.test(f.name) && /\.(log|txt|jsonl)$/i.test(f.name));
+// the files picked so far (each in its own slot), and the seed (from the log, or typed in)
+const VIEW_SLOTS = [["log", ".log,.txt,.jsonl", "play.log"], ["ghost", ".ghost", ".ghost"], ["stats", ".json", "stats.json"]];
+const viewPend = {log: null, ghost: null, stats: null, seed: "", seedTyped: false};
+const slotOf = f => /\.ghost$/i.test(f.name) ? "ghost" : /\.json$/i.test(f.name) ? "stats" : /\.(log|txt|jsonl)$/i.test(f.name) ? "log" : null;
+async function viewAdd(files, only) {
+  for (const f of [...(files || [])]) {
+    const k = only || slotOf(f); if (!k) continue;
+    viewPend[k] = f;
+    // the seed, if the log has one (and none was typed in)
+    if (k === "log" && !viewPend.seedTyped) {
+      try { const m = /"entered_seed":"?(-?[^",}]+)/.exec((await f.slice(0, 20000).text())); viewPend.seed = m ? m[1] : ""; } catch {}
+    }
+  }
+  viewStatus = ""; renderCompare();
+}
+async function viewOpen() {
+  const logF = viewPend.log;
   if (!logF) { viewStatus = T.viewNoLog; renderCompare(); return; }
   viewStatus = T.viewReading; renderCompare();
   let r;
@@ -45,13 +59,11 @@ async function viewFiles(files) {
     r = parseLog(text, logF.name);
     r.id = "view-" + runKey(r);
     r.meta = {viewed: true, label: r.player + " · " + fmt(r.finalIgt, 0)};
-    if (r.seed) r.meta.seed = String(r.seed);
+    const seed = String(viewPend.seed || r.seed || "").trim(); if (seed) r.meta.seed = seed;
     // elytra distance (stats.json)
-    const statsF = files.find(f => /\.json$/i.test(f.name));
-    if (statsF) try { const v = ((JSON.parse(await statsF.text()).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"]; if (v != null) r.meta.elytraCm = v; } catch {}
+    if (viewPend.stats) try { const v = ((JSON.parse(await viewPend.stats.text()).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"]; if (v != null) r.meta.elytraCm = v; } catch {}
     // the travel map (the .ghost, lined up with the log)
-    const ghostF = files.find(f => /\.ghost$/i.test(f.name));
-    if (ghostF) { const g = readGhost(new Uint8Array(await ghostF.arrayBuffer()), r); if (g) { travelCache[r.id] = travelPrep(g); r.meta.path = "-"; } }
+    if (viewPend.ghost) { const g = readGhost(new Uint8Array(await viewPend.ghost.arrayBuffer()), r); if (g) { travelCache[r.id] = travelPrep(g); r.meta.path = "-"; } }
     // the inventory (every icon, as it can have any item)
     try { const items = await (await fetch("items/all.json")).json(); const inv = readInventory(text, items, r.finalIgt); if (inv) { invData[r.id] = invPrep(inv); r.meta.inv = "-"; } } catch {}
   } catch (e) { viewStatus = T.viewFailed; renderCompare(); return; }
@@ -59,6 +71,21 @@ async function viewFiles(files) {
   VIEWED = decodeRun(rest); viewStatus = "";
   state.runId = VIEWED.id; go("run");
 }
+const viewCard = () => `
+    <section class="card viewcard" id="viewDrop">
+      <div><h2>${esc(T.viewTitle)}</h2><p class="muted" style="margin:6px 0 0">${esc(T.viewHelp)}</p></div>
+      <div class="viewslots">
+        ${VIEW_SLOTS.map(([k, accept, name]) => `<label class="viewslot${viewPend[k] ? " got" : ""}">
+          <span class="vk">${esc(name)}${k === "log" ? "" : ` <span class="muted">(${esc(T.viewOptional)})</span>`}</span>
+          <span class="vf">${viewPend[k] ? "✓ " + esc(viewPend[k].name) : esc(T.viewChoose)}</span>
+          <input type="file" data-vslot="${k}" accept="${accept}" hidden>
+        </label>`).join("")}
+        <label class="viewslot seedslot"><span class="vk">${esc(T.viewSeed)} <span class="muted">(${esc(T.viewSeedNote)})</span></span>
+          <input class="field mono" id="viewSeed" value="${esc(viewPend.seed)}" placeholder="${esc(T.viewSeedPlaceholder)}" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <div class="viewfoot">${viewStatus ? `<span class="cmp-status" role="status">${esc(viewStatus)}</span>` : "<span></span>"}
+        <span style="display:flex;gap:8px">${VIEWED ? `<button type="button" class="btn" id="viewAgain">${esc(T.viewOpen)}</button>` : ""}<button type="button" class="btn primary" id="viewGo"${viewPend.log ? "" : " disabled"}>${esc(T.viewGo)}</button></span></div>
+    </section>`;
 
 // ---------- Reading files ----------
 async function cmpFiles(files, slot) {
@@ -155,11 +182,7 @@ function renderCompare() {
     </section>`;
 
   el.innerHTML = `
-    <section class="card viewcard" id="viewDrop">
-      <div style="flex:1;min-width:0"><h2>${esc(T.viewTitle)}</h2><p class="muted" style="margin:6px 0 0">${esc(T.viewHelp)}</p>${viewStatus ? `<p class="cmp-status" role="status" style="margin:6px 0 0">${esc(viewStatus)}</p>` : ""}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${VIEWED ? `<button type="button" class="btn" id="viewAgain">${esc(T.viewOpen)}</button>` : ""}<button type="button" class="btn" id="viewPick">${esc(T.viewPick)}</button></div>
-      <input type="file" id="viewFile" accept=".log,.txt,.jsonl,.json,.ghost" multiple hidden>
-    </section>
+    ${viewCard()}
     <section class="card" style="display:flex;flex-direction:column;gap:12px">
       <div class="cmp-slots">${slot(0)}${slot(1)}</div>
       <input type="file" id="cmpFile" accept=".log,.txt,.jsonl,.json" hidden>
@@ -170,14 +193,15 @@ function renderCompare() {
     ${graphs}
     ${withLog ? `<section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}` : ""}`;
 
-  // looking at one run
-  $("#viewPick").addEventListener("click", () => $("#viewFile").click());
-  $("#viewFile").addEventListener("change", e => viewFiles(e.target.files));
+  // looking at one run: a file into each slot (or dropped anywhere on the card), the seed, then open it
+  el.querySelectorAll("[data-vslot]").forEach(i => i.addEventListener("change", e => viewAdd(e.target.files, i.dataset.vslot)));
+  $("#viewSeed").addEventListener("input", e => { viewPend.seed = e.target.value; viewPend.seedTyped = true; });
+  $("#viewGo").addEventListener("click", viewOpen);
   if ($("#viewAgain")) $("#viewAgain").addEventListener("click", () => { state.runId = VIEWED.id; go("run"); });
   const vd = $("#viewDrop");
   vd.addEventListener("dragover", e => { e.preventDefault(); vd.classList.add("over"); });
-  vd.addEventListener("dragleave", () => vd.classList.remove("over"));
-  vd.addEventListener("drop", e => { e.preventDefault(); vd.classList.remove("over"); viewFiles(e.dataTransfer.files); });
+  vd.addEventListener("dragleave", e => { if (!vd.contains(e.relatedTarget)) vd.classList.remove("over"); });
+  vd.addEventListener("drop", e => { e.preventDefault(); vd.classList.remove("over"); viewAdd(e.dataTransfer.files); });
 
   // controls
   let uploadSlot = 1;

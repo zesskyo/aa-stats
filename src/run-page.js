@@ -136,16 +136,17 @@ function subPanel(d, i) {
   let body;
   if (i === 3) {
     // (only the checklist's splits: what isn't timed isn't here)
-    const secs = new Map(p.mid.sections.map(x => [x.key, x]));
-    body = MID_GROUPS.map(([g, how, keys]) => {
-      const xs = keys.map(k => secs.get(k)).filter(x => x && x.split);
+    // (an old log, with no biomes in it: the biomes and where Midgame went can't be told, so they're left out)
+    const secs = new Map(p.mid.sections.map(x => [x.key, x])), noBiomes = p.mid.sections.some(x => x.why === "nodata");
+    body = (noBiomes ? `<p class="muted subhint" style="margin-top:10px">${esc(T.midNoBiomes)}</p>` : "") + MID_GROUPS.map(([g, keys]) => {
+      const xs = keys.map(k => secs.get(k)).filter(x => x && x.split && x.why !== "nodata");
       if (!xs.length) return "";
-      return `<div class="subgrp">${esc(g)}<span>${esc(how)}</span></div>` + xs.map(x => {
+      return `<div class="subgrp">${esc(g)}</div>` + xs.map(x => {
         const timed = x.complete, status = timed ? fmtShort(x.dur)
           : x.why ? `<span class="muted">${esc(T.whyNoSplit[x.why])}</span>` : `<span class="bad">${esc(T.notDone)}${x.need > 1 ? ` ${x.have}/${x.need}` : ""}</span>`;
         return row(itemIcon(x.item), x.name, x.about, timed ? x.dur : null, status, refs[x.key], x.done != null ? fmt(x.done, 0) : "");
       }).join("");
-    }).join("") + midTimeline(d, subRun);
+    }).join("") + (noBiomes ? "" : midTimeline(d, subRun));
   } else body = subZoom(p, i) + p.subs.map((x, j) => row(itemIcon(x.item), x.name, "", x.dur, x.dur != null ? fmtShort(x.dur) : "—", refs[j], x.t != null ? fmt(x.t, 0) : "—")).join("");
   return `<div class="subpanel" style="--sc:${SCOL[i]}">
     <div class="subphead">${ic(p.icon, 22)}<b>${esc(p.name)}</b><span class="mono">${p.dur != null ? fmtShort(p.dur) : "—"}</span>${vsAvg(p.dur, refs.split)}

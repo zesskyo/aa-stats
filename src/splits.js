@@ -206,6 +206,7 @@ function findMidgame(run, splits) {
     bred: x => [crit["husbandry/bred_all_animals|" + x], "Breeds", goalIcon("bred", x)],
     kill: x => [crit["adventure/kill_all_mobs|" + x], "Kills", goalIcon("kill", x)],
     adv: x => [advTime(run, x), ADV[x] || x, goalIcon("adv", x)],
+    nbiome: x => [crit["nether/explore_nether|" + x], "Biomes", goalIcon("nbiome", x)],
   };
   // counters: [time, how many] as it changes (beacon blocks and netherite: the most held so far, as they get used up)
   const series = k => {
@@ -248,7 +249,7 @@ function findMidgame(run, splits) {
       ...[...groups].map(([name, g]) => [name, g.have, g.need, g.icons])].filter(p => p[1] < p[2]);
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
-    const e = {key: m.key, about: m.about || "", why: m.start ? null : "untimed", name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
+    const e = {key: m.key, why: m.start ? null : "untimed", name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
       parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n)};
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     // when something was done for it (in Midgame and after)
@@ -266,10 +267,10 @@ function findMidgame(run, splits) {
       const grace = m.area.some(x => NETHER.includes(x)) ? 0 : GRACE;
       segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b + grace));
     } else if (m.time === "active") {
-      // bursts of activity: anything done within "gap" of the last thing (a burst still going now, while it's within that)
+      // the "lead" before each thing done for it, joined where they overlap (live: one going on now, while it's within that)
       segs = [];
-      for (const t of progress) { const g = segs[segs.length - 1]; if (g && t - g[1] <= m.gap) g[1] = t; else segs.push([t, t]); }
-      const g = segs[segs.length - 1]; if (g && now - g[1] <= m.gap) g[1] = null;
+      for (const t of progress) { const g = segs[segs.length - 1], a = Math.max(midStart, t - m.lead); if (g && a <= g[1]) g[1] = t; else segs.push([a, t]); }
+      const g = segs[segs.length - 1]; if (g && done == null && now - g[1] <= m.lead) g[1] = null;
     } else segs = [[midStart, null]];
     // (not started; or everything was done before it started, or before Midgame: no split for it in this run)
     if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) { if (done != null) e.why = done <= midStart ? "before" : "outside"; return e; }
@@ -298,6 +299,7 @@ function findMidgame(run, splits) {
 
 // The icon for a goal of the Midgame checklist: the stats site's own for biomes ("at:"), mobs ("mh:") and animals
 // ("2x2:"), from icons/adventuring time, monsters hunted and two by two; an item otherwise ("item:", from the item atlas)
-const ADV_ITEMS = {"story/cure_zombie_villager": "golden_apple", "nether/return_to_sender": "fire_charge", "nether/uneasy_alliance": "ghast_tear", "nether/ride_strider": "warped_fungus_on_a_stick"};
+const ADV_ITEMS = {"nether/explore_nether|nether_wastes": "netherrack", "nether/explore_nether|crimson_forest": "crimson_nylium", "nether/explore_nether|warped_forest": "warped_nylium",
+  "nether/explore_nether|soul_sand_valley": "soul_sand", "nether/explore_nether|basalt_deltas": "basalt","story/cure_zombie_villager": "golden_apple", "nether/return_to_sender": "fire_charge", "nether/uneasy_alliance": "ghast_tear", "nether/ride_strider": "warped_fungus_on_a_stick"};
 const goalIcon = (kind, x) => kind === "biome" ? "at:" + x : kind === "kill" ? "mh:" + x : kind === "bred" ? "2x2:" + x
-  : kind === "food" ? "item:" + x[0] : "item:" + (ADV_ITEMS[x] || "book");
+  : kind === "food" ? "item:" + x[0] : kind === "nbiome" ? "item:" + ADV_ITEMS["nether/explore_nether|" + x] : "item:" + (ADV_ITEMS[x] || "book");

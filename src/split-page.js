@@ -7,7 +7,7 @@
 // A split's steps, the same for every run: [{key, name, icon, about, f: the split in a run → the step's time, or null}]
 // (its sub-splits; for Midgame, the checklist's timed splits)
 function subDefs(i) {
-  if (i === 3) return MIDGAME.filter(m => m.start).map(m => ({key: m.key, name: m.name, icon: itemIcon(m.item), about: m.about || "",
+  if (i === 3) return MIDGAME.filter(m => m.start).map(m => ({key: m.key, name: m.name, icon: itemIcon(m.item),
     f: p => { const x = p.mid && p.mid.sections.find(y => y.key === m.key); return x && x.complete ? x.dur : null; }}));
   const ref = validRuns().map(r => derive(r).splits[i]).find(p => p.subs);
   return ref ? ref.subs.map((x, j) => ({key: j, name: i === 0 && (j === 2 || j === 3) ? T.nthStructure[j - 2] : x.name, icon: itemIcon(x.item), about: "",
@@ -66,8 +66,8 @@ function renderSplitPage() {
     <div class="card" style="padding:0">
       <p class="muted" style="margin:0;padding:14px 18px 0">${esc(i === 3 ? T.splitRunsNoteMid : T.splitRunsNote)}</p>
       <div class="tablewrap sptable"><table>
-      <thead>${i === 3 ? `<tr class="spgroups"><th></th><th colspan="2"></th>${MID_GROUPS.map(([g, how, keys]) => { const n = cols.filter(c => keys.includes(c.key)).length;
-        return n ? `<th colspan="${n}" scope="colgroup" title="${esc(how)}">${esc(g)}</th>` : ""; }).join("")}</tr>` : ""}<tr><th scope="col">${esc(T.colRun)}</th>${cols.map(c => `<th scope="col"${c.about ? ` title="${esc(c.about)}"` : ""}><span class="spth">${c.icon ? ic(c.icon, 18) : ""}<span>${esc(c.name)}</span></span></th>`).join("")}</tr></thead>
+      <thead>${i === 3 ? `<tr class="spgroups"><th></th><th colspan="2"></th>${MID_GROUPS.map(([g, keys]) => { const n = cols.filter(c => keys.includes(c.key)).length;
+        return n ? `<th colspan="${n}" scope="colgroup">${esc(g)}</th>` : ""; }).join("")}</tr>` : ""}<tr><th scope="col">${esc(T.colRun)}</th>${cols.map(c => `<th scope="col"${c.about ? ` title="${esc(c.about)}"` : ""}><span class="spth">${c.icon ? ic(c.icon, 18) : ""}<span>${esc(c.name)}</span></span></th>`).join("")}</tr></thead>
       <tbody>
         <tr class="sumrow"><th scope="row">${esc(T.rowAverage)}</th>${avg.map((v, k) => sumCell(v, k)).join("")}</tr>
         <tr class="sumrow"><th scope="row">${esc(T.rowBest)}</th>${best.map((v, k) => sumCell(v, k)).join("")}</tr>

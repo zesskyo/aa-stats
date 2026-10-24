@@ -2,7 +2,8 @@
  * stats.js — everything the site calculates about a run. derive(run) does it once per run and remembers it.
  *
  * What derive() returns:
- *   category     "Thunderful" (80/80), "Thunderless" (79/80, only Very Very Frightening missing) or "Invalid";
+ *   category     "Thunderful" (80/80), "Thunderless" (79/80, only Very Very Frightening missing, and a channeling
+ *                trident was in the inventory at some point) or "Invalid";
  *                runs without a log use "hundred" from runs.json, or "Unknown"
  *   splits       see splits.js
  *   deaths       [{t, dim, intentional, i, cause}]  (deaths after The End... Again... count as intentional unless runs.json
@@ -24,7 +25,9 @@ function derive(run) {
   const comp = run.events.filter(e => e[4]);                    // completed advancements
   const doneSet = new Set(comp.map(e => e[2]));
   const missing = Object.keys(ADV).filter(k => !doneSet.has(k));
-  const category = !missing.length ? "Thunderful" : missing.length === 1 && missing[0] === VVF ? "Thunderless" : "Invalid";
+  // (st.channeling: when a channeling trident was first held, or false if never; runs stored before it was looked for don't have it)
+  const thunderReady = st.channeling !== false;
+  const category = !missing.length ? "Thunderful" : missing.length === 1 && missing[0] === VVF && thunderReady ? "Thunderless" : "Invalid";
 
   const {splits, anyEnd, endAgain} = findSplits(run, comp);
 
@@ -151,7 +154,8 @@ const pbRun = () => validRuns().sort((a, b) => a.finalIgt - b.finalIgt)[0] || nu
 // "Missing A, B, C and 4 more": the advancements an Invalid run didn't get
 const missingText = (d, max = 5) => {
   const names = d.missing.map(advName);
-  return T.invalidRunMissing + " " + names.slice(0, max).join(", ") + (names.length > max ? " " + T.andMore(names.length - max) : "");
+  return T.invalidRunMissing + " " + names.slice(0, max).join(", ") + (names.length > max ? " " + T.andMore(names.length - max) : "")
+    + (d.category === "Invalid" && d.missing.length === 1 && d.missing[0] === VVF ? " " + T.noChanneling : "");
 };
 const nonIntentionalDeaths = r => derive(r).deaths.filter(d => !d.intentional).length;
 const average = xs => { xs = xs.filter(x => x != null && !isNaN(x)); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };

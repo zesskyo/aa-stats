@@ -14,7 +14,7 @@
 function parseLog(text, filename) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: only if one was typed in
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
-  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0};
+  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false};
   const tot = {}, clock = [];
   const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [], dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
   let killedBy = null; const hits = [];   // for working out how each death happened
@@ -45,7 +45,8 @@ function parseLog(text, filename) {
     // (inventory lines are only read for god apples and skulls: while skulls are held, every one, as any slot could lose one)
     // (and for debris: while any is held, every one too)
     if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null") && !line.includes("wither_skeleton_skull") && !(skHeld.length && skHeld[skHeld.length - 1][1] > 0)
-      && !line.includes("ancient_debris") && !line.includes("netherite_scrap") && !dbHeld && !line.includes("minecraft:riptide") && !ripHeld) continue;
+      && !line.includes("ancient_debris") && !line.includes("netherite_scrap") && !dbHeld && !line.includes("minecraft:riptide") && !ripHeld
+      && !(st.channeling === false && line.includes("minecraft:channeling"))) continue;
     if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots"].includes(type)) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
@@ -112,6 +113,8 @@ function parseLog(text, filename) {
       // riptide tridents in the inventory (a trident use is only a riptide while one is held)
       for (const [slot, v] of Object.entries(d.slots || {})) ripInv[slot] = v && v.id === "minecraft:trident" && ((v.tag && v.tag.Enchantments) || []).some(e => String(e.id) === "minecraft:riptide") ? 1 : 0;
       ripHeld = Object.values(ripInv).reduce((a, b) => a + b, 0);
+      // when a channeling trident was first in the inventory (a Thunderless run needs one: see stats.js)
+      if (st.channeling === false && Object.values(d.slots || {}).some(v => v && v.id === "minecraft:trident" && ((v.tag && v.tag.Enchantments) || []).some(e => String(e.id) === "minecraft:channeling"))) st.channeling = igt;
       // debris (or scrap) turning up in the inventory in the Nether: mined, or from a chest (which the stats don't count)
       for (const [slot, v] of Object.entries(d.slots || {})) dbInv[slot] = v && (v.id === "minecraft:ancient_debris" || v.id === "minecraft:netherite_scrap") ? (v.Count || 1) : 0;
       const db = Object.values(dbInv).reduce((a, b) => a + b, 0);

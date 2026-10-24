@@ -14,7 +14,7 @@ function renderRunPage() {
   el.innerHTML = `
     ${isWr(run) || isViewed(run) ? "" : `<div class="pagerwrap">${pager(run)}</div>`}
     ${runHeader(run, d)}
-    ${d.category === "Invalid" ? `<div class="card" style="border-color:var(--bad)"><b>${esc(T.invalidRun)}</b> <span class="muted">${esc(T.invalidRunMissing)} ${d.missing.map(id => esc(advName(id))).join(", ")}. ${esc(T.invalidRunNote)}</span></div>` : ""}
+    ${d.category === "Invalid" ? `<div class="card" style="border-color:var(--bad)"><b>${esc(T.invalidRun)}</b> <span class="muted">${esc(missingText(d, 99))}. ${esc(T.invalidRunNote)}</span></div>` : ""}
     ${splitsCard(d)}
     ${progressCardShell()}
     ${meta.path ? travelCardShell() : ""}

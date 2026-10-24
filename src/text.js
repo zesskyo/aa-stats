@@ -71,6 +71,7 @@ const T = {
   nextRun: "Next run",
   invalidRun: "Invalid run.",
   invalidRunMissing: "Missing",
+  noChanneling: "(and there was never a channeling trident, so it isn't Thunderless)",
   invalidRunNote: "It's left out of PBs and bests.",
   andMore: n => `and ${n} more`,
   splitsTitle: "Splits",

@@ -2,7 +2,7 @@
 //
 // The code lives here (src/, icons/). Each website keeps its own runs in its own folder (a "site folder"):
 //   logs/<N>.log           Hermes play.log for run N (the file name is the run number)
-//   logs/<N>.stats.json    optional: the world's stats/<uuid>.json, for elytra distance
+//   logs/<N>.stats.json    optional: the world's stats/<uuid>.json, for elytra distance and the run's statistics screen
 //   logs/<N>.ghost         optional: Hermes' ghost file (position every tick), for the travel map
 //   runs/<N>.json          already-parsed runs (used when there is no log for that number)
 //   runs.json              details: date, seed, video, screenshot, notes, deaths. A run that's only in
@@ -33,7 +33,7 @@ const read = p => fs.readFileSync(p, "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "run-switcher.js", "compare.js", "editor.js", "split-page.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "stats-screen.js", "run-switcher.js", "compare.js", "editor.js", "split-page.js", "app.js",
 ];
 // (and the ghost and inventory readers, for a run looked at on the Compare page)
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n")
@@ -56,7 +56,8 @@ const parseTime = (s, where) => {
 };
 const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
 const copies = [];   // screenshots to copy into dist/
-const paths = new Map();   // run number -> travel map points (written to dist/paths/)
+const paths = new Map();
+const statFiles = new Map();   // run number (or the record's key) -> the world's statistics (written to dist/stats/, for the statistics screen)   // run number -> travel map points (written to dist/paths/)
 
 // 0) site.json: the site's own words (any text from src/text.js can be changed here)
 const text = {};
@@ -149,8 +150,10 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   }
   const statsFile = inSite(`logs/${n}.stats.json`);
   if (fs.existsSync(statsFile)) {
-    const v = ((JSON.parse(read(statsFile)).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
+    const st = JSON.parse(read(statsFile)).stats || {};
+    const v = (st["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
     if (v != null) meta.elytraCm = v;
+    statFiles.set(String(n), st); meta.stats = `stats/${n}.json`;
   }
   out.push({...run, meta});
 }
@@ -178,8 +181,10 @@ function readWr(dir, key, former) {
     else console.warn(`${where}wr.ghost doesn't match its wr.log (another world?), so it's skipped`);
   }
   if (fs.existsSync(at("wr.stats.json"))) {
-    const v = ((JSON.parse(read(at("wr.stats.json"))).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
+    const st = JSON.parse(read(at("wr.stats.json"))).stats || {};
+    const v = (st["minecraft:custom"] || {})["minecraft:aviate_one_cm"];
     if (v != null) meta.elytraCm = v;
+    statFiles.set(key, st); meta.stats = `stats/${key}.json`;
   }
   logFiles.set(key, log); clocks.set(key, r);
   console.log(`Parsed the ${former ? "past " : ""}world record (${where}${path.basename(log)})`);
@@ -249,6 +254,8 @@ if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
 // the biome/structure generator for travel maps of runs with a seed (see wasm/)
 if ([...paths.keys()].some(n => (wrByKey.get(n) || out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));
 for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSON.stringify(g));
+if (statFiles.size) fs.mkdirSync(inSite("dist/stats"), {recursive: true});
+for (const [n, st] of statFiles) fs.writeFileSync(inSite(`dist/stats/${n}.json`), JSON.stringify(st));
 {   // (always: a run looked at on the Compare page can have an inventory even if no run here has one)
   fs.mkdirSync(inSite("dist/inv"), {recursive: true}); fs.mkdirSync(inSite("dist/items"), {recursive: true});
   for (const [n, inv] of invs) fs.writeFileSync(inSite(`dist/inv/${n}.json`), JSON.stringify(inv));
@@ -267,6 +274,8 @@ for (const [n, g] of paths) fs.writeFileSync(inSite(`dist/paths/${n}.json`), JSO
   fs.writeFileSync(inSite("dist/items/items.json"), JSON.stringify({size: items.size, cols, index: Object.fromEntries(keys.map((k, i) => [k, i])), adv: items.adv, crit,
     toast: {task: items.text["advancements.toast.task"], goal: items.text["advancements.toast.goal"], challenge: items.text["advancements.toast.challenge"]}}));
   for (const f of fs.readdirSync(inCode("items"))) if (f.endsWith(".png") && f !== "atlas.png") fs.copyFileSync(inCode("items/" + f), inSite("dist/items/" + f));
+  // (the statistics screen's names: stats, stat types and mobs, from the game's en_us.json)
+  fs.copyFileSync(inCode("items/stats-lang.json"), inSite("dist/items/stats-lang.json"));
   // every icon (only loaded for a run looked at on the Compare page, which can have any item)
   fs.copyFileSync(inCode("items/atlas.png"), inSite("dist/items/all.png"));
   fs.writeFileSync(inSite("dist/items/all.json"), JSON.stringify({...items, crit, toast: {task: items.text["advancements.toast.task"], goal: items.text["advancements.toast.goal"], challenge: items.text["advancements.toast.challenge"]}}));

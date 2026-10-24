@@ -464,3 +464,35 @@ th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:none}
 .splitpick .chip.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 tr.sumrow td{background:rgba(127,127,127,.08)}
 td.best{color:var(--gold);font-weight:700}
+
+/* A run's statistics, like the game's Statistics screen (stats-screen.js): its textures at twice their size */
+.mcstats{position:relative;display:flex;flex-direction:column;height:620px;border-radius:12px;overflow:hidden;color:#fff;
+  background:linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,.75)),url(items/options_background.png) 0 0/64px 64px;image-rendering:pixelated;
+  font-size:20px;line-height:1;text-shadow:2px 2px 0 #3f3f3f}
+.mcstats *{image-rendering:pixelated}
+.mctitle{text-align:center;padding:16px 0 14px}
+.mclist{flex:1;overflow-y:auto;background:linear-gradient(rgba(0,0,0,.85),rgba(0,0,0,.85)),url(items/options_background.png) 0 0/64px 64px;
+  border-top:2px solid #000;border-bottom:2px solid #000;padding:8px 0;scrollbar-color:#c0c0c0 #000}
+.mcbtns{display:flex;justify-content:center;gap:8px;padding:14px 12px 16px;flex-wrap:wrap}
+.mcbtn{width:200px;max-width:31%;height:40px;padding:0;border:0;border-radius:0;font:inherit;font-size:20px;color:#e0e0e0;text-shadow:2px 2px 0 #383838;cursor:pointer;
+  background:url(items/button.png) 0 0/100% 100%}
+.mcbtn:hover,.mcbtn:focus-visible{background-image:url(items/button_hover.png);color:#ffffa0;outline:none}
+.mcbtn.off{background-image:url(items/button_off.png);color:#a0a0a0;cursor:default}
+.mcgen{max-width:640px;margin:0 auto;padding:0 16px}
+.mcrow{display:flex;justify-content:space-between;gap:16px;padding:5px 0}
+.mcrow.dim,.mcirow.dim{color:#909090}
+.mcsprite{display:inline-block;width:36px;height:36px;background:url(items/stats_icons.png) 0 0/256px 256px}
+.mcitems{max-width:640px;margin:0 auto;padding:0 16px}
+.mcihead,.mcirow{display:grid;grid-template-columns:36px repeat(6,1fr);align-items:center;gap:8px}
+.mcihead{position:sticky;top:-8px;padding:6px 0 10px;background:rgba(0,0,0,.6);z-index:1}
+.mccol{position:relative;justify-self:end;width:36px;height:36px;padding:0;border:0;background:none;cursor:pointer}
+.mccol .mcsprite{position:absolute;inset:0}
+.mcarrow{position:absolute;right:-14px;top:10px;font-size:14px;color:#fff}
+.mcirow{padding:2px 0}
+.mcirow span:not(.mcslot):not(.mcsprite):not(.mcitem){text-align:right}
+.mcslot{position:relative;width:36px;height:36px}
+.mcslot .mcsprite{position:absolute;inset:0}
+.mcitem{position:absolute;left:2px;top:2px;width:32px;height:32px;background-image:url(items/all.png)}
+.mcmobs{max-width:640px;margin:0 auto;padding:0 16px;display:flex;flex-direction:column;gap:14px}
+.mcmob .dim{color:#a0a0a0;padding-left:28px;margin-top:4px}
+@media (max-width:640px){.mcstats{font-size:16px}.mcbtn{font-size:16px;height:36px}}

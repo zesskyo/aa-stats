@@ -61,7 +61,7 @@ async function viewOpen() {
     r.meta = {viewed: true, label: r.player + " · " + fmt(r.finalIgt, 0)};
     const seed = String(viewPend.seed || r.seed || "").trim(); if (seed) r.meta.seed = seed;
     // elytra distance (stats.json)
-    if (viewPend.stats) try { const v = ((JSON.parse(await viewPend.stats.text()).stats || {})["minecraft:custom"] || {})["minecraft:aviate_one_cm"]; if (v != null) r.meta.elytraCm = v; } catch {}
+    if (viewPend.stats) try { const st = JSON.parse(await viewPend.stats.text()).stats || {}, v = (st["minecraft:custom"] || {})["minecraft:aviate_one_cm"]; if (v != null) r.meta.elytraCm = v; r.meta.statsData = st; } catch {}
     // the travel map (the .ghost, lined up with the log)
     if (viewPend.ghost) { const g = readGhost(new Uint8Array(await viewPend.ghost.arrayBuffer()), r); if (g) { travelCache[r.id] = travelPrep(g); r.meta.path = "-"; } }
     // the inventory (every icon, as it can have any item)

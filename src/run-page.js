@@ -20,6 +20,7 @@ function renderRunPage() {
     ${progressCardShell()}
     ${meta.path ? travelCardShell() : ""}
     <section class="card"><h2 style="margin-bottom:14px">${esc(T.runStatsTitle)}</h2>${runStatCards(run)}</section>
+    ${statsScreenShell(run)}
     <div class="grid3">
       ${miniCard(T.debrisTitle, d.debrisSplit.start != null ? d.debrisSplit.dur : null, d.debrisSplit.start != null ? "debrisChart" : null, T.noDebris)}
       ${miniCard(T.skullsTitle, d.skullSplit ? d.skullSplit.dur : null, d.skullSplit ? "skullChart" : null, T.noSkulls)}
@@ -33,6 +34,7 @@ function renderRunPage() {
   if (meta.path) drawTravel(run, d); else if (meta.inv) invOnGraph(run);
   drawDebris(run, d);
   drawSkulls(run, d);
+  drawStatsScreen(run);
   bindPager(el);
   el.querySelectorAll(".wrhist [data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
   mountRunBar(run, d);

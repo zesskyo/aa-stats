@@ -139,9 +139,12 @@ const MIDGAME = [
   {key: "ocean", name: "Ocean Misc", item: "heart_of_the_sea", area: ["ocean"], start: "first", time: "active", lead: 120000, end: "done",
     goals: [["biome", "warm_ocean"], ["biome", "lukewarm_ocean"], ["biome", "deep_lukewarm_ocean"], ["biome", "cold_ocean"], ["biome", "deep_cold_ocean"], ["biome", "deep_frozen_ocean"],
       ["food", ["cod"]], ["food", ["salmon"]], ["food", ["tropical_fish"]], ["food", ["pufferfish"]], ["food", ["cooked_cod"]], ["food", ["cooked_salmon"]], ["food", ["dried_kelp"]],
-      ["bred", "turtle"], ["kill", "guardian"], ["kill", "elder_guardian"], ["kill", "drowned"]]},
+      ["bred", "turtle"], ["kill", "elder_guardian"], ["kill", "drowned"]]},   // (not the guardian: often killed later)
   {key: "animals", name: "Animals Misc", item: "wheat", area: ["plains", "other", "village", "desert"], start: "first", time: "active", lead: 120000, end: "done",
-    goals: [["bred", "sheep"], ["bred", "cow"], ["bred", "pig"], ["bred", "chicken"], ["bred", "rabbit"], ["bred", "llama"], ["bred", "bee"], ["bred", "horse"], ["bred", "donkey"], ["bred", "mule"],
+    // (the bee isn't here: usually bred in Endgame)
+    goals: [["biome", "forest"], ["biome", "wooded_hills"], ["biome", "birch_forest"], ["biome", "birch_forest_hills"], ["biome", "dark_forest"],
+      ["biome", "mountains"], ["biome", "wooded_mountains"], ["biome", "stone_shore"],
+      ["bred", "sheep"], ["bred", "cow"], ["bred", "pig"], ["bred", "chicken"], ["bred", "rabbit"], ["bred", "llama"], ["bred", "horse"], ["bred", "donkey"], ["bred", "mule"],
       ["food", ["mutton"]], ["food", ["cooked_mutton"]], ["food", ["beef"]], ["food", ["cooked_beef"]], ["food", ["porkchop"]], ["food", ["cooked_porkchop"]],
       ["food", ["chicken"]], ["food", ["cooked_chicken"]], ["food", ["rabbit"]], ["food", ["cooked_rabbit"]], ["food", ["rabbit_stew"]]]},
   {key: "nethermisc", name: "Nether Misc", item: "warped_fungus_on_a_stick", area: NETHER, start: "first", time: "active", lead: 120000, end: "done",

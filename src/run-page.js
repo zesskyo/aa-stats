@@ -90,7 +90,7 @@ function runHeader(run, d) {
       <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1 id="runH1">${esc(runTitle(run))}</h1>${videoLink(run, true)}${shotLink(run, true)}${editButton(run)}</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          ${catPill(d)}
+          ${catPill(d, "", run)}
           ${runDay(run) !== "—" ? `<span class="muted">${esc(runDay(run))}</span>` : ""}
           ${meta.seed ? `<span class="muted">· ${esc(T.seedLabel)} <span class="mono">${esc(meta.seed)}</span></span>` : ""}
         </div>

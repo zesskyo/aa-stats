@@ -146,6 +146,7 @@ function openEditor(run) {
     run, num: run ? runNum(run) : nextNum, isNew: !run,
     mode: run && run.manual ? "manual" : "files",   // "files": everything read from the files; "manual": typed in
     log: null,                              // {file, run} when a log was picked
+    countAnyway: !!meta.countAnyway,        // count it as Thunderless though there was never a channeling trident
     stats: null,                            // {file, km} when the world's stats file was picked
     hasLog: !!(run && !run.manual),         // the run already has a log on the site
     proof: meta.screenshot ? "shot" : "video",   // a run has a video or a screenshot, never both
@@ -175,6 +176,8 @@ function renderEditor() {
   if (!ED) { el.innerHTML = ""; return; }
   const run = ED.run, meta = (run && run.meta) || {}, withLog = !!ED.log || ED.hasLog;
   const lr = ED.log && ED.log.run, ld = lr ? derive(lr) : null;
+  // (only Invalid for never having had a channeling trident: it can be counted anyway)
+  const noChanneling = noChannelingOnly(lr || (ED.log ? null : ED.run));
   const {list: deaths} = edDeaths();
   if (!ED.deaths || ED.deaths.length !== deaths.length) ED.deaths = deaths.map(x => x.intentional);
   // the screenshot already uploaded to the site (a link is shown in its own box instead)
@@ -219,7 +222,8 @@ function renderEditor() {
           <input type="file" id="edGhostFile" accept=".ghost" hidden>
         </div>
       </div>
-      ${ld && ld.category === "Invalid" ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}` : ""}
+      ${ld && ld.category === "Invalid" && !(noChanneling && ED.countAnyway) ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
+      ${noChanneling ? `<label class="check"><input type="checkbox" id="edCountAnyway"${ED.countAnyway ? " checked" : ""}> ${esc(T.edCountAnyway)}</label>` : ""}` : ""}
 
       <div class="edgrid">
         <label class="fld"><span class="label">${esc(T.edRunNumber)}</span>
@@ -295,6 +299,7 @@ function renderEditor() {
   });
   $("#edCancel").addEventListener("click", () => { const r = ED.run; ED = null; r ? go("run", r.id) : go("runs"); });
   $("#edForm").addEventListener("submit", e => { e.preventDefault(); edSave(); });
+  if ($("#edCountAnyway")) $("#edCountAnyway").addEventListener("change", e => { ED.draft = edRead(); ED.countAnyway = e.target.checked; renderEditor(); edRestore(); });
   if ($("#edDelete")) $("#edDelete").addEventListener("click", edDelete);
 }
 
@@ -353,6 +358,7 @@ async function edSave() {
     const e = {...(details[key] || {})};
     const put = (k, v) => { if (v == null || v === "") delete e[k]; else e[k] = v; };
     put("date", f.date); put("seed", f.seed); put("notes", f.notes);
+    put("countAnyway", ED.countAnyway && noChannelingOnly((ED.log && ED.log.run) || ED.run) ? true : null);
     const files = [];
 
     // runs without a log: time, 100%, splits

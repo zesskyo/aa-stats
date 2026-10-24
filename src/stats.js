@@ -26,7 +26,8 @@ function derive(run) {
   const doneSet = new Set(comp.map(e => e[2]));
   const missing = Object.keys(ADV).filter(k => !doneSet.has(k));
   // (st.channeling: when a channeling trident was first held, or false if never; runs stored before it was looked for don't have it)
-  const thunderReady = st.channeling !== false;
+  // (or the runner chose to count it anyway: see noChannelingOnly)
+  const thunderReady = st.channeling !== false || !!(run.meta && run.meta.countAnyway);
   const category = !missing.length ? "Thunderful" : missing.length === 1 && missing[0] === VVF && thunderReady ? "Thunderless" : "Invalid";
 
   const {splits, anyEnd, endAgain} = findSplits(run, comp);
@@ -150,6 +151,10 @@ function deriveManual(run) {
 // ---------- Across all runs ----------
 const hasLog = r => !r.manual;
 const logRuns = () => RUNS.filter(hasLog);
+// A run that's only Invalid for never having had a channeling trident (everything but Very Very Frightening done): its
+// runner can count it as Thunderless anyway ("countAnyway" in runs.json, a tick when adding it)
+const noChannelingOnly = r => { if (!r || r.manual || !r.events) return false; const done = new Set(r.events.filter(e => e[4]).map(e => e[2]));
+  const missing = Object.keys(ADV).filter(k => !done.has(k)); return missing.length === 1 && missing[0] === VVF && (r.st || {}).channeling === false; };
 const isValid = r => derive(r).category !== "Invalid" && r.finalIgt != null;
 const validRuns = () => RUNS.filter(isValid);
 const pbRun = () => validRuns().sort((a, b) => a.finalIgt - b.finalIgt)[0] || null;

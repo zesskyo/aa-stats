@@ -73,6 +73,8 @@ const T = {
   invalidRunMissing: "Missing",
   noChanneling: "(and there was never a channeling trident, so it isn't Thunderless)",
   invalidRunNote: "It's left out of PBs and bests.",
+  edCountAnyway: "Count it anyway, as Thunderless: everything but Very Very Frightening was done, only there was never a channeling trident",
+  countedAnyway: "counted without a channeling trident",
   andMore: n => `and ${n} more`,
   splitsTitle: "Splits",
   subSplitsTitle: "Sub-splits",

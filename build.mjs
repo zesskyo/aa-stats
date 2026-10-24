@@ -10,6 +10,7 @@
 //   <any folder>/<image>   screenshots mentioned in runs.json (copied next to the page)
 //   site.json              the site's own words: title, subtitle, or any other text from src/text.js
 //   icons/<name>.png       optional: adds or replaces icons
+//   live/                  optional: copied as it is (the AA Live timer's phone page, made by its build.mjs)
 //
 // The world record (AA No Reset, 1.16) is the same for every site, so it lives here with the code, in wr/:
 //   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video, notes}.
@@ -230,6 +231,7 @@ const json = JSON.stringify({runs: out, wr, wrs: wrs.length ? wrs : undefined, i
 const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);
+if (fs.existsSync(inSite("live"))) fs.cpSync(inSite("live"), inSite("dist/live"), {recursive: true});
 if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});
 // the biome/structure generator for travel maps of runs with a seed (see wasm/)
 if ([...paths.keys()].some(n => (wrByKey.get(n) || out.find(r => r.meta.num === n) || {meta: {}}).meta.seed)) fs.copyFileSync(inCode("wasm/cubiomes.wasm"), inSite("dist/cubiomes.wasm"));

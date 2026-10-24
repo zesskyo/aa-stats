@@ -140,7 +140,9 @@ const splitMark = (p, i) => i <= 1 ? p.end : p.start;
 function findSubSplits(run, splits, {anyEnd}) {
   const dims = run.dims.filter(d => d[2] !== "live");   // (the timer adds a pretend dimension change "now")
   const dimAfter = (t, x) => { if (t == null) return null; const d = dims.find(d => d[0] > t && d[1] === x); return d ? d[0] : null; };
-  const inside = (i, t) => t != null && splits[i].start != null && t >= splits[i].start && (splits[i].end == null || t <= splits[i].end) ? t : null;
+  // (a split that hasn't ended yet has no start either: Any% starts at 0, Outer End when Any% ended)
+  const startOf = i => splits[i].start ?? (i === 0 ? 0 : i === 1 ? anyEnd : null);
+  const inside = (i, t) => t != null && startOf(i) != null && t >= startOf(i) && (splits[i].end == null || t <= splits[i].end) ? t : null;
   const sub = (i, list) => { splits[i].subs = list.map(([name, t]) => ({name, t: inside(i, t)})); };
   const bastion = advTime(run, "nether/find_bastion"), fortress = advTime(run, "nether/find_fortress");
   const firstFortress = fortress != null && (bastion == null || fortress < bastion);

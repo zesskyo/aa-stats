@@ -180,7 +180,7 @@ function findSubSplits(run, splits, {anyEnd}) {
  *   {key, about, name, item, area, split, why, start, end, complete, dur, since, done, have, need, parts, missing}
  * why: why it has no time in this run: "untimed" (never timed), "before" (done before Midgame), "outside" (done without
  * a visit to its area), "early" (part of it done beforehand, see notBefore), "post" (finished in Post-endgame),
- * "nodata" (an old log, with no biomes); null otherwise
+ * "nodata" (an old log, with no biomes); null otherwise. info: rates to show with it (see info in config.js)
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
  * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
@@ -256,6 +256,10 @@ function findMidgame(run, splits) {
     if (m.count && v < target) e.left.push(`${m.countName || m.name} ${v}/${target}`);
     if (cl.length && cHave < cl.length) e.left.push(`Cats ${cHave}/${cl.length}`);
     for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
+    // (rates the timer shows with it, as [name, icon, value]: since Midgame started)
+    const since = arr => (arr || []).filter(t => t >= (midStart ?? Infinity)).length;
+    if (m.info === "tnt") { const tnt = since(st.tnt), deb = since(st.debrisTnt || st.debris); e.info = [[deb ? "TNT per debris" : "TNT used", "item:tnt", deb ? (tnt / deb).toFixed(1) : String(tnt)]]; }
+    if (m.info === "kills") { const k = series("ws").length, n = series("skulls").length; e.info = [[n ? "Kills per skull" : "Kills", "mh:wither_skeleton", n ? (k / n).toFixed(1) : String(k)]]; }
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     if (m.time === "farm") {
       // skulls: the Skulls split's own time (live, until now while the 3rd isn't got)

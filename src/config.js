@@ -100,7 +100,8 @@ const SUB_ITEMS = {
  * the rest by name. Without a start, it isn't timed: just what's left of it. activity: more of the run's stats that count
  * as getting something done for it (for "enter"). item: its icon, an item's name, or "mh:<mob>" (and so on, see goalIcon in splits.js) for one of the
  * stats site's own icons. A counter (no target, no split) has need: null; needIfNot: [advancement, need], a different target
- * while that advancement isn't done. notBefore: a kind of goal ("food") that, done before the split started (stews made
+ * while that advancement isn't done. info: a rate the timer shows with it ("tnt": TNT used per debris found with TNT,
+ * "kills": wither skeletons killed per skull). notBefore: a kind of goal ("food") that, done before the split started (stews made
  * beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
@@ -130,7 +131,7 @@ const MIDGAME = [
   // the Nether: time spent there, on visits that got something done for it (shown first there)
   // (the same as the Skulls split on a run's page: findSkullSplit in stats.js)
   {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: NETHER, start: "enter", time: "farm", end: "done",
-    count: "skulls", need: 3, activity: ["ws", "skulls"]},
+    count: "skulls", need: 3, activity: ["ws", "skulls"], info: "kills"},
   {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: NETHER, start: "enter", time: "area", end: "done",
     count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
   // the rest, wherever and whenever it's done: only the time just before each thing (up to "lead") counts, so what's left
@@ -149,7 +150,7 @@ const MIDGAME = [
       ["kill", "hoglin"], ["kill", "zoglin"], ["kill", "piglin"], ["kill", "zombified_piglin"], ["kill", "blaze"], ["kill", "magma_cube"]]},
   // (netherite: 20 debris for the armour and the hoe; 24 when the lodestone for Country Lode is still needed too)
   // (not timed: it has its own split, Debris)
-  {key: "debris", name: "Debris", item: "ancient_debris", area: ["bastion"], count: "netherite", need: 20,
+  {key: "debris", name: "Debris", item: "ancient_debris", area: NETHER, count: "netherite", need: 20, info: "tnt",
     needIfNot: ["nether/use_lodestone", 24]},
 ];
 

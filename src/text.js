@@ -253,7 +253,7 @@ const T = {
 
   // Graph hover text
   hoverAdv: "Adv",
-  hoverGold: "Beacon blocks",
+  hoverGold: "Gold",
   hoverTnt: "TNT",
   tridentMarker: (k, drowned) => `x${k} Trident (Drowned killed: ${drowned})`,
   skullMarker: (k, n, killed) => `${k}/${n} Wither Skulls (Killed: ${killed})`,

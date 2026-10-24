@@ -14,10 +14,10 @@
 function parseLog(text, filename) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
-  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 3, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
+  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
     tears: [], ghasts: [], areas: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
-  const inv = {}; let inDesert = false, tntCum = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
+  const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let biome = null, structs = [];   // where they are (for st.areas)
@@ -98,6 +98,12 @@ function parseLog(text, filename) {
       if (k.startsWith("minecraft.killed_by:")) killedBy = [igt, k.slice(k.indexOf(":") + 1).replace(/^minecraft\./, "")];
       if (k === "minecraft.custom:minecraft.deaths") { deaths.push([igt, dim, deathCause(igt, dim, killedBy, hits)]); killedBy = null; hits.length = 0; // (the slots are often emptied just before the death is logged: what was held in the seconds before)
         for (const sl in dbInv) dbInv[sl] = 0; dbOwed += dbHeld; dbHeld = 0; for (const sl in ripInv) ripInv[sl] = 0; ripHeld = 0; }
+      // gold blocks, an estimate from the stats: mined or crafted, less placed or broken back into ingots
+      let g = 0;
+      if (k === "minecraft.mined:minecraft.gold_block" || k === "minecraft.crafted:minecraft.gold_block") g = diff;
+      else if (k === "minecraft.used:minecraft.gold_block") g = -diff;
+      else if (k === "minecraft.crafted:minecraft.gold_ingot" && diff % 9 === 0) g = -diff / 9;
+      if (g) { goldCum += g; st.gold.push([igt, goldCum]); }
       let tg = 0;
       if (k === "minecraft.picked_up:minecraft.tnt" || k === "minecraft.crafted:minecraft.tnt") { tg = diff; tot.tntGot = (tot.tntGot || 0) + diff; }
       else if (k === "minecraft.used:minecraft.tnt") tg = -diff;
@@ -180,7 +186,6 @@ function parseLog(text, filename) {
     }
   }
   tot.skulls = st.skulls.length; tot.debris = st.debris.length;   // (not the picked-up stat, which counts skulls picked up again after dying)
-  st.gold = st.beacon;   // (blocks for the beacon: the most held at once, like the Midgame checklist's Beacon Blocks)
   if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
   const comp = events.filter(e => e[4]);
   const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
@@ -228,14 +233,14 @@ function areaOf(dim, biome, structs) {
   if (dim === "e") return "end";
   if (dim === "n") return structs.includes("fortress") ? "fortress" : structs.includes("bastion_remnant") ? "bastion"
     : biome === "crimson_forest" ? "crimson" : biome === "warped_forest" ? "warped" : "nether";
-  // (the rare biomes come first, even in a village or by an ocean ruin: what's done there counts for them)
+  // (villages first: time in a taiga village isn't taiga time; then the rare biomes, even by an ocean ruin)
+  if (structs.includes("village") || structs.includes("swamp_hut")) return "village";
   const b = biome || "";
   if (b.startsWith("mushroom")) return "mushroom";
   if (b.includes("badlands")) return "badlands";
   if (b.startsWith("giant_") || b.startsWith("taiga")) return "taiga";
   if (b.includes("jungle")) return "jungle";
   if (b.startsWith("snowy") || b === "ice_spikes" || b === "frozen_river" || structs.includes("igloo")) return "snowy";
-  if (structs.includes("village") || structs.includes("swamp_hut")) return "village";
   if (structs.some(x => ["monument", "ocean_ruin", "shipwreck", "buried_treasure"].includes(x))) return "ocean";
   if (structs.includes("desert_pyramid")) return "desert";
   if (b.includes("ocean")) return "ocean";

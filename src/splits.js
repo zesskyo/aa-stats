@@ -173,13 +173,14 @@ function findSubSplits(run, splits, {anyEnd}) {
 
 /*
  * The Midgame checklist (MIDGAME in config.js), as the run stands at its end (or, live, now). For each entry:
- *   {key, name, item, area, split, start, end, complete, dur, since, done, have, need, missing}
- * For a split: start and end (null until then); dur, the time spent in its area between them (the split pauses while
- * the runner is somewhere else); since, when it's running now, when they came back into its area; complete, whether it
- * ended with everything done. For all: done, when everything was done; have/need, progress; missing, what's not done.
- * Also the area the runner is in now. Leaving an area only counts once they've been out of it for LEAVE_AFTER.
+ *   {key, name, item, area, split, start, end, complete, dur, since, done, have, need, parts, missing}
+ * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
+ * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
+ * parts: what's left, as [name, have, need] ("Biomes", "Foods", a counter, the rest one by one); missing: the same as text.
+ * Also the area the runner is in now, and the areas they've been in over the last NEAR (to keep showing those).
+ * Leaving an area only counts once they've been out of it for LEAVE_AFTER.
  */
-const LEAVE_AFTER = 20000;
+const LEAVE_AFTER = 10000, NEAR = 10000;
 const nameOf = x => titleCase(String(x).replace(/_/g, " "));
 function findMidgame(run, splits) {
   const st = run.st || {}, now = run.finalIgt;
@@ -187,72 +188,87 @@ function findMidgame(run, splits) {
   const areas = st.areas || [];
   const crit = {};
   for (const e of run.events) { const k = e[2] + "|" + e[3]; if (!(k in crit)) crit[k] = e[0]; }
+  const held = st.held || {};
+  const first = ts => { ts = ts.filter(t => t != null); return ts.length ? Math.min(...ts) : null; };
+  // each goal: [when it was done, its group ("Biomes", "Foods") or name]
   const GOAL = {
-    biome: x => [crit["adventure/adventuring_time|" + x], nameOf(x)],
+    biome: x => [crit["adventure/adventuring_time|" + x], "Biomes"],
+    food: xs => [first(xs.flatMap(x => [crit["husbandry/balanced_diet|" + x], held[x]])), "Foods"],
     bred: x => [crit["husbandry/bred_all_animals|" + x], "Breed " + nameOf(x)],
     kill: x => [crit["adventure/kill_all_mobs|" + x], "Kill " + nameOf(x)],
-    food: x => [crit["husbandry/balanced_diet|" + x], "Eat " + nameOf(x)],
     adv: x => [advTime(run, x), ADV[x] || x],
-    held: x => [(st.held || {})[x], nameOf(x)],
   };
-  // counters: [time, how many] as it changes (for beacon blocks, the most held so far: they end up in the beacon)
+  // counters: [time, how many] as it changes (beacon blocks and netherite: the most held so far, as they get used up)
   const series = k => {
     if (k === "gapple") return st.gapple != null ? [[st.gapple, 1]] : [];
     if (k === "tnt") return (st.tntHeld || []).map(([t, c]) => [t, Math.max(0, c)]);
-    if (k === "beacon") { let m = 0; return (st.beacon || []).map(([t, c]) => [t, m = Math.max(m, c)]); }
+    if (k === "beacon" || k === "netherite") return st[k] || [];
+    if (k === "ws") return (st.ws || []).filter(t => t > (splits[0].end ?? 0)).map((t, i) => [t, i + 1]);   // (not Any%'s)
     return (st[k] || []).slice().sort((a, b) => a - b).map((t, i) => [t, i + 1]);
   };
   const countAt = (xs, t) => { let v = 0; for (const [x, c] of xs) { if (x > t) break; v = c; } return v; };
   // the times spent in some areas: [from, to] (to: null while still there), short trips out not counted as leaving
   const visits = set => {
     const out = [];
-    areas.forEach(([x, v], i) => {
+    for (const [x, v] of areas) {
       const inside = set.includes(v), last = out[out.length - 1];
       if (inside && (!last || last[1] != null)) { if (last && x - last[1] < LEAVE_AFTER) last[1] = null; else out.push([x, null]); }
       else if (!inside && last && last[1] == null) last[1] = x;
-    });
+    }
     const last = out[out.length - 1];
     if (last && last[1] != null && now - last[1] < LEAVE_AFTER) last[1] = null;   // (live: only just left)
     return out;
   };
+  const sum = (segs, to) => segs.reduce((a, [x, y]) => a + Math.max(0, Math.min(y ?? to, to) - x), 0);
   const out = MIDGAME.map(m => {
-    const goals = m.goals === "cats"
-      ? Object.keys(crit).filter(k => k.startsWith("husbandry/complete_catalogue|")).map(k => [crit[k], "Cat"])
-      : (m.goals || []).map(([kind, x]) => GOAL[kind](x));
-    let need = m.goals === "cats" ? REQ["husbandry/complete_catalogue"] : goals.length;
-    let have = goals.filter(g => g[0] != null).length;
-    let done = have >= need && need ? Math.max(...goals.map(g => g[0])) : null;
-    const missing = m.goals === "cats" ? (have < need ? [`${need - have} more cats`] : []) : goals.filter(g => g[0] == null).map(g => g[1]);
+    const cats = (m.goals || []).some(g => g[0] === "cats");
+    const goals = (m.goals || []).filter(g => g[0] !== "cats").map(([kind, x]) => GOAL[kind](x));
+    if (cats) { const ts = Object.keys(crit).filter(k => k.startsWith("husbandry/complete_catalogue|")).map(k => crit[k]).sort((a, b) => a - b);
+      const need = REQ["husbandry/complete_catalogue"]; for (let i = 0; i < need; i++) goals.push([ts[i] ?? null, "Cats"]); }
     const xs = m.count ? series(m.count) : [];
-    if (m.count && m.need) {
-      const v = countAt(xs, now), r = xs.find(([, c]) => c >= m.need);
-      have += Math.min(v, m.need); need += m.need;
-      if (v < m.need) missing.push(`${m.name} ${v}/${m.need}`);
-      done = r && (done != null || !goals.length) ? Math.max(r[0], done ?? 0) : null;
-    } else if (m.count) { have = countAt(xs, now); need = null; done = null; }
-    const e = {key: m.key, name: m.name, item: m.item, area: m.area, split: !!m.start, start: null, end: null, complete: false, dur: null, since: null, done, have, need, missing};
-    if (!m.start || midStart == null) return e;
-    const vs = visits(m.area).map(([a, b]) => [Math.max(a, midStart), b]).filter(([a, b]) => b == null || b > a);
-    if (m.start === "enter") e.start = vs.length ? vs[0][0] : null;
-    else { const ts = [...goals.map(g => g[0]), ...xs.map(x => x[0])].filter(t => t != null && t >= midStart); e.start = ts.length ? Math.min(...ts) : null; }
-    if (e.start == null || (done != null && done < e.start)) { e.start = null; return e; }
-    // the end: everything done; or (Mushroom Island) leaving once it is; or (Snowy) whichever comes first, leaving counting
-    // once all but the Zombie Doctor is done
-    const leaveAfter = t => { const v = vs.find(([a, b]) => b != null && b >= t); return v ? v[1] : null; };
+    if (m.count && m.need == null)   // (a counter: just how many)
+      return {key: m.key, name: m.name, item: m.item, area: m.area, split: false, start: null, end: null, complete: false, dur: null, since: null, done: null, have: countAt(xs, now), need: null, parts: [], missing: []};
+    // what's left, in groups
+    const groups = new Map();
+    const addTo = (name, t) => { const g = groups.get(name) || {have: 0, need: 0}; g.need++; if (t != null) g.have++; groups.set(name, g); };
+    for (const [t, name] of goals) addTo(name, t);
+    let v = 0, reached = null;
+    if (m.count) { v = countAt(xs, now); const r = xs.find(([, c]) => c >= m.need); reached = r ? r[0] : null; }
+    const parts = [...(m.count ? [[m.countName || m.name, Math.min(v, m.need), m.need]] : []), ...[...groups].map(([name, g]) => [name, g.have, g.need])].filter(p => p[1] < p[2]);
+    const need = goals.length + (m.count ? m.need : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, m.need) : 0);
+    const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
+    const e = {key: m.key, name: m.name, item: m.item, area: m.area, split: true, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
+      parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n)};
+    if (midStart == null) return e;
+    // when something was done for it (in Midgame and after)
+    const progress = [...goals.map(g => g[0]), ...xs.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);
+    // the end: everything done; or leaving once it is (Mushroom Island); or either (Snowy), leaving once all but the optional is
     const core = goals.filter(g => !(m.optional || []).includes(g[1]));
-    const coreDone = core.length && core.every(g => g[0] != null) ? Math.max(...core.map(g => g[0])) : null;
-    e.end = m.end === "done" ? done
-      : m.end === "leave" ? (done != null ? leaveAfter(done) : null)
-      : [done, coreDone != null ? leaveAfter(coreDone) : null].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
+    const coreDone = core.length && core.every(g => g[0] != null) && (!m.count || reached != null) ? Math.max(...core.map(g => g[0]), reached ?? 0) : null;
+    let segs;
+    if (m.time === "area") {
+      // visits to its area from Midgame on that got something done (and the one it's on now, while it lasts)
+      const vs = visits(m.area).map(([a, b]) => [Math.max(a, midStart), b]).filter(([a, b]) => b == null || b > a);
+      segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b));
+    } else if (m.time === "active") {
+      // bursts of activity: anything done within "gap" of the last thing (a burst still going now, while it's within that)
+      segs = [];
+      for (const t of progress) { const g = segs[segs.length - 1]; if (g && t - g[1] <= m.gap) g[1] = t; else segs.push([t, t]); }
+      const g = segs[segs.length - 1]; if (g && now - g[1] <= m.gap) g[1] = null;
+    } else segs = [[midStart, null]];
+    if (!segs.length || (done != null && done < segs[0][0] && m.start !== "mid")) return e;   // (not started, or all done before)
+    e.start = m.start === "mid" ? midStart : segs[0][0];
+    const leaveAfter = t => { if (t == null) return null; const s = segs.find(([a, b]) => b != null && b >= t); return s ? s[1] : null; };
+    e.end = m.end === "done" ? done : m.end === "leave" ? leaveAfter(done)
+      : [done, leaveAfter(coreDone)].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
     if (e.end != null && e.end < e.start) e.end = e.start;
     e.complete = e.end != null && done != null && done <= e.end;
-    // time in its area between start and end (or now)
     const to = e.end ?? now;
-    e.dur = vs.reduce((a, [x, y]) => a + Math.max(0, Math.min(y ?? to, to) - Math.max(x, e.start)), 0);
-    const open = vs.find(([, b]) => b == null);
+    e.dur = sum(segs.map(([a, b]) => [Math.max(a, e.start), b == null ? null : Math.min(b, to)]).filter(([a, b]) => b == null || b >= a), to);
+    const open = segs.find(([, b]) => b == null);
     if (e.end == null && open) e.since = Math.max(open[0], e.start);
     return e;
   });
-  const areaNow = areas.length ? areas[areas.length - 1][1] : null;
-  return {area: areaNow, sections: out};
+  const near = [...new Set(areas.filter(([t], i) => t >= now - NEAR || i === areas.length - 1 || (areas[i + 1] && areas[i + 1][0] >= now - NEAR)).map(a => a[1]))];
+  return {area: areas.length ? areas[areas.length - 1][1] : null, near, sections: out};
 }

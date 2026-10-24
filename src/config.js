@@ -85,47 +85,58 @@ const SUB_ITEMS = {
 
 /*
  * The Midgame checklist (findMidgame in splits.js): what's shown under Midgame, for the kind of place the runner is in
- * ("area": see areaOf in parse-log.js). Each entry is either
- *   a split   with a start and an end, and a length to compare (start: "enter" = entering its area during Midgame,
- *             "first" = the first of its goals done during Midgame; end: "done" = all its goals done, "leave" = leaving
- *             its area, "doneOrLeave" = whichever comes first). Not finished if it ends with goals missing.
- *   a counter (count: a timeline in the run's stats, need: how many) or a set of goals with no split ("split": false)
- * A split counts only the time spent in its area (it pauses while the runner is elsewhere).
- * Goals: ["biome", name] (Adventuring Time), ["bred", animal] (Two by Two), ["kill", mob] (Monster Hunter),
- * ["food", food] (A Balanced Diet), ["adv", id], ["held", item] (in the inventory at some point).
+ * ("area": see areaOf in parse-log.js; shown until they've been out of it for a few seconds). Each entry is a split:
+ *   start  "mid": when Midgame starts; "enter": the first time in its area that gets something done (a pass through
+ *          that gets nothing done doesn't count); "first": the first thing done for it (with "activity", the first of those)
+ *   time   "clock": all the time from its start; "area": only the time spent in its area, on visits that got something
+ *          done; "active": only while it's being worked on (gaps of over "gap" between "activity" are left out)
+ *   end    "done": everything done; "leave": leaving its area once everything's done; "doneOrLeave": either, leaving
+ *          counting once all but "optional" is done
+ * Goals: ["biome", name] (Adventuring Time), ["food", [items]] (eaten, or in the inventory: any of the items), ["bred",
+ * animal] (Two by Two), ["kill", mob] (Monster Hunter), ["adv", id], ["cats"] (A Complete Catalogue), and count/need
+ * (a timeline in the run's stats, and how many). Under the split it's on, what's left: "Biomes 3/5", "Foods 1/2", and
+ * the rest by name. A counter (no target, no split) has need: null.
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
  */
 const MIDGAME = [
-  {key: "mushroom", name: "Mushroom Island", item: "red_mushroom_block", area: ["mushroom"], start: "enter", end: "leave",
-    goals: [["biome", "mushroom_fields"], ["biome", "mushroom_field_shore"], ["bred", "mooshroom"]]},
-  {key: "badlands", name: "Badlands", item: "terracotta", area: ["badlands"], start: "enter", end: "done",
+  // the rare biomes: time spent there
+  {key: "mushroom", name: "Mushroom Island", item: "red_mushroom_block", area: ["mushroom"], start: "enter", time: "area", end: "leave",
+    goals: [["biome", "mushroom_fields"], ["biome", "mushroom_field_shore"], ["food", ["mushroom_stew"]], ["food", ["suspicious_stew"]], ["bred", "mooshroom"]]},
+  {key: "badlands", name: "Badlands", item: "terracotta", area: ["badlands"], start: "enter", time: "area", end: "done",
     goals: [["biome", "badlands"], ["biome", "badlands_plateau"], ["biome", "wooded_badlands_plateau"], ["kill", "cave_spider"]]},
-  {key: "megataiga", name: "Mega Taiga", item: "podzol", area: ["megataiga"], start: "enter", end: "done",
-    goals: [["biome", "giant_tree_taiga"], ["biome", "giant_tree_taiga_hills"]]},
-  {key: "jungle", name: "Jungle", item: "jungle_log", area: ["jungle"], start: "enter", end: "done",
+  {key: "jungle", name: "Jungle", item: "jungle_log", area: ["jungle"], start: "enter", time: "area", end: "done",
     goals: [["biome", "jungle"], ["biome", "jungle_hills"], ["biome", "jungle_edge"], ["biome", "bamboo_jungle"], ["biome", "bamboo_jungle_hills"],
-      ["bred", "ocelot"], ["bred", "panda"], ["held", "melon_slice"], ["held", "cocoa_beans"]]},
-  {key: "snowy", name: "Snowy", item: "snow_block", area: ["snowy"], start: "enter", end: "doneOrLeave",
+      ["food", ["melon_slice"]], ["food", ["cookie", "cocoa_beans"]], ["bred", "ocelot"], ["bred", "panda"]]},
+  {key: "snowy", name: "Snowy", item: "snow_block", area: ["snowy"], start: "enter", time: "area", end: "doneOrLeave",
     goals: [["biome", "snowy_tundra"], ["biome", "snowy_mountains"], ["biome", "snowy_taiga"], ["biome", "snowy_taiga_hills"], ["biome", "snowy_beach"], ["biome", "frozen_river"],
       ["kill", "stray"], ["adv", "story/cure_zombie_villager"]],
     optional: ["Zombie Doctor"]},   // (Snowy can end on leaving with only this missing: it's sometimes done somewhere else)
-  {key: "cats", name: "Cats", item: "cat_spawn_egg", area: ["village"], start: "first", end: "done", goals: "cats"},
-  {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], count: "nautilus", need: 8},
-  {key: "trident", name: "Trident", item: "trident", area: ["ocean"], count: "trident", need: 1},
-  {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "nether", "fortress", "bastion"], count: "beacon", need: 164},
-  {key: "oceanbiomes", name: "Ocean Biomes", item: "kelp", area: ["ocean"], split: false,
+  {key: "taiga", name: "Taiga", item: "spruce_log", area: ["taiga"], start: "enter", time: "area", end: "done",
+    goals: [["biome", "taiga"], ["biome", "taiga_hills"], ["biome", "giant_tree_taiga"], ["biome", "giant_tree_taiga_hills"], ["food", ["sweet_berries"]], ["bred", "fox"], ["bred", "wolf"]]},
+  // villages, the ocean and deserts: from the start of Midgame
+  {key: "cats", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]]},
+  {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "nautilus", need: 8},
+  {key: "trident", name: "Trident", item: "trident", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "trident", need: 1},
+  {key: "oceanbiomes", name: "Biomes", item: "kelp", area: ["ocean"], start: "mid", time: "clock", end: "done",
     goals: [["biome", "warm_ocean"], ["biome", "lukewarm_ocean"], ["biome", "deep_lukewarm_ocean"], ["biome", "cold_ocean"], ["biome", "deep_cold_ocean"], ["biome", "deep_frozen_ocean"]]},
-  {key: "oceanfood", name: "Ocean Food", item: "tropical_fish", area: ["ocean"], split: false,
-    goals: [["food", "cod"], ["food", "salmon"], ["food", "tropical_fish"], ["food", "pufferfish"], ["food", "cooked_cod"], ["food", "cooked_salmon"], ["food", "dried_kelp"]]},
-  {key: "godapple", name: "God Apple", item: "enchanted_golden_apple", area: ["desert"], count: "gapple", need: 1},
+  {key: "oceanfood", name: "Foods", item: "tropical_fish", area: ["ocean"], start: "mid", time: "clock", end: "done",
+    goals: [["food", ["cod"]], ["food", ["salmon"]], ["food", ["tropical_fish"]], ["food", ["pufferfish"]], ["food", ["cooked_cod"]], ["food", ["cooked_salmon"]], ["food", ["dried_kelp"]]]},
+  {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164},
+  {key: "godapple", name: "God Apple", item: "enchanted_golden_apple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
   {key: "tnt", name: "TNT", item: "tnt", area: ["desert"], count: "tnt", need: null},
-  {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: ["nether", "fortress"], start: "first", end: "done", count: "skulls", need: 3},
-  {key: "zoglin", name: "Zoglin", item: "zoglin_spawn_egg", area: ["nether", "bastion"], start: "first", end: "done",
+  // the Overworld's animals: while they're being done
+  {key: "horses", name: "Horses", item: "saddle", area: ["plains", "desert"], start: "first", time: "active", gap: 180000, end: "done",
+    goals: [["bred", "horse"], ["bred", "donkey"], ["bred", "mule"]]},
+  // the Nether
+  {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: ["fortress", "nether"], start: "first", time: "active", gap: 60000, end: "done",
+    count: "skulls", need: 3, activity: ["ws", "skulls"]},
+  {key: "zoglin", name: "Zoglin", item: "zoglin_spawn_egg", area: ["crimson"], start: "first", time: "active", gap: 180000, end: "done",
     goals: [["bred", "hoglin"], ["kill", "hoglin"], ["kill", "zoglin"]]},
-  {key: "striders", name: "Striders", item: "warped_fungus_on_a_stick", area: ["nether"], start: "first", end: "done",
+  {key: "striders", name: "Striders", item: "warped_fungus_on_a_stick", area: ["warped"], start: "first", time: "active", gap: 180000, end: "done",
     goals: [["adv", "nether/ride_strider"], ["bred", "strider"]]},
-  {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: ["nether"], start: "first", end: "done", count: "tears", need: 4,
-    goals: [["adv", "nether/uneasy_alliance"]]},
+  {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: ["nether", "crimson", "warped", "fortress", "bastion"], start: "first", time: "active", gap: 180000, end: "done",
+    count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
+  {key: "debris", name: "Debris", item: "ancient_debris", area: ["bastion"], count: "netherite", need: null},
 ];
 
 const SPLITS = [

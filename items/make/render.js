@@ -285,7 +285,8 @@ async function render(id) {
     return c;
   }
   const r = await resolve("item/" + (id === "ominous_banner" ? "white_banner" : id));
-  if (r.generated) { await drawGenerated(ctx, r, ITEM_TINT[id]); return c; }
+  // (flat plants tinted like the block: lily pad, grass, fern, vine)
+  if (r.generated) { await drawGenerated(ctx, r, ITEM_TINT[id] || (BLOCK_TINT[id] ? [BLOCK_TINT[id]] : null)); return c; }
   let quads = null;
   if (r.entity) quads = await entityQuads(id);
   else if (r.elements) quads = await jsonQuads(r, id);

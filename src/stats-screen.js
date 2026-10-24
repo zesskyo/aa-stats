@@ -29,6 +29,16 @@ const MC_COLS = [["mined", 3], ["broken", 4], ["crafted", 1], ["used", 2], ["pic
 const mcSprite = (u, v) => `<span class="mcsprite" style="background-position:-${u * 2}px -${v * 2}px"></span>`;
 
 // The card, on a run's page (filled in once its statistics have loaded)
+// The item a block is counted under (null: none, like fire or air)
+const MC_BLOCK_ITEM = {carrots: "carrot", potatoes: "potato", beetroots: "beetroot_seeds", wheat: "wheat_seeds", cocoa: "cocoa_beans", sweet_berry_bush: "sweet_berries",
+  redstone_wire: "redstone", tripwire: "string", kelp_plant: "kelp", tall_seagrass: "seagrass", weeping_vines_plant: "weeping_vines", twisting_vines_plant: "twisting_vines",
+  bamboo_sapling: "bamboo", melon_stem: "melon_seeds", attached_melon_stem: "melon_seeds", pumpkin_stem: "pumpkin_seeds", attached_pumpkin_stem: "pumpkin_seeds"};
+const mcItemOf = (id, db) => {
+  const idx = db && db.index || {};
+  if (id in idx && id !== "air") return id;
+  const to = MC_BLOCK_ITEM[id] || id.replace(/_wall_(torch|sign|banner|head|skull|fan)$/, "_$1").replace(/^wall_torch$/, "torch");
+  return to in idx ? to : null;
+};
 const statsScreenShell = run => run.meta && (run.meta.stats || run.meta.statsData) ? `<section class="mcstats" id="mcStats" aria-label="Statistics"><div class="mctitle">Statistics</div><div class="mclist" id="mcList"></div><div class="mcbtns" id="mcBtns"></div></section>` : "";
 
 async function drawStatsScreen(run) {
@@ -55,8 +65,13 @@ async function drawStatsScreen(run) {
     list.innerHTML = `<div class="mcgen">${rows.map(([n, v], i) => `<div class="mcrow${i % 2 ? " dim" : ""}"><span>${esc(n)}</span><span>${esc(v)}</span></div>`).join("")}</div>`;
   } else if (mcTab === "items") {
     const db = await mcItems();
-    const ids = new Set(MC_COLS.flatMap(([c]) => Object.keys(cat(c)).map(short)));
-    let rows = [...ids].map(id => ({id, v: MC_COLS.map(([c]) => cat(c)["minecraft:" + id]), name: db && db.names && db.names[id] || titleCase(id.replace(/_/g, " "))}));
+    // (blocks with no item of their own are counted with their item, like the game does: wall torches with torches,
+    // carrots with carrots; those with none, like fire, aren't shown)
+    const vals = new Map();
+    MC_COLS.forEach(([c], k) => { for (const [key, n] of Object.entries(cat(c))) {
+      const id = mcItemOf(short(key), db); if (!id) continue;
+      const v = vals.get(id) || vals.set(id, []).get(id); v[k] = (v[k] || 0) + n; } });
+    let rows = [...vals].map(([id, v]) => ({id, v: MC_COLS.map((_, k) => v[k]), name: db && db.names && db.names[id] || titleCase(id.replace(/_/g, " "))}));
     // (sorted like the game: a column clicked once, most first; again, least first)
     if (mcSort) rows.sort((a, b) => ((b.v[mcSort.col] || 0) - (a.v[mcSort.col] || 0)) * mcSort.dir || a.name.localeCompare(b.name));
     else rows.sort((a, b) => a.name.localeCompare(b.name));

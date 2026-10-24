@@ -175,7 +175,9 @@ function findSubSplits(run, splits, {anyEnd}) {
 
 /*
  * The Midgame checklist (MIDGAME in config.js), as the run stands at its end (or, live, now). For each entry:
- *   {key, name, item, area, split, start, end, complete, dur, since, done, have, need, parts, missing}
+ *   {key, about, name, item, area, split, why, start, end, complete, dur, since, done, have, need, parts, missing}
+ * why: why it has no time in this run: "untimed" (never timed), "before" (done before it started), "early" (part of
+ * it done beforehand, see notBefore), "post" (finished in Post-endgame, or not at all); null otherwise
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
  * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
@@ -187,7 +189,7 @@ const LEAVE_AFTER = 10000, NEAR = 10000;
 const nameOf = x => titleCase(String(x).replace(/_/g, " "));
 function findMidgame(run, splits) {
   const st = run.st || {}, now = run.finalIgt;
-  const midStart = splits[3].start ?? splits[2].end;
+  const midStart = splits[3].start ?? splits[2].end, postStart = splits[6].start;
   const areas = st.areas || [];
   const crit = {};
   for (const e of run.events) { const k = e[2] + "|" + e[3]; if (!(k in crit)) crit[k] = e[0]; }
@@ -225,7 +227,7 @@ function findMidgame(run, splits) {
   const sum = (segs, to) => segs.reduce((a, [x, y]) => a + Math.max(0, Math.min(y ?? to, to) - x), 0);
   const out = MIDGAME.map(m => {
     const cats = (m.goals || []).some(g => g[0] === "cats");
-    const goals = (m.goals || []).filter(g => g[0] !== "cats").map(([kind, x]) => GOAL[kind](x));
+    const goals = (m.goals || []).filter(g => g[0] !== "cats").map(([kind, x]) => [...GOAL[kind](x), kind]);
     if (cats) { const ts = Object.keys(crit).filter(k => k.startsWith("husbandry/complete_catalogue|")).map(k => crit[k]).sort((a, b) => a - b);
       const need = REQ["husbandry/complete_catalogue"]; for (let i = 0; i < need; i++) goals.push([ts[i] ?? null, "Cats", "item:cod"]); }
     const xs = m.count ? series(m.count) : [];
@@ -242,7 +244,7 @@ function findMidgame(run, splits) {
       ...[...groups].map(([name, g]) => [name, g.have, g.need, g.icons])].filter(p => p[1] < p[2]);
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
-    const e = {key: m.key, name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
+    const e = {key: m.key, about: m.about || "", why: m.start ? null : "untimed", name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
       parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n)};
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     // when something was done for it (in Midgame and after)
@@ -262,12 +264,17 @@ function findMidgame(run, splits) {
       const g = segs[segs.length - 1]; if (g && now - g[1] <= m.gap) g[1] = null;
     } else segs = [[midStart, null]];
     // (not started; or everything was done before it started, or before Midgame: no split for it in this run)
-    if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) return e;
-    e.start = m.start === "mid" ? midStart : segs[0][0];
+    if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) { if (done != null) e.why = "before"; return e; }
+    const start = m.start === "mid" ? midStart : segs[0][0];
+    // (part of it done before it started, like stews made beforehand; or it went on into Post-endgame: no split)
+    if (m.notBefore && goals.some(g => g[3] === m.notBefore && g[0] != null && g[0] < start)) { e.why = "early"; return e; }
+    if (postStart != null && start >= postStart) { e.why = "post"; return e; }
+    e.start = start;
     const leaveAfter = t => { if (t == null) return null; const s = segs.find(([a, b]) => b != null && b >= t); return s ? s[1] : null; };
     e.end = m.end === "done" ? done : m.end === "leave" ? leaveAfter(done)
       : [done, leaveAfter(coreDone)].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
     if (e.end != null && e.end < e.start) e.end = e.start;
+    if (postStart != null && (e.end == null || e.end > postStart)) { e.start = e.end = null; e.why = done != null ? "post" : null; return e; }
     e.complete = e.end != null && done != null && done <= e.end;
     const to = e.end ?? now;
     e.dur = sum(segs.map(([a, b]) => [Math.max(a, e.start), b == null ? null : Math.min(b, to)]).filter(([a, b]) => b == null || b >= a), to);

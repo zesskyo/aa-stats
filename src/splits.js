@@ -135,8 +135,8 @@ const splitMark = (p, i) => i <= 1 ? p.end : p.start;
  *   Any%       Nether → 1st structure (Bastion or Fortress, whichever came first) → 2nd structure → Blind (back to the
  *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (from entering it to the dragon)
  *   Outer End  Elytra → End Leave
- *   Endgame    HDWGH Setup (until Voluntary Exile) → Raid (Hero of the Village) → Monument (How Did We Get Here) →
- *              The End Again
+ *   Endgame    Setup (for How Did We Get Here, until Voluntary Exile) → Raid (Hero of the Village) → Monument (How Did We
+ *              Get Here) → End Again
  */
 function findSubSplits(run, splits, {anyEnd}) {
   const dims = run.dims.filter(d => d[2] !== "live");   // (the timer adds a pretend dimension change "now")
@@ -159,9 +159,9 @@ function findSubSplits(run, splits, {anyEnd}) {
   const loot = advTime(run, "end/elytra") ?? advTime(run, "end/find_end_city"), left = loot == null ? null : dims.find(d => d[0] > loot && d[1] !== "e");
   sub(1, [["Elytra", advTime(run, "end/elytra")], ["End Leave", left ? left[0] : null]]);
   sub(5, [
-    ["HDWGH Setup", advTime(run, "adventure/voluntary_exile")],
+    ["Setup", advTime(run, "adventure/voluntary_exile")],
     ["Raid", advTime(run, "adventure/hero_of_the_village")],
     ["Monument", advTime(run, "nether/all_effects")],
-    ["The End Again", advTime(run, "end/respawn_dragon")],
+    ["End Again", advTime(run, "end/respawn_dragon")],
   ]);
 }

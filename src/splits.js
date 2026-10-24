@@ -180,7 +180,7 @@ function findSubSplits(run, splits, {anyEnd}) {
  *   {key, about, name, item, area, split, why, start, end, complete, dur, since, done, have, need, parts, missing}
  * why: why it has no time in this run: "untimed" (never timed), "before" (done before Midgame), "outside" (done without
  * a visit to its area), "early" (part of it done beforehand, see notBefore), "post" (finished in Post-endgame),
- * "nodata" (an old log, with no biomes); null otherwise. info: rates to show with it (see info in config.js)
+ * "nodata" (an old log, with no biomes); null otherwise. last: when something was last done for it. info: rates to show with it (see info in config.js)
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
  * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
@@ -205,7 +205,7 @@ function findMidgame(run, splits) {
     food: xs => [first(xs.flatMap(x => [crit["husbandry/balanced_diet|" + x], held[x]])), "Foods", goalIcon("food", xs)],
     bred: x => [crit["husbandry/bred_all_animals|" + x], "Breeds", goalIcon("bred", x)],
     kill: x => [crit["adventure/kill_all_mobs|" + x], "Kills", goalIcon("kill", x)],
-    adv: x => [advTime(run, x), ADV[x] || x, goalIcon("adv", x)],
+    adv: x => [advTime(run, x), SHORT_ADV[x] || ADV[x] || x, goalIcon("adv", x)],
     nbiome: x => [crit["nether/explore_nether|" + x], "Biomes", goalIcon("nbiome", x)],
   };
   // counters: [time, how many] as it changes (beacon blocks and netherite: the most held so far, as they get used up)
@@ -255,7 +255,7 @@ function findMidgame(run, splits) {
     const cl = goals.filter(g => g[1] === "Cats"), cHave = cl.filter(g => g[0] != null).length;
     if (m.count && v < target) e.left.push(`${m.countName || m.name} ${v}/${target}`);
     if (cl.length && cHave < cl.length) e.left.push(`Cats ${cHave}/${cl.length}`);
-    for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
+    for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? SHORT_ADV[x] || ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
     // (rates the timer shows with it, as [name, icon, value]: since Midgame started)
     const since = arr => (arr || []).filter(t => t >= (midStart ?? Infinity)).length;
     if (m.info === "tnt") { const tnt = since(st.tnt), deb = since(st.debrisTnt || st.debris); e.info = [[deb ? "TNT per debris" : "TNT used", "item:tnt", deb ? (tnt / deb).toFixed(1) : String(tnt)]]; }
@@ -267,12 +267,13 @@ function findMidgame(run, splits) {
       if (!sk || !sk.segs.length || (done != null && sk.end <= midStart)) { if (done != null) e.why = "before"; return e; }
       if (postStart != null && (done == null || sk.end > postStart)) { e.why = done != null ? "post" : null; return e; }
       e.start = sk.start; e.end = done != null ? sk.end : null; e.complete = done != null; e.dur = sk.dur;
-      const g = sk.segs[sk.segs.length - 1];
+      const g = sk.segs[sk.segs.length - 1]; e.last = g[1];
       if (done == null && now - g[1] <= RULES.skullIdleGap) e.since = g[1];
       return e;
     }
     // when something was done for it (in Midgame and after)
     const progress = [...goals.map(g => g[0]), ...xs.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);
+    e.last = progress.length ? progress[progress.length - 1] : null;
     // the end: everything done; or leaving once it is (Mushroom Island); or either (Snowy), leaving once all but the optional is
     const core = goals.filter(g => !(m.optional || []).includes(g[1]));
     const coreDone = core.length && core.every(g => g[0] != null) && (!m.count || reached != null) ? Math.max(...core.map(g => g[0]), reached ?? 0) : null;
@@ -319,6 +320,8 @@ function findMidgame(run, splits) {
 
 // The icon for a goal of the Midgame checklist: the stats site's own for biomes ("at:"), mobs ("mh:") and animals
 // ("2x2:"), from icons/adventuring time, monsters hunted and two by two; an item otherwise ("item:", from the item atlas)
+// (shorter names for advancements in the checklist, where the long ones don't fit)
+const SHORT_ADV = {"nether/return_to_sender": "Sender"};
 const ADV_ITEMS = {"nether/explore_nether|nether_wastes": "netherrack", "nether/explore_nether|crimson_forest": "crimson_nylium", "nether/explore_nether|warped_forest": "warped_nylium",
   "nether/explore_nether|soul_sand_valley": "soul_sand", "nether/explore_nether|basalt_deltas": "basalt","story/cure_zombie_villager": "golden_apple", "nether/return_to_sender": "fire_charge", "nether/uneasy_alliance": "ghast_tear", "nether/ride_strider": "warped_fungus_on_a_stick"};
 const goalIcon = (kind, x) => kind === "biome" ? "at:" + x : kind === "kill" ? "mh:" + x : kind === "bred" ? "2x2:" + x

@@ -129,11 +129,12 @@ const splitMark = (p, i) => i <= 1 ? p.end : p.start;
 
 /*
  * Sub-splits: steps inside a split, each done when its event happens, in any order (AA No Reset often changes the
- * order). Each split gets subs: [{name, t}], where t is when the step was done (null: not done, or not inside the split).
- * The last step of a split is the split's own end.
+ * order). Each split gets subs: [{name, item, t}], where t is when the step was done (null: not done, or not inside the
+ * split) and item is the Minecraft item shown with it (SUB_ITEMS in config.js). Each step is named after what's done in
+ * it, and the last one ends with the split.
  *   Any%       Nether → 1st structure (Bastion or Fortress, whichever came first) → 2nd structure → Blind (back to the
- *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (entering it) → Dragon
- *   Outer End  Elytra → Leave End
+ *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (from entering it to the dragon)
+ *   Outer End  Elytra → End Leave
  *   Endgame    HDWGH Setup (until Voluntary Exile) → Raid (Hero of the Village) → Monument (How Did We Get Here) →
  *              The End Again
  */
@@ -143,7 +144,7 @@ function findSubSplits(run, splits, {anyEnd}) {
   // (a split that hasn't ended yet has no start either: Any% starts at 0, Outer End when Any% ended)
   const startOf = i => splits[i].start ?? (i === 0 ? 0 : i === 1 ? anyEnd : null);
   const inside = (i, t) => t != null && startOf(i) != null && t >= startOf(i) && (splits[i].end == null || t <= splits[i].end) ? t : null;
-  const sub = (i, list) => { splits[i].subs = list.map(([name, t]) => ({name, t: inside(i, t)})); };
+  const sub = (i, list) => { splits[i].subs = list.map(([name, t]) => ({name, item: SUB_ITEMS[name] || null, t: inside(i, t)})); };
   const bastion = advTime(run, "nether/find_bastion"), fortress = advTime(run, "nether/find_fortress");
   const firstFortress = fortress != null && (bastion == null || fortress < bastion);
   sub(0, [
@@ -152,12 +153,11 @@ function findSubSplits(run, splits, {anyEnd}) {
     [firstFortress ? "Bastion" : "Fortress", firstFortress ? bastion : fortress],
     ["Blind", dimAfter(advTime(run, "nether/obtain_blaze_rod"), "o")],
     ["Stronghold", advTime(run, "story/follow_ender_eye")],
-    ["End", advTime(run, "story/enter_the_end")],
-    ["Dragon", anyEnd],
+    ["End", anyEnd],
   ]);
   // (leaving the End for real, not the timer's pretend "now")
   const loot = advTime(run, "end/elytra") ?? advTime(run, "end/find_end_city"), left = loot == null ? null : dims.find(d => d[0] > loot && d[1] !== "e");
-  sub(1, [["Elytra", advTime(run, "end/elytra")], ["Leave End", left ? left[0] : null]]);
+  sub(1, [["Elytra", advTime(run, "end/elytra")], ["End Leave", left ? left[0] : null]]);
   sub(5, [
     ["HDWGH Setup", advTime(run, "adventure/voluntary_exile")],
     ["Raid", advTime(run, "adventure/hero_of_the_village")],

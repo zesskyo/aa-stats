@@ -74,6 +74,14 @@ const MICON = {
 
 // ---------- Splits, in order. Names are shown on the site. ----------
 // How each split is detected lives in splits.js.
+// The item shown next to each sub-split (see findSubSplits in splits.js): its name in Minecraft, as in items/items.json
+const SUB_ITEMS = {
+  "Nether": "netherrack", "Bastion": "gilded_blackstone", "Fortress": "nether_bricks", "Blind": "blaze_rod",
+  "Stronghold": "ender_eye", "End": "dragon_head",
+  "Elytra": "elytra", "End Leave": "ender_pearl",
+  "HDWGH Setup": "brewing_stand", "Raid": "crossbow", "Monument": "prismarine_bricks", "The End Again": "end_crystal",
+};
+
 const SPLITS = [
   {name: "Any%",         icon: "dragon"},
   {name: "Outer End",    icon: "chorus"},

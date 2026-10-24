@@ -129,8 +129,9 @@ const splitMark = (p, i) => i <= 1 ? p.end : p.start;
 
 /*
  * Sub-splits: steps inside a split, each done when its event happens, in any order (AA No Reset often changes the
- * order). Each split gets subs: [{name, item, t}], where t is when the step was done (null: not done, or not inside the
- * split) and item is the Minecraft item shown with it (SUB_ITEMS in config.js). Each step is named after what's done in
+ * order). Each split gets subs: [{name, item, t, dur}], where t is when the step was done (null: not done, or not inside
+ * the split), dur how long it took (from the step before it that was done earlier, or from the start of the split) and
+ * item the Minecraft item shown with it (SUB_ITEMS in config.js). Each step is named after what's done in
  * it, and the last one ends with the split.
  *   Any%       Nether → 1st structure (Bastion or Fortress, whichever came first) → 2nd structure → Blind (back to the
  *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (from entering it to the dragon)
@@ -144,7 +145,10 @@ function findSubSplits(run, splits, {anyEnd}) {
   // (a split that hasn't ended yet has no start either: Any% starts at 0, Outer End when Any% ended)
   const startOf = i => splits[i].start ?? (i === 0 ? 0 : i === 1 ? anyEnd : null);
   const inside = (i, t) => t != null && startOf(i) != null && t >= startOf(i) && (splits[i].end == null || t <= splits[i].end) ? t : null;
-  const sub = (i, list) => { splits[i].subs = list.map(([name, t]) => ({name, item: SUB_ITEMS[name] || null, t: inside(i, t)})); };
+  const sub = (i, list) => {
+    const subs = splits[i].subs = list.map(([name, t]) => ({name, item: SUB_ITEMS[name] || null, t: inside(i, t), dur: null}));
+    subs.forEach((x, j) => { if (x.t != null) x.dur = x.t - Math.max(startOf(i), ...subs.slice(0, j).map(y => y.t).filter(t => t != null && t <= x.t)); });
+  };
   const bastion = advTime(run, "nether/find_bastion"), fortress = advTime(run, "nether/find_fortress");
   const firstFortress = fortress != null && (bastion == null || fortress < bastion);
   sub(0, [

@@ -14,9 +14,10 @@
 function parseLog(text, filename) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: only if one was typed in
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
-  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false};
+  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null};
   const tot = {}, clock = [];
   const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [], dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
+  let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let killedBy = null; const hits = [];   // for working out how each death happened
   const TRACK = {
     "minecraft.used:minecraft.tnt": "tnt", "minecraft.mined:minecraft.ancient_debris": "debris",
@@ -47,7 +48,9 @@ function parseLog(text, filename) {
     if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null") && !line.includes("wither_skeleton_skull") && !(skHeld.length && skHeld[skHeld.length - 1][1] > 0)
       && !line.includes("ancient_debris") && !line.includes("netherite_scrap") && !dbHeld && !line.includes("minecraft:riptide") && !ripHeld
       && !(st.channeling === false && line.includes("minecraft:channeling"))) continue;
-    if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots"].includes(type)) continue;
+    // (biome lines are only read in the End until the outer End is reached)
+    if (type === "biome" && (dim !== "e" || st.outerEnd != null)) continue;
+    if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots","biome"].includes(type)) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
     // (times are SpeedRunIGT's retimed IGT, the IGT rounded to game ticks, which is what runs are timed with; logs
@@ -58,6 +61,7 @@ function parseLog(text, filename) {
     else if (type === "dimension") {
       const x = String(d.dimension || "").replace("minecraft:", "");
       dim = x === "the_nether" ? "n" : x === "the_end" ? "e" : "o";
+      onIsland = false;
       dims.push([igt, dim]);
     } else if (type === "advancement") {
       if (!d.id || d.id.startsWith("minecraft:recipes/")) continue;
@@ -104,6 +108,13 @@ function parseLog(text, filename) {
         if (lr && igt - lr[0] < 2000) lr[1] = d.value; else st.rack.push([igt, d.value]);
       }
       if (/^minecraft\.used:minecraft\.[a-z_]*shulker_box$/.test(k)) tot.shulkerPlaced = (tot.shulkerPlaced || 0) + diff;
+    } else if (type === "biome") {
+      // the first time in the outer End: any End biome but the central island's is over 1024 blocks out, past the
+      // gateway (Remote Getaway is sometimes only given later; logs from older Hermes have no biome lines)
+      // (the first biome line after arriving is from where they were in the Overworld: it only counts once they've been
+      // on the central island)
+      if (d.biome === "minecraft:the_end") onIsland = true;
+      else if (d.biome && onIsland) st.outerEnd = igt;
     } else if (type === "inside_structures") {
       const now = (d.structures || []).includes("desert_pyramid");
       if (now && !inDesert) st.desert.push(igt);

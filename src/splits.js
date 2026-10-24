@@ -1,7 +1,8 @@
 /*
  * splits.js — works out when each split of a run starts and ends.
  *
- *   Any%          start → dragon killed ("Free the End"; if that only came later, "Remote Getaway" instead)
+ *   Any%          start → dragon killed ("Free the End"; if that only came later, going through the gateway: reaching
+ *                 the outer End, or "Remote Getaway" in logs without biomes)
  *   Outer End     → leaving the End after getting elytra (or finding an End City)
  *   Enchanting    → last enchanting-table pickup of the first pickup session after leaving the End
  *   Midgame       → debris starts (or Endgame starts early, see below)
@@ -29,7 +30,7 @@ function findSplits(run, comp) {
   const st = run.st || {};
 
   // Any%
-  const kd = advTime(run, "end/kill_dragon"), gw = advTime(run, "end/enter_end_gateway");
+  const kd = advTime(run, "end/kill_dragon"), gw = st.outerEnd ?? advTime(run, "end/enter_end_gateway");
   const anyUsesGateway = kd == null || (gw != null && kd > gw);
   const anyEnd = anyUsesGateway ? gw : kd;
 
@@ -119,8 +120,46 @@ function findSplits(run, comp) {
       dur: ok ? segs.reduce((a, g) => a + g[1] - g[0], 0) : null,
     };
   });
+  findSubSplits(run, splits, {anyEnd});
   return {splits, anyEnd, endAgain};
 }
 
 // The time shown for a split: Any% and Outer End show when they ended, the rest when they started
 const splitMark = (p, i) => i <= 1 ? p.end : p.start;
+
+/*
+ * Sub-splits: steps inside a split, each done when its event happens, in any order (AA No Reset often changes the
+ * order). Each split gets subs: [{name, t}], where t is when the step was done (null: not done, or not inside the split).
+ * The last step of a split is the split's own end.
+ *   Any%       Nether → 1st structure (Bastion or Fortress, whichever came first) → 2nd structure → Blind (back to the
+ *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (entering it) → Dragon
+ *   Outer End  Elytra → Leave End
+ *   Endgame    HDWGH Setup (until Voluntary Exile) → Raid (Hero of the Village) → Monument (How Did We Get Here) →
+ *              The End Again
+ */
+function findSubSplits(run, splits, {anyEnd}) {
+  const dims = run.dims.filter(d => d[2] !== "live");   // (the timer adds a pretend dimension change "now")
+  const dimAfter = (t, x) => { if (t == null) return null; const d = dims.find(d => d[0] > t && d[1] === x); return d ? d[0] : null; };
+  const inside = (i, t) => t != null && splits[i].start != null && t >= splits[i].start && (splits[i].end == null || t <= splits[i].end) ? t : null;
+  const sub = (i, list) => { splits[i].subs = list.map(([name, t]) => ({name, t: inside(i, t)})); };
+  const bastion = advTime(run, "nether/find_bastion"), fortress = advTime(run, "nether/find_fortress");
+  const firstFortress = fortress != null && (bastion == null || fortress < bastion);
+  sub(0, [
+    ["Nether", dimAfter(0, "n")],
+    [firstFortress ? "Fortress" : "Bastion", firstFortress ? fortress : bastion],
+    [firstFortress ? "Bastion" : "Fortress", firstFortress ? bastion : fortress],
+    ["Blind", dimAfter(advTime(run, "nether/obtain_blaze_rod"), "o")],
+    ["Stronghold", advTime(run, "story/follow_ender_eye")],
+    ["End", advTime(run, "story/enter_the_end")],
+    ["Dragon", anyEnd],
+  ]);
+  // (leaving the End for real, not the timer's pretend "now")
+  const loot = advTime(run, "end/elytra") ?? advTime(run, "end/find_end_city"), left = loot == null ? null : dims.find(d => d[0] > loot && d[1] !== "e");
+  sub(1, [["Elytra", advTime(run, "end/elytra")], ["Leave End", left ? left[0] : null]]);
+  sub(5, [
+    ["HDWGH Setup", advTime(run, "adventure/voluntary_exile")],
+    ["Raid", advTime(run, "adventure/hero_of_the_village")],
+    ["Monument", advTime(run, "nether/all_effects")],
+    ["The End Again", advTime(run, "end/respawn_dragon")],
+  ]);
+}

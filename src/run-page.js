@@ -16,6 +16,7 @@ function renderRunPage() {
     ${runHeader(run, d)}
     ${d.category === "Invalid" ? `<div class="card" style="border-color:var(--bad)"><b>${esc(T.invalidRun)}</b> <span class="muted">${esc(missingText(d, 99))}. ${esc(T.invalidRunNote)}</span></div>` : ""}
     ${splitsCard(d)}
+    ${subSplitsCard(d)}
     ${progressCardShell()}
     ${meta.path ? travelCardShell() : ""}
     <section class="card"><h2 style="margin-bottom:14px">${esc(T.runStatsTitle)}</h2>${runStatCards(run)}</section>
@@ -116,6 +117,28 @@ function splitsCard(d) {
       <div class="grid-splits">${cards}</div>
     </section>`;
 }
+
+// ---------- Sub-splits (Any%, Outer End, Endgame) and the Midgame checklist (see splits.js) ----------
+// Each step: its icon and name, how long it took, and when it was done
+function subSplitsCard(d) {
+  const row = (icon, name, a, b) => `<div class="subrow"><span class="subic">${ic(icon, 20)}</span><span class="subname">${esc(name)}</span><span class="mono">${a}</span><span class="mono muted">${b}</span></div>`;
+  const groups = d.splits.map((p, i) => ({p, i})).filter(x => x.p.subs && x.p.subs.length).map(({p}) => `
+    <div class="subgroup"><div class="subhead">${ic(p.icon)}<b>${esc(p.name)}</b></div>
+      ${p.subs.map(x => row(itemIcon(x.item), x.name, x.dur != null ? fmtShort(x.dur) : "—", x.t != null ? fmt(x.t, 0) : "—")).join("")}
+    </div>`).join("");
+  const mid = d.splits[3].mid;
+  const list = mid ? mid.sections.filter(x => x.split || x.need) : [];
+  const checklist = list.length ? `
+    <div class="subgroup wide"><div class="subhead">${ic(d.splits[3].icon)}<b>${esc(T.checklistTitle)}</b></div>
+      ${list.map(x => row(itemIcon(x.item), x.name,
+        x.split && x.complete ? fmtShort(x.dur) : x.done != null ? (x.split ? "—" : "✓") : esc(T.notDone) + (x.need > 1 ? ` ${x.have}/${x.need}` : ""),
+        x.done != null ? fmt(x.done, 0) : "")).join("")}
+    </div>` : "";
+  if (!groups && !checklist) return "";
+  return `<section class="card" style="display:flex;flex-direction:column;gap:14px"><h2>${esc(T.subSplitsTitle)}</h2><div class="subgrid">${groups}${checklist}</div></section>`;
+}
+// (a sub-split's or checklist item's icon: an item, "item:<name>"; or one of the site's own, like "mh:zoglin")
+const itemIcon = it => !it ? "" : /^(at|mh|2x2):/.test(it) ? it : "item:" + it;
 
 // ---------- Small cards: Debris / Skulls graphs and Rare biomes ----------
 const miniCard = (title, dur, id, empty) => `<section class="card" style="display:flex;flex-direction:column;gap:10px">

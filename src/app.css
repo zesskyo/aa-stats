@@ -449,3 +449,18 @@ th.hasnote:hover .notepop,th.hasnote:focus-within .notepop{display:none}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn.primary:disabled{opacity:.45;cursor:default}
 .viewcard.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+
+/* Sub-splits on a run's page, and a split's page */
+.subgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.subgroup{display:flex;flex-direction:column;gap:4px}
+.subgroup.wide{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));column-gap:24px}
+.subgroup.wide .subhead{grid-column:1/-1}
+.subhead{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.subrow{display:grid;grid-template-columns:22px 1fr auto 76px;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}
+.subrow .mono{text-align:right}
+.subic img{image-rendering:pixelated}
+.splitpick{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.splitpick .chip{display:inline-flex;align-items:center;gap:6px}
+.splitpick .chip.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+tr.sumrow td{background:rgba(127,127,127,.08)}
+td.best{color:var(--gold);font-weight:700}

@@ -33,7 +33,7 @@ const read = p => fs.readFileSync(p, "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "run-switcher.js", "compare.js", "editor.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "run-switcher.js", "compare.js", "editor.js", "split-page.js", "app.js",
 ];
 // (and the ghost and inventory readers, for a run looked at on the Compare page)
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n")
@@ -216,6 +216,21 @@ for (const dir of [inCode("icons"), inSite("icons")]) if (fs.existsSync(dir)) fo
   const m = /^([a-z0-9_]+)\.(png|gif|webp|jpe?g)$/i.exec(f); if (!m) continue;
   if (m[1].startsWith("st_")) { iconFiles.set(f, path.join(dir, f)); icons[m[1]] = "icons/" + f; continue; }
   icons[m[1]] = `data:${MIME[m[2].toLowerCase()]};base64,` + fs.readFileSync(path.join(dir, f)).toString("base64");
+}
+
+// the sub-splits' and the Midgame checklist's icons (config.js' SUB_ITEMS and MIDGAME), as "item:<item>" (cut out of the
+// item atlas; "item:icon:<name>" is one of the icons above) or as they're named ("mh:<mob>": icons/monsters hunted/…)
+{
+  const {SUB_ITEMS, MIDGAME} = new Function(read(inCode("src/config.js")) + "\nreturn { SUB_ITEMS, MIDGAME };")();
+  const items = JSON.parse(read(inCode("items/items.json"))), atlas = readPng(fs.readFileSync(inCode("items/atlas.png")));
+  const DIRS = {"at:": "adventuring time", "mh:": "monsters hunted", "2x2:": "two by two"};
+  for (const id of new Set([...Object.values(SUB_ITEMS), ...MIDGAME.map(m => m.item)])) {
+    const prefix = Object.keys(DIRS).find(p => id.startsWith(p)), key = prefix ? id : "item:" + id;
+    if (icons[key]) continue;
+    if (prefix) icons[key] = "data:image/png;base64," + fs.readFileSync(path.join(inCode("icons"), DIRS[prefix], id.slice(prefix.length) + ".png")).toString("base64");
+    else if (id.startsWith("icon:")) icons[key] = icons[id.slice(5)];
+    else if (items.index[id] != null) icons[key] = "data:image/png;base64," + writePng(pickSquares(atlas, items.size, 1, [items.index[id]])).toString("base64");
+  }
 }
 
 // 5) assemble the page

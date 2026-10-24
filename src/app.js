@@ -31,17 +31,20 @@ document.getElementById("app").innerHTML = `
 <main id="view-run" class="hidden"></main>
 <main id="view-compare" class="hidden"></main>
 <main id="view-edit" class="hidden"></main>
+<main id="view-split" class="hidden"></main>
 <footer class="foot" id="siteFoot"></footer>`;
 
-// Switch tab ("runs" = Overview, "run" = Stats, "compare" = Compare, "edit" = adding/editing a run), optionally opening a particular run
+// Switch tab ("runs" = Overview, "run" = Stats, "compare" = Compare, "edit" = adding/editing a run, "split" = one split's
+// page, state.split), optionally opening a particular run
 function go(view, runId) {
   state.view = view; if (runId) state.runId = runId;
   const bar = $("#runbar"); if (bar) bar.classList.remove("show");
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
-  ["runs", "run", "compare", "edit"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== view));
+  ["runs", "run", "compare", "edit", "split"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== view));
   render(); window.scrollTo(0, 0);
 }
-const render = () => state.view === "runs" ? renderOverview() : state.view === "compare" ? renderCompare() : state.view === "edit" ? renderEditor() : renderRunPage();
+const render = () => state.view === "runs" ? renderOverview() : state.view === "compare" ? renderCompare() : state.view === "edit" ? renderEditor()
+  : state.view === "split" ? renderSplitPage() : renderRunPage();
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
 
 // Clicking (or pressing Enter on) a row in the runs table opens that run

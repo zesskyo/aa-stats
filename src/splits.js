@@ -134,8 +134,9 @@ const splitMark = (p, i) => i <= 1 ? p.end : p.start;
  * the split), dur how long it took (from the step before it that was done earlier, or from the start of the split) and
  * item the Minecraft item shown with it (SUB_ITEMS in config.js). Each step is named after what's done in
  * it, and the last one ends with the split.
- *   Any%       Nether → 1st structure (Bastion or Fortress, whichever came first) → 2nd structure → Blind (back to the
- *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (entering it) → Dragon
+ *   Any%       Overworld (until the Nether) → Nether (until the 1st structure) → 1st structure (Bastion or Fortress,
+ *              whichever was found first; until the 2nd is found) → 2nd structure (until back in the Overworld with blaze
+ *              rods) → Blind (until Eye Spy) → Stronghold (until entering the End) → End (until the dragon dies)
  *   Outer End  Elytra → End Leave
  *   Endgame    Setup (for How Did We Get Here, until Voluntary Exile) → Raid (Hero of the Village) → Monument (mining
  *              fatigue from an elder guardian) → HDWGH (How Did We Get Here) → End Again
@@ -152,14 +153,15 @@ function findSubSplits(run, splits, {anyEnd}) {
   };
   const bastion = advTime(run, "nether/find_bastion"), fortress = advTime(run, "nether/find_fortress");
   const firstFortress = fortress != null && (bastion == null || fortress < bastion);
+  // (each one is the time spent on it: it ends when the next one starts)
   sub(0, [
-    ["Nether", dimAfter(0, "n")],
-    [firstFortress ? "Fortress" : "Bastion", firstFortress ? fortress : bastion],
-    [firstFortress ? "Bastion" : "Fortress", firstFortress ? bastion : fortress],
-    ["Blind", dimAfter(advTime(run, "nether/obtain_blaze_rod"), "o")],
-    ["Stronghold", advTime(run, "story/follow_ender_eye")],
-    ["End", advTime(run, "story/enter_the_end")],
-    ["Dragon", anyEnd],
+    ["Overworld", dimAfter(0, "n")],
+    ["Nether", firstFortress ? fortress : bastion],
+    [firstFortress ? "Fortress" : "Bastion", firstFortress ? bastion : fortress],
+    [firstFortress ? "Bastion" : "Fortress", dimAfter(advTime(run, "nether/obtain_blaze_rod"), "o")],
+    ["Blind", advTime(run, "story/follow_ender_eye")],
+    ["Stronghold", advTime(run, "story/enter_the_end")],
+    ["End", anyEnd],
   ]);
   // (leaving the End for real, not the timer's pretend "now")
   const loot = advTime(run, "end/elytra") ?? advTime(run, "end/find_end_city"), left = loot == null ? null : dims.find(d => d[0] > loot && d[1] !== "e");

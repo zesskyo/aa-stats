@@ -77,8 +77,8 @@ const MICON = {
 // The item shown next to each sub-split (see findSubSplits in splits.js): its name in Minecraft, as in items/items.json,
 // or "icon:<name>" for one of the site's own icons (icons/<name>.png)
 const SUB_ITEMS = {
-  "Nether": "netherrack", "Bastion": "gilded_blackstone", "Fortress": "nether_bricks", "Blind": "blaze_rod",
-  "Stronghold": "ender_eye", "End": "end_stone", "Dragon": "icon:dragon",
+  "Overworld": "grass_block", "Nether": "netherrack", "Bastion": "gilded_blackstone", "Fortress": "nether_bricks", "Blind": "blaze_rod",
+  "Stronghold": "ender_eye", "End": "end_stone",
   "Elytra": "elytra", "End Leave": "ender_pearl",
   "Setup": "brewing_stand", "Raid": "icon:ominous_banner", "Monument": "prismarine_bricks", "HDWGH": "potion", "End Again": "end_crystal",
 };

@@ -10,7 +10,7 @@ function subDefs(i) {
   if (i === 3) return MIDGAME.filter(m => m.start).map(m => ({key: m.key, name: m.name, icon: itemIcon(m.item), about: m.about || "",
     f: p => { const x = p.mid && p.mid.sections.find(y => y.key === m.key); return x && x.complete ? x.dur : null; }}));
   const ref = validRuns().map(r => derive(r).splits[i]).find(p => p.subs);
-  return ref ? ref.subs.map((x, j) => ({key: j, name: i === 0 && (j === 1 || j === 2) ? T.nthStructure[j - 1] : x.name, icon: itemIcon(x.item), about: "",
+  return ref ? ref.subs.map((x, j) => ({key: j, name: i === 0 && (j === 2 || j === 3) ? T.nthStructure[j - 2] : x.name, icon: itemIcon(x.item), about: "",
     f: p => p.subs && p.subs[j] ? p.subs[j].dur : null})) : [];
 }
 // The average and the best of each step (and of the split itself, key "split"), over the runs on the site

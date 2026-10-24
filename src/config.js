@@ -100,7 +100,7 @@ const SUB_ITEMS = {
  * the rest by name. Without a start, it isn't timed: just what's left of it. activity: more of the run's stats that count
  * as getting something done for it (for "enter"). item: its icon, an item's name, or "mh:<mob>" (and so on, see goalIcon in splits.js) for one of the
  * stats site's own icons. A counter (no target, no split) has need: null; needIfNot: [advancement, need], a different target
- * while that advancement isn't done. info: a rate the timer shows with it ("tnt": TNT used per debris found with TNT,
+ * while that advancement isn't done. info: a rate the timer shows with it ("tnt": TNT used per debris found with TNT, and netherrack mined,
  * "kills": skulls got out of wither skeletons killed, like 3/64). notBefore: a kind of goal ("food") that, done before the split started (stews made
  * beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).

@@ -14,17 +14,29 @@
 function parseLog(text, filename) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: only if one was typed in
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
-  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null};
+  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
+    tears: [], areas: [], beacon: [], held: {}};
   const tot = {}, clock = [];
   const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [], dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
+  let biome = null, structs = [];   // where they are (for st.areas)
+  const minInv = {}; let minHeld = 0;   // beacon blocks in each inventory slot (see beaconValue), and the most held
+  // st.areas: [time, area] each time the kind of place they're in changes (areaOf); a few seconds somewhere else and back
+  // (along a shore, say) is left out
+  const setArea = t => {
+    const a = areaOf(dim, biome, structs), A = st.areas, l = A[A.length - 1];
+    if (l && l[1] === a) return;
+    if (l && A.length >= 2 && A[A.length - 2][1] === a && t - l[0] < 10000) { A.pop(); return; }
+    A.push([t, a]);
+  };
   let killedBy = null; const hits = [];   // for working out how each death happened
   const TRACK = {
     "minecraft.used:minecraft.tnt": "tnt", "minecraft.mined:minecraft.ancient_debris": "debris",
     "minecraft.picked_up:minecraft.wither_skeleton_skull": "skulls", "minecraft.killed:minecraft.wither_skeleton": "ws",
     "minecraft.picked_up:minecraft.enchanting_table": "ench",
     "minecraft.picked_up:minecraft.trident": "trident", "minecraft.used:minecraft.trident": "tridentUse", "minecraft.picked_up:minecraft.nautilus_shell": "nautilus", "minecraft.killed:minecraft.drowned": "drowned", "minecraft.used:minecraft.campfire": "campfire",
-    "minecraft.picked_up:minecraft.bee_nest": "hives", "minecraft.picked_up:minecraft.beehive": "hives", "minecraft.killed:minecraft.wither": "wither", "minecraft.picked_up:minecraft.wither_rose": "rose"
+    "minecraft.picked_up:minecraft.bee_nest": "hives", "minecraft.picked_up:minecraft.beehive": "hives", "minecraft.killed:minecraft.wither": "wither", "minecraft.picked_up:minecraft.wither_rose": "rose",
+    "minecraft.picked_up:minecraft.ghast_tear": "tears"
   };
   const TOT = {
     "minecraft.killed:minecraft.creeper": "creepers", "minecraft.custom:minecraft.damage_taken": "damage",
@@ -47,9 +59,9 @@ function parseLog(text, filename) {
     // (and for debris: while any is held, every one too)
     if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null") && !line.includes("wither_skeleton_skull") && !(skHeld.length && skHeld[skHeld.length - 1][1] > 0)
       && !line.includes("ancient_debris") && !line.includes("netherite_scrap") && !dbHeld && !line.includes("minecraft:riptide") && !ripHeld
-      && !(st.channeling === false && line.includes("minecraft:channeling"))) continue;
-    // (biome lines are only read in the End until the outer End is reached)
-    if (type === "biome" && (dim !== "e" || st.outerEnd != null)) continue;
+      && !(st.channeling === false && line.includes("minecraft:channeling"))
+      && !MINERAL.test(line) && !Object.keys(minInv).some(sl => minInv[sl] && line.includes('"' + sl + '":'))
+      && !HELD.some(x => st.held[x] == null && line.includes("minecraft:" + x))) continue;
     if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots","biome"].includes(type)) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
@@ -63,6 +75,7 @@ function parseLog(text, filename) {
       dim = x === "the_nether" ? "n" : x === "the_end" ? "e" : "o";
       onIsland = false;
       dims.push([igt, dim]);
+      setArea(igt);
     } else if (type === "advancement") {
       if (!d.id || d.id.startsWith("minecraft:recipes/")) continue;
       const id = d.id.replace("minecraft:", ""), key = id + "|" + d.criterion_name;
@@ -113,13 +126,28 @@ function parseLog(text, filename) {
       // gateway (Remote Getaway is sometimes only given later; logs from older Hermes have no biome lines)
       // (the first biome line after arriving is from where they were in the Overworld: it only counts once they've been
       // on the central island)
-      if (d.biome === "minecraft:the_end") onIsland = true;
-      else if (d.biome && onIsland) st.outerEnd = igt;
+      if (dim === "e" && st.outerEnd == null) {
+        if (d.biome === "minecraft:the_end") onIsland = true;
+        else if (d.biome && onIsland) st.outerEnd = igt;
+      }
+      biome = String(d.biome || "").replace("minecraft:", "");
+      setArea(igt);
     } else if (type === "inside_structures") {
+      structs = d.structures || [];
+      setArea(igt);
       const now = (d.structures || []).includes("desert_pyramid");
       if (now && !inDesert) st.desert.push(igt);
       inDesert = now;
     } else if (type === "inventory_slots") {
+      // beacon blocks held (shulker boxes' contents too), and the first time some items were held
+      for (const [slot, v] of Object.entries(d.slots || {})) {
+        minInv[slot] = beaconValue(v) + ((v && v.tag && v.tag.BlockEntityTag && v.tag.BlockEntityTag.Items) || []).reduce((a, x) => a + beaconValue(x), 0);
+        const id = v && String(v.id).replace("minecraft:", "");
+        if (id && HELD.includes(id) && st.held[id] == null) st.held[id] = igt;
+      }
+      // (st.beacon: [time, blocks] each time there are more than ever before: they end up in the beacon)
+      const mh = Math.floor(Object.values(minInv).reduce((a, b) => a + b, 0) + 1e-9);
+      if (mh > minHeld) { minHeld = mh; const lb = st.beacon[st.beacon.length - 1]; if (lb && lb[0] === igt) lb[1] = mh; else st.beacon.push([igt, mh]); }
       for (const [slot, v] of Object.entries(d.slots || {})) { inv[slot] = v && v.id === "minecraft:enchanted_golden_apple" ? (v.Count || 1) : 0; skInv[slot] = v && v.id === "minecraft:wither_skeleton_skull" ? (v.Count || 1) : 0; }
       // riptide tridents in the inventory (a trident use is only a riptide while one is held)
       for (const [slot, v] of Object.entries(d.slots || {})) ripInv[slot] = v && v.id === "minecraft:trident" && ((v.tag && v.tag.Enchantments) || []).some(e => String(e.id) === "minecraft:riptide") ? 1 : 0;
@@ -174,3 +202,35 @@ const encodeRun = r => { const {_d, clock, ...x} = r; return {...x, events: r.ev
 const decodeRun = x => ({meta: {}, st: {}, tot: {}, deaths: [], ...x,
   events: (x.events || []).map(s => { if (Array.isArray(s)) return s; const p = String(s).split("|"); return [+p[0], +p[1], p[2], p.slice(3, -1).join("|"), +p[p.length - 1]]; }),
   dims: (x.dims || []).map(s => Array.isArray(s) ? s : [+String(s).split("|")[0], String(s).split("|")[1]])});
+
+/*
+ * The kind of place the runner is in, for the Midgame checklist (MIDGAME in config.js): "nether", "fortress", "bastion",
+ * "end", or in the Overworld "village" (or a swamp hut), "ocean" (ocean or beach biomes, and ocean structures), "desert",
+ * "mushroom", "badlands", "megataiga", "jungle", "snowy" (and igloos), or "other". Structures count before biomes.
+ * (Logs from older Hermes have no biome lines: only structures and dimensions there.)
+ */
+function areaOf(dim, biome, structs) {
+  if (dim === "e") return "end";
+  if (dim === "n") return structs.includes("fortress") ? "fortress" : structs.includes("bastion_remnant") ? "bastion" : "nether";
+  if (structs.includes("village") || structs.includes("swamp_hut")) return "village";
+  if (structs.some(x => ["monument", "ocean_ruin", "shipwreck", "buried_treasure"].includes(x))) return "ocean";
+  if (structs.includes("desert_pyramid")) return "desert";
+  if (structs.includes("igloo")) return "snowy";
+  const b = biome || "";
+  if (b.startsWith("mushroom")) return "mushroom";
+  if (b.includes("badlands")) return "badlands";
+  if (b.startsWith("giant_")) return "megataiga";
+  if (b.includes("jungle")) return "jungle";
+  if (b.includes("ocean")) return "ocean";
+  if (b.startsWith("snowy") || b === "ice_spikes" || b === "frozen_river") return "snowy";
+  if (b.includes("beach") || b === "stone_shore") return "ocean";
+  if (b.startsWith("desert")) return "desert";
+  return "other";
+}
+// What can go into a beacon's base, in blocks: blocks of iron, gold, emerald, diamond and netherite, and ingots and gems
+// (a ninth of a block each)
+const MINERAL = /(iron|gold)_(block|ingot)|emerald|diamond|netherite_block/;
+const BEACON = {iron_block: 1, gold_block: 1, emerald_block: 1, diamond_block: 1, netherite_block: 1, iron_ingot: 1 / 9, gold_ingot: 1 / 9, emerald: 1 / 9, diamond: 1 / 9};
+const beaconValue = v => v && v.id ? (BEACON[String(v.id).replace("minecraft:", "")] || 0) * (v.Count || 1) : 0;
+// items whose first time in the inventory is kept (st.held)
+const HELD = ["melon_slice", "cocoa_beans"];

@@ -38,13 +38,42 @@ document.getElementById("app").innerHTML = `
 // page, state.split), optionally opening a particular run
 function go(view, runId) {
   state.view = view; if (runId) state.runId = runId;
-  const bar = $("#runbar"); if (bar) bar.classList.remove("show");
-  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
-  ["runs", "run", "compare", "edit", "split"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== view));
-  render(); window.scrollTo(0, 0);
+  showView(); render(); window.scrollTo(0, 0);
 }
-const render = () => state.view === "runs" ? renderOverview() : state.view === "compare" ? renderCompare() : state.view === "edit" ? renderEditor()
-  : state.view === "split" ? renderSplitPage() : renderRunPage();
+function showView() {
+  const bar = $("#runbar"); if (bar) bar.classList.remove("show");
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === state.view ? "page" : "false"));
+  ["runs", "run", "compare", "edit", "split"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== state.view));
+}
+const render = () => { state.view === "runs" ? renderOverview() : state.view === "compare" ? renderCompare() : state.view === "edit" ? renderEditor()
+  : state.view === "split" ? renderSplitPage() : renderRunPage(); syncUrl(); };
+
+// ---------- The address: each page has its own (#/run/12, #/split/midgame, #/compare), so the browser's back button
+// goes back to what was shown before, and a page can be linked to ----------
+const splitSlug = i => SPLITS[i].name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+function routeOf() {
+  if (state.view === "run") {
+    const r = findRun(state.runId); if (!r) return "#/run";
+    return "#/run/" + (RUNS.includes(r) && !(r.meta && r.meta.viewed) ? runNum(r) : encodeURIComponent(r.id));   // (the WR, a run being looked at: by id)
+  }
+  return state.view === "split" ? "#/split/" + splitSlug(state.split || 0) : state.view === "compare" ? "#/compare" : state.view === "edit" ? "#/edit" : "#/";
+}
+let routing = false;
+function syncUrl() {
+  if (routing) return;
+  const h = routeOf();
+  if (location.hash !== h && !(h === "#/" && !location.hash)) history.pushState(null, "", h);
+}
+function applyUrl() {
+  const p = location.hash.replace(/^#\/?/, "").split("/").map(x => { try { return decodeURIComponent(x); } catch { return x; } });
+  if (p[0] === "run") {
+    state.view = "run";
+    const r = p[1] ? (/^\d+$/.test(p[1]) ? RUNS.find(x => String(runNum(x)) === p[1]) : findRun(p[1])) : null;
+    if (r) state.runId = r.id;
+  } else if (p[0] === "split") { state.view = "split"; state.split = Math.max(0, SPLITS.findIndex((_, k) => splitSlug(k) === p[1])); }
+  else state.view = p[0] === "compare" ? "compare" : "runs";   // (adding or editing a run isn't reopened from an address)
+}
+window.addEventListener("popstate", () => { routing = true; applyUrl(); showView(); render(); routing = false; window.scrollTo(0, 0); });
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
 
 // Clicking (or pressing Enter on) a row in the runs table opens that run
@@ -67,4 +96,4 @@ document.addEventListener("keydown", e => {
 
 cmpLoad();
 mountOwnerControls();
-render();
+routing = true; applyUrl(); showView(); render(); routing = false;

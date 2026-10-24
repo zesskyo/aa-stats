@@ -184,7 +184,7 @@ function findSubSplits(run, splits, {anyEnd}) {
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
  * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
- * rest one by one); missing: the same as text.
+ * rest one by one); missing: the same as text; left: what's left one by one, as text.
  * Also the area the runner is in now, and the areas they've been in over the last NEAR (to keep showing those).
  * Leaving an area only counts once they've been out of it for LEAVE_AFTER.
  */
@@ -232,7 +232,7 @@ function findMidgame(run, splits) {
   const sum = (segs, to) => segs.reduce((a, [x, y]) => a + Math.max(0, Math.min(y ?? to, to) - x), 0);
   const out = MIDGAME.map(m => {
     const cats = (m.goals || []).some(g => g[0] === "cats");
-    const goals = (m.goals || []).filter(g => g[0] !== "cats").map(([kind, x]) => [...GOAL[kind](x), kind]);
+    const goals = (m.goals || []).filter(g => g[0] !== "cats").map(([kind, x]) => [...GOAL[kind](x), kind, x]);
     if (cats) { const ts = Object.keys(crit).filter(k => k.startsWith("husbandry/complete_catalogue|")).map(k => crit[k]).sort((a, b) => a - b);
       const need = REQ["husbandry/complete_catalogue"]; for (let i = 0; i < need; i++) goals.push([ts[i] ?? null, "Cats", "item:cod"]); }
     const xs = m.count ? series(m.count) : [];
@@ -250,7 +250,12 @@ function findMidgame(run, splits) {
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
     const e = {key: m.key, why: m.start ? null : "untimed", name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
-      parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n)};
+      parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n), left: []};
+    // what's left, one by one ("Bamboo Jungle", "Breed Panda", "Cats 9/11", "Skulls 2/3")
+    const cl = goals.filter(g => g[1] === "Cats"), cHave = cl.filter(g => g[0] != null).length;
+    if (m.count && v < target) e.left.push(`${m.countName || m.name} ${v}/${target}`);
+    if (cl.length && cHave < cl.length) e.left.push(`Cats ${cHave}/${cl.length}`);
+    for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     // when something was done for it (in Midgame and after)
     const progress = [...goals.map(g => g[0]), ...xs.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);

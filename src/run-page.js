@@ -7,7 +7,7 @@ function renderRunPage() {
   const el = $("#view-run");
   const run = findRun(state.runId) || pbRun() || byNumber()[0];
   if (!run) { el.innerHTML = `<div class="card empty">${esc(T.noRunsYet)}</div>`; return; }
-  state.runId = run.id;
+  state.runId = run.id; syncUrl();
   const d = derive(run), meta = run.meta || {};
 
   if (run.manual) return renderManualRun(el, run, d);
@@ -131,7 +131,7 @@ function subPanel(d, i) {
   if (i == null || !hasSubs(d, i)) return `<p class="muted subhint">${esc(T.subHint)}</p>`;
   const p = d.splits[i], defs = subDefs(i), refs = subRefs(i, defs);
   const row = (icon, name, about, v, took, ref, at) => `<div class="subrow"><span class="subic">${ic(icon, 20)}</span>
-    <span class="subname">${esc(name)}${about ? `<small>${esc(about)}</small>` : ""}</span>${v == null && !/^[\d:—]+$/.test(took) ? `<span class="mono wide">${took}</span>` : `<span class="mono">${took}</span><span class="mono">${vsAvg(v, ref)}</span>`}<span class="mono muted">${at}</span></div>`;
+    <span class="subname">${esc(name)}${about ? `<small>${about}</small>` : ""}</span>${v == null && !/^[\d:—]+$/.test(took) ? `<span class="mono wide">${took}</span>` : `<span class="mono">${took}</span><span class="mono">${vsAvg(v, ref)}</span>`}<span class="mono muted">${at}</span></div>`;
   const head = `<div class="subrow subcols"><span></span><span></span><span>${esc(T.subTook)}</span><span>${esc(T.subVsAvg)}</span><span>${esc(T.subDoneAt)}</span></div>`;
   let body;
   if (i === 3) {
@@ -143,8 +143,10 @@ function subPanel(d, i) {
       if (!xs.length) return "";
       return `<div class="subgrp">${esc(g)}</div>` + xs.map(x => {
         const timed = x.complete, status = timed ? fmtShort(x.dur)
-          : x.why ? `<span class="muted">${esc(T.whyNoSplit[x.why])}</span>` : `<span class="bad">${esc(T.notDone)}${x.need > 1 ? ` ${x.have}/${x.need}` : ""}</span>`;
-        return row(itemIcon(x.item), x.name, x.about, timed ? x.dur : null, status, refs[x.key], x.done != null ? fmt(x.done, 0) : "");
+          : x.why ? `<span class="muted">${esc(T.whyNoSplit[x.why])}</span>` : `<span class="muted">—</span>`;
+        // (not finished: what's missing, under its name)
+        const miss = !timed && !x.why && x.left.length ? `<span class="bad">${esc(T.missingLabel)} ${esc(x.left.join(", "))}</span>` : "";
+        return row(itemIcon(x.item), x.name, miss, timed ? x.dur : null, status, refs[x.key], x.done != null ? fmt(x.done, 0) : "");
       }).join("");
     }).join("") + (noBiomes ? "" : midTimeline(d, subRun));
   } else body = subZoom(p, i) + p.subs.map((x, j) => row(itemIcon(x.item), x.name, "", x.dur, x.dur != null ? fmtShort(x.dur) : "—", refs[j], x.t != null ? fmt(x.t, 0) : "—")).join("");

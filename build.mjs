@@ -104,6 +104,7 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
   const d = details[String(n)] || {};
   const meta = {num: n};
   for (const k of ["date", "seed", "video", "notes"]) if (d[k] != null && d[k] !== "") meta[k] = String(d[k]);
+  if (!meta.seed && run.seed) meta.seed = String(run.seed);   // (from the log: typed in, or /seed used in the run)
   if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error(`runs.json run ${n}: date must look like 2026-09-22`);
   if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error(`runs.json run ${n}: video must start with http:// or https://`);
   const intent = {};

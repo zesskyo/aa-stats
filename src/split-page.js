@@ -28,6 +28,7 @@ const vsAvg = (v, ref) => v == null || !ref || ref.avg == null ? `<span class="m
 
 function renderSplitPage() {
   const el = $("#view-split"), i = Math.max(0, Math.min(SPLITS.length - 1, state.split || 0));
+  syncUrl();
   const runs = validRuns().filter(r => !r.manual).sort((a, b) => runNum(a) - runNum(b));
   const ds = runs.map(r => derive(r).splits[i]);
   const cols = [{name: T.colSplitLength, f: p => p.dur, main: true}, {name: T.colSplitEnd, f: p => p.end, at: true},

@@ -12,7 +12,7 @@
  *             Only build.mjs uses it; it isn't stored.
  */
 function parseLog(text, filename) {
-  let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: only if one was typed in
+  let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 3, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
     tears: [], ghasts: [], areas: [], beacon: [], netherite: [], held: {}, fatigue: []};
@@ -56,6 +56,8 @@ function parseLog(text, filename) {
     }
     const q = line.indexOf('"type":"'); if (q < 0) continue;
     const type = line.slice(q + 8, line.indexOf('"', q + 8));
+    // the seed, when /seed was used in the run (read from the text: it's too big a number for JSON.parse to keep exact)
+    if (type === "seed") { const m = /"seed":"?(-?\d+)/.exec(line); if (m && !seed) seed = m[1]; continue; }
     // (inventory lines are only read for god apples and skulls: while skulls are held, every one, as any slot could lose one)
     // (and for debris: while any is held, every one too)
     if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null") && !KEPT_RE.test(line) && !Object.keys(kept).some(sl => kept[sl] && line.includes('"' + sl + '":'))

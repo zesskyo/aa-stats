@@ -106,7 +106,8 @@ const MIDGAME = [
     goals: [["biome", "jungle"], ["biome", "jungle_hills"], ["biome", "jungle_edge"], ["biome", "bamboo_jungle"], ["biome", "bamboo_jungle_hills"],
       ["bred", "ocelot"], ["bred", "panda"], ["held", "melon_slice"], ["held", "cocoa_beans"]]},
   {key: "snowy", name: "Snowy", item: "snow_block", area: ["snowy"], start: "enter", end: "doneOrLeave",
-    goals: [["biome", "snowy_tundra"], ["biome", "snowy_mountains"], ["biome", "snowy_taiga"], ["biome", "snowy_taiga_hills"], ["kill", "stray"], ["adv", "story/cure_zombie_villager"]],
+    goals: [["biome", "snowy_tundra"], ["biome", "snowy_mountains"], ["biome", "snowy_taiga"], ["biome", "snowy_taiga_hills"], ["biome", "snowy_beach"], ["biome", "frozen_river"],
+      ["kill", "stray"], ["adv", "story/cure_zombie_villager"]],
     optional: ["Zombie Doctor"]},   // (Snowy can end on leaving with only this missing: it's sometimes done somewhere else)
   {key: "cats", name: "Cats", item: "cat_spawn_egg", area: ["village"], start: "first", end: "done", goals: "cats"},
   {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], count: "nautilus", need: 8},

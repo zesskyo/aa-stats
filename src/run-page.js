@@ -166,6 +166,7 @@ function midTimeline(d, run) {
   areas.forEach(([t, v], k) => {
     const to = k + 1 < areas.length ? areas[k + 1][0] : b;
     if (v === "plains") v = "other";
+    if (NETHER.includes(v)) v = "nether";
     if (to <= a || t >= b || !AREA_LANES[v]) return;
     const segs = lanes.get(v) || lanes.set(v, []).get(v), last = segs[segs.length - 1], x = Math.max(a, t), y = Math.min(b, to);
     if (last && x - last[1] < 10000) last[1] = y; else segs.push([x, y]);

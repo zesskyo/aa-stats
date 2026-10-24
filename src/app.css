@@ -566,3 +566,7 @@ td.best{color:var(--gold);font-weight:700}
 .subgrp span::before{content:"· "}
 .sptable tr.spgroups th{position:static;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;border-bottom:2px solid var(--line);padding-bottom:4px}
 .sptable tr.spgroups th[colspan]:not(:empty){border-left:1px solid var(--line)}
+.sptable.compact th,.sptable.compact td{padding:8px 5px;font-size:13px}
+.sptable.compact .spth{min-width:0}
+.sptable.compact tbody th{padding-left:14px}
+.sptable .spth.tipped::after{bottom:auto;top:calc(100% + 6px)}

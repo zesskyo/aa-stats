@@ -93,9 +93,10 @@ function findRiptide(run) {
  * at the 3rd skull. Only active farming counts: it pauses after RULES.skullIdleGap without a kill or skull,
  * on any dimension change, and on a death.
  */
-function findSkullSplit(run, ws, skullsGot) {
-  if (!skullsGot.length || !ws.length) return null;
-  const endS = skullsGot[Math.min(2, skullsGot.length - 1)];
+function findSkullSplit(run, ws, skullsGot, until = null) {
+  // (until: live, with the 3rd skull not got yet, how far to look: now)
+  if (!ws.length || (!skullsGot.length && until == null)) return null;
+  const endS = until ?? skullsGot[Math.min(2, skullsGot.length - 1)];
   const nether = [];
   run.dims.forEach((x, i) => { if (x[1] === "n") nether.push([x[0], i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt]); });
   const kills = ws.filter(t => t <= endS);

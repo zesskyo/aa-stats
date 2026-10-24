@@ -188,7 +188,7 @@ function findSubSplits(run, splits, {anyEnd}) {
  * Also the area the runner is in now, and the areas they've been in over the last NEAR (to keep showing those).
  * Leaving an area only counts once they've been out of it for LEAVE_AFTER.
  */
-const LEAVE_AFTER = 10000, NEAR = 10000, GRACE = 60000;
+const LEAVE_AFTER = 10000, NEAR = 10000, GRACE = 60000, MIN_STAY = 30000;
 const BIOME_AREAS = ["plains", "taiga", "jungle", "badlands", "mushroom", "crimson", "warped"];   // (areas only a biome gives)
 const nameOf = x => titleCase(String(x).replace(/_/g, " "));
 function findMidgame(run, splits) {
@@ -257,6 +257,16 @@ function findMidgame(run, splits) {
     if (cl.length && cHave < cl.length) e.left.push(`Cats ${cHave}/${cl.length}`);
     for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
+    if (m.time === "farm") {
+      // skulls: the Skulls split's own time (live, until now while the 3rd isn't got)
+      const sk = findSkullSplit(run, series("ws").map(x => x[0]), series(m.count).map(x => x[0]), done == null ? now : null);
+      if (!sk || !sk.segs.length || (done != null && sk.end <= midStart)) { if (done != null) e.why = "before"; return e; }
+      if (postStart != null && (done == null || sk.end > postStart)) { e.why = done != null ? "post" : null; return e; }
+      e.start = sk.start; e.end = done != null ? sk.end : null; e.complete = done != null; e.dur = sk.dur;
+      const g = sk.segs[sk.segs.length - 1];
+      if (done == null && now - g[1] <= RULES.skullIdleGap) e.since = g[1];
+      return e;
+    }
     // when something was done for it (in Midgame and after)
     const progress = [...goals.map(g => g[0]), ...xs.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);
     // the end: everything done; or leaving once it is (Mushroom Island); or either (Snowy), leaving once all but the optional is
@@ -270,7 +280,8 @@ function findMidgame(run, splits) {
       const vs = visits(m.area).map(([a, b]) => [Math.max(a, midStart), b]).filter(([a, b]) => b == null || b > a);
       // (in the Overworld, something done just after stepping out, like an animal bred at the edge, still counts for that visit)
       const grace = m.area.some(x => NETHER.includes(x)) ? 0 : GRACE;
-      segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b + grace));
+      // (and in the Overworld, a visit of MIN_STAY or more: looking around for what's needed counts, flying across doesn't)
+      segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b + grace) || (grace && b - a >= MIN_STAY));
     } else if (m.time === "active") {
       // the "lead" before each thing done for it, joined where they overlap (live: one going on now, while it's within that)
       segs = [];

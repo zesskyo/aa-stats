@@ -89,7 +89,9 @@ const SUB_ITEMS = {
  *   start  "mid": when Midgame starts; "enter": the first time in its area that gets something done (a pass through
  *          that gets nothing done doesn't count); "first": the first thing done for it (with "activity", the first of those)
  *   time   "clock": all the time from its start; "area": only the time spent in its area, on visits that got something
- *          done; "active": only the "lead" before each thing done for it (less, when the thing before was closer)
+ *          done (in the Overworld, any visit of MIN_STAY or more too: looking around counts, passing through doesn't);
+ *          "active": only the "lead" before each thing done for it (less, when the thing before was closer); "farm": the
+ *          skull farming time, as the Skulls split works it out (findSkullSplit in stats.js)
  *   end    "done": everything done; "leave": leaving its area once everything's done; "doneOrLeave": either, leaving
  *          counting once all but "optional" is done
  * Goals: ["biome", name] (Adventuring Time), ["food", [items]] (eaten, or in the inventory: any of the items), ["bred",
@@ -126,7 +128,8 @@ const MIDGAME = [
   {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164},
   {key: "godapple", name: "God Apple", item: "enchanted_golden_apple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
   // the Nether: time spent there, on visits that got something done for it (shown first there)
-  {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: NETHER, start: "enter", time: "area", end: "done",
+  // (the same as the Skulls split on a run's page: findSkullSplit in stats.js)
+  {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: NETHER, start: "enter", time: "farm", end: "done",
     count: "skulls", need: 3, activity: ["ws", "skulls"]},
   {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: NETHER, start: "enter", time: "area", end: "done",
     count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
@@ -164,8 +167,7 @@ const AREA_LANES = {
   snowy: ["Snowy", "snow_block", "var(--s2)"], taiga: ["Taiga", "spruce_log", "var(--s2)"],
   village: ["Village", "bell", "var(--s0)"], ocean: ["Ocean", "prismarine", "var(--s1)"], desert: ["Desert", "sand", "var(--s0)"],
   other: ["Elsewhere", "grass_block", "var(--muted)"],   // (plains go here too)
-  nether: ["Nether", "netherrack", "var(--ne)"], crimson: ["Crimson Forest", "crimson_nylium", "var(--ne)"], warped: ["Warped Forest", "warped_nylium", "var(--ne)"],
-  fortress: ["Fortress", "nether_bricks", "var(--ne)"], bastion: ["Bastion", "gilded_blackstone", "var(--ne)"], end: ["The End", "end_stone", "var(--en)"],
+  nether: ["Nether", "netherrack", "var(--ne)"], end: ["The End", "end_stone", "var(--en)"],   // (all of the Nether is one)
 };
 
 const SPLITS = [

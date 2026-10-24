@@ -7,7 +7,8 @@
 // A split's steps, the same for every run: [{key, name, icon, about, f: the split in a run → the step's time, or null}]
 // (its sub-splits; for Midgame, the checklist's timed splits)
 function subDefs(i) {
-  if (i === 3) return MIDGAME.filter(m => m.start).map(m => ({key: m.key, name: m.name, icon: itemIcon(m.item),
+  // (Midgame: in the order of the checklist's groups, MID_GROUPS)
+  if (i === 3) return MID_GROUPS.flatMap(g => g[1]).map(k => MIDGAME.find(m => m.key === k)).filter(m => m && m.start).map(m => ({key: m.key, name: m.name, icon: itemIcon(m.item),
     f: p => { const x = p.mid && p.mid.sections.find(y => y.key === m.key); return x && x.complete ? x.dur : null; }}));
   const ref = validRuns().map(r => derive(r).splits[i]).find(p => p.subs);
   return ref ? ref.subs.map((x, j) => ({key: j, name: i === 0 && (j === 2 || j === 3) ? T.nthStructure[j - 2] : x.name, icon: itemIcon(x.item), about: "",
@@ -61,6 +62,8 @@ function renderSplitPage() {
   if (spSort.k >= 0) order.sort((a, b) => { const x = vals[spSort.k][a], y = vals[spSort.k][b]; return x == null ? (y == null ? a - b : 1) : y == null ? -1 : (x - y) * spSort.dir || a - b; });
   else if (spSort.dir < 0) order.reverse();
   const arrow = k => spSort.k === k ? `<span class="sparrow">${spSort.dir > 0 ? "▲" : "▼"}</span>` : "";
+  // (many columns, like Midgame's checklist: the sub-splits' headings are just their icons, named on hover)
+  const compact = cols.length > 10;
 
   el.innerHTML = `
     <div class="pagerwrap"><button type="button" class="linkbtn" id="splitBack">${esc(T.backToOverview)}</button>
@@ -71,9 +74,10 @@ function renderSplitPage() {
       ${chart}
     </section>
     <div class="card" style="padding:0">
-      <div class="tablewrap sptable"><table>
+      <div class="tablewrap sptable${compact ? " compact" : ""}"><table>
       <thead>${i === 3 ? `<tr class="spgroups"><th></th><th colspan="2"></th>${MID_GROUPS.map(([g, keys]) => { const n = cols.filter(c => keys.includes(c.key)).length;
-        return n ? `<th colspan="${n}" scope="colgroup">${esc(g)}</th>` : ""; }).join("")}</tr>` : ""}<tr><th scope="col"><button type="button" class="spsort" data-sort="-1">${esc(T.colRun)}${arrow(-1)}</button></th>${cols.map((c, k) => `<th scope="col"${spSort.k === k ? ` aria-sort="${spSort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" class="spsort spth" data-sort="${k}">${c.icon ? ic(c.icon, 18) : ""}<span>${esc(c.name)}${arrow(k)}</span></button></th>`).join("")}</tr></thead>
+        return n ? `<th colspan="${n}" scope="colgroup">${esc(g)}</th>` : ""; }).join("")}</tr>` : ""}<tr><th scope="col"><button type="button" class="spsort" data-sort="-1">${esc(T.colRun)}${arrow(-1)}</button></th>${cols.map((c, k) => { const iconOnly = compact && c.sub && c.icon;
+        return `<th scope="col"${spSort.k === k ? ` aria-sort="${spSort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" class="spsort spth${iconOnly ? " tipped" : ""}" data-sort="${k}"${iconOnly ? ` data-tip="${esc(c.name)}" aria-label="${esc(c.name)}"` : ""}>${c.icon ? ic(c.icon, iconOnly ? 24 : 18) : ""}<span>${iconOnly ? "" : esc(c.name)}${arrow(k)}</span></button></th>`; }).join("")}</tr></thead>
       <tbody>
         <tr class="sumrow"><th scope="row">${esc(T.rowAverage)}</th>${avg.map((v, k) => sumCell(v, k)).join("")}</tr>
         <tr class="sumrow"><th scope="row">${esc(T.rowBest)}</th>${best.map((v, k) => sumCell(v, k)).join("")}</tr>
@@ -83,7 +87,11 @@ function renderSplitPage() {
   $("#splitBack").addEventListener("click", () => go("runs"));
   el.querySelectorAll("[data-split]").forEach(b => b.addEventListener("click", () => { state.split = +b.dataset.split; renderSplitPage(); }));
   el.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", () => {
-    const k = +b.dataset.sort; spSort = {split: i, k, dir: spSort.k === k ? -spSort.dir : 1}; renderSplitPage();
+    const k = +b.dataset.sort; spSort = {split: i, k, dir: spSort.k === k ? -spSort.dir : 1};
+    // (the same page again, re-sorted: it stays where it was scrolled to)
+    const w = el.querySelector(".sptable"), y = window.scrollY, l = w.scrollLeft, t = w.scrollTop;
+    renderSplitPage();
+    const w2 = el.querySelector(".sptable"); w2.scrollLeft = l; w2.scrollTop = t; window.scrollTo(0, y);
   }));
   el.querySelectorAll("[data-open]").forEach(t => t.addEventListener("click", () => go("run", t.dataset.open)));
 }

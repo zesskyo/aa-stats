@@ -238,7 +238,7 @@ function findMidgame(run, splits) {
     const target = m.needIfNot && advTime(run, m.needIfNot[0]) == null ? m.needIfNot[1] : m.need;
     let v = 0, reached = null;
     if (m.count) { v = countAt(xs, now); const r = xs.find(([, c]) => c >= target); reached = r ? r[0] : null; }
-    const parts = [...(m.count ? [[m.countName || m.name, Math.min(v, target), target, ["item:" + m.item]]] : []),
+    const parts = [...(m.count ? [[m.countName || m.name, Math.min(v, target), target, [m.item.includes(":") ? m.item : "item:" + m.item]]] : []),
       ...[...groups].map(([name, g]) => [name, g.have, g.need, g.icons])].filter(p => p[1] < p[2]);
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
@@ -261,7 +261,8 @@ function findMidgame(run, splits) {
       for (const t of progress) { const g = segs[segs.length - 1]; if (g && t - g[1] <= m.gap) g[1] = t; else segs.push([t, t]); }
       const g = segs[segs.length - 1]; if (g && now - g[1] <= m.gap) g[1] = null;
     } else segs = [[midStart, null]];
-    if (!segs.length || (done != null && done < segs[0][0] && m.start !== "mid")) return e;   // (not started, or all done before)
+    // (not started; or everything was done before it started, or before Midgame: no split for it in this run)
+    if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) return e;
     e.start = m.start === "mid" ? midStart : segs[0][0];
     const leaveAfter = t => { if (t == null) return null; const s = segs.find(([a, b]) => b != null && b >= t); return s ? s[1] : null; };
     e.end = m.end === "done" ? done : m.end === "leave" ? leaveAfter(done)

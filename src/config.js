@@ -95,12 +95,14 @@ const SUB_ITEMS = {
  * Goals: ["biome", name] (Adventuring Time), ["food", [items]] (eaten, or in the inventory: any of the items), ["bred",
  * animal] (Two by Two), ["kill", mob] (Monster Hunter), ["adv", id], ["cats"] (A Complete Catalogue), and count/need
  * (a timeline in the run's stats, and how many). Under the split it's on, what's left: "Biomes 3/5", "Foods 1/2", and
- * the rest by name. item: its icon, an item's name, or "mh:<mob>" (and so on, see goalIcon in splits.js) for one of the
+ * the rest by name. Without a start, it isn't timed: just what's left of it. activity: more of the run's stats that count
+ * as getting something done for it (for "enter"). item: its icon, an item's name, or "mh:<mob>" (and so on, see goalIcon in splits.js) for one of the
  * stats site's own icons. A counter (no target, no split) has need: null; needIfNot: [advancement, need], a different target
  * while that advancement isn't done. Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
  */
+const NETHER = ["nether", "crimson", "warped", "fortress", "bastion"];
 const MIDGAME = [
   // the rare biomes: time spent there
   {key: "mushroom", name: "Mushroom Island", item: "red_mushroom_block", area: ["mushroom"], start: "enter", time: "area", end: "leave",
@@ -126,18 +128,15 @@ const MIDGAME = [
     goals: [["food", ["cod"]], ["food", ["salmon"]], ["food", ["tropical_fish"]], ["food", ["pufferfish"]], ["food", ["cooked_cod"]], ["food", ["cooked_salmon"]], ["food", ["dried_kelp"]]]},
   {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164},
   {key: "godapple", name: "God Apple", item: "enchanted_golden_apple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
-  // the Overworld's animals: while they're being done
-  {key: "horses", name: "HDM", item: "hay_block", area: ["plains", "desert"], start: "first", time: "active", gap: 180000, end: "done",
-    goals: [["bred", "horse"], ["bred", "donkey"], ["bred", "mule"]]},
-  // the Nether
-  {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: ["fortress", "nether"], start: "first", time: "active", gap: 60000, end: "done",
+  // the Nether: time spent there, on visits that got something done for it (shown first there)
+  {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: NETHER, start: "enter", time: "area", end: "done",
     count: "skulls", need: 3, activity: ["ws", "skulls"]},
-  {key: "zoglin", name: "Zoglin", item: "mh:zoglin", area: ["crimson"], start: "first", time: "active", gap: 180000, end: "done",
-    goals: [["bred", "hoglin"], ["kill", "hoglin"], ["kill", "zoglin"]]},
-  {key: "striders", name: "Striders", item: "warped_fungus_on_a_stick", area: ["warped"], start: "first", time: "active", gap: 180000, end: "done",
-    goals: [["adv", "nether/ride_strider"], ["bred", "strider"]]},
-  {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: ["nether", "crimson", "warped", "fortress", "bastion"], start: "first", time: "active", gap: 180000, end: "done",
+  {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: NETHER, start: "enter", time: "area", end: "done",
     count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
+  // not timed (too spread out to time): just what's left
+  {key: "horses", name: "HDM", item: "hay_block", area: ["plains", "desert"], goals: [["bred", "horse"], ["bred", "donkey"], ["bred", "mule"]]},
+  {key: "zoglin", name: "Zoglin", item: "mh:zoglin", area: ["crimson"], goals: [["bred", "hoglin"], ["kill", "hoglin"], ["kill", "zoglin"]]},
+  {key: "striders", name: "Striders", item: "warped_fungus_on_a_stick", area: ["warped"], goals: [["adv", "nether/ride_strider"], ["bred", "strider"]]},
   // (netherite: 20 debris for the armour and the hoe; 24 when the lodestone for Country Lode is still needed too)
   {key: "debris", name: "Debris", item: "ancient_debris", area: ["bastion"], start: "mid", time: "clock", end: "done", count: "netherite", need: 20,
     needIfNot: ["nether/use_lodestone", 24]},

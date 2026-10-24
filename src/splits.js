@@ -242,9 +242,9 @@ function findMidgame(run, splits) {
       ...[...groups].map(([name, g]) => [name, g.have, g.need, g.icons])].filter(p => p[1] < p[2]);
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
-    const e = {key: m.key, name: m.name, item: m.item, area: m.area, split: true, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
+    const e = {key: m.key, name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
       parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n)};
-    if (midStart == null) return e;
+    if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     // when something was done for it (in Midgame and after)
     const progress = [...goals.map(g => g[0]), ...xs.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);
     // the end: everything done; or leaving once it is (Mushroom Island); or either (Snowy), leaving once all but the optional is

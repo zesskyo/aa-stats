@@ -137,10 +137,10 @@ function subPanel(d, i) {
   if (i === 3) {
     // (only the checklist's splits: what isn't timed isn't here)
     const secs = new Map(p.mid.sections.map(x => [x.key, x]));
-    body = MID_GROUPS.map(([g, keys]) => {
+    body = MID_GROUPS.map(([g, how, keys]) => {
       const xs = keys.map(k => secs.get(k)).filter(x => x && x.split);
       if (!xs.length) return "";
-      return `<div class="subgrp">${esc(g)}</div>` + xs.map(x => {
+      return `<div class="subgrp">${esc(g)}<span>${esc(how)}</span></div>` + xs.map(x => {
         const timed = x.complete, status = timed ? fmtShort(x.dur)
           : x.why ? `<span class="muted">${esc(T.whyNoSplit[x.why])}</span>` : `<span class="bad">${esc(T.notDone)}${x.need > 1 ? ` ${x.have}/${x.need}` : ""}</span>`;
         return row(itemIcon(x.item), x.name, x.about, timed ? x.dur : null, status, refs[x.key], x.done != null ? fmt(x.done, 0) : "");

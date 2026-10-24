@@ -559,3 +559,7 @@ td.best{color:var(--gold);font-weight:700}
 .subzoom > div{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;overflow:visible;white-space:nowrap;color:var(--on-accent);font-size:12px;font-weight:600;padding:0 4px}
 .subzoom > div:first-child{border-radius:6px 0 0 6px}.subzoom > div:last-child{border-radius:0 6px 6px 0}
 .subzoom > div span{overflow:hidden;text-overflow:ellipsis}
+.subgrp span{margin-left:8px;font-weight:500;text-transform:none;letter-spacing:0}
+.subgrp span::before{content:"· "}
+.sptable tr.spgroups th{position:static;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;border-bottom:2px solid var(--line);padding-bottom:4px}
+.sptable tr.spgroups th[colspan]:not(:empty){border-left:1px solid var(--line)}

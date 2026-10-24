@@ -225,17 +225,17 @@ function areaOf(dim, biome, structs) {
   if (dim === "e") return "end";
   if (dim === "n") return structs.includes("fortress") ? "fortress" : structs.includes("bastion_remnant") ? "bastion"
     : biome === "crimson_forest" ? "crimson" : biome === "warped_forest" ? "warped" : "nether";
-  if (structs.includes("village") || structs.includes("swamp_hut")) return "village";
-  if (structs.some(x => ["monument", "ocean_ruin", "shipwreck", "buried_treasure"].includes(x))) return "ocean";
-  if (structs.includes("desert_pyramid")) return "desert";
-  if (structs.includes("igloo")) return "snowy";
+  // (the rare biomes come first, even in a village or by an ocean ruin: what's done there counts for them)
   const b = biome || "";
   if (b.startsWith("mushroom")) return "mushroom";
   if (b.includes("badlands")) return "badlands";
   if (b.startsWith("giant_") || b.startsWith("taiga")) return "taiga";
   if (b.includes("jungle")) return "jungle";
+  if (b.startsWith("snowy") || b === "ice_spikes" || b === "frozen_river" || structs.includes("igloo")) return "snowy";
+  if (structs.includes("village") || structs.includes("swamp_hut")) return "village";
+  if (structs.some(x => ["monument", "ocean_ruin", "shipwreck", "buried_treasure"].includes(x))) return "ocean";
+  if (structs.includes("desert_pyramid")) return "desert";
   if (b.includes("ocean")) return "ocean";
-  if (b.startsWith("snowy") || b === "ice_spikes" || b === "frozen_river") return "snowy";
   if (b.includes("beach") || b === "stone_shore") return "ocean";
   if (b.startsWith("desert") || b.startsWith("savanna") || b === "shattered_savanna") return "desert";
   if (b.includes("plains")) return "plains";

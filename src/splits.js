@@ -178,8 +178,9 @@ function findSubSplits(run, splits, {anyEnd}) {
 /*
  * The Midgame checklist (MIDGAME in config.js), as the run stands at its end (or, live, now). For each entry:
  *   {key, about, name, item, area, split, why, start, end, complete, dur, since, done, have, need, parts, missing}
- * why: why it has no time in this run: "untimed" (never timed), "before" (done before it started), "early" (part of
- * it done beforehand, see notBefore), "post" (finished in Post-endgame, or not at all); null otherwise
+ * why: why it has no time in this run: "untimed" (never timed), "before" (done before Midgame), "outside" (done without
+ * a visit to its area), "early" (part of it done beforehand, see notBefore), "post" (finished in Post-endgame),
+ * "nodata" (an old log, with no biomes); null otherwise
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
  * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
@@ -187,7 +188,8 @@ function findSubSplits(run, splits, {anyEnd}) {
  * Also the area the runner is in now, and the areas they've been in over the last NEAR (to keep showing those).
  * Leaving an area only counts once they've been out of it for LEAVE_AFTER.
  */
-const LEAVE_AFTER = 10000, NEAR = 10000;
+const LEAVE_AFTER = 10000, NEAR = 10000, GRACE = 60000;
+const BIOME_AREAS = ["plains", "taiga", "jungle", "badlands", "mushroom", "crimson", "warped"];   // (areas only a biome gives)
 const nameOf = x => titleCase(String(x).replace(/_/g, " "));
 function findMidgame(run, splits) {
   const st = run.st || {}, now = run.finalIgt;
@@ -255,10 +257,14 @@ function findMidgame(run, splits) {
     const core = goals.filter(g => !(m.optional || []).includes(g[1]));
     const coreDone = core.length && core.every(g => g[0] != null) && (!m.count || reached != null) ? Math.max(...core.map(g => g[0]), reached ?? 0) : null;
     let segs;
+    // (old logs have no biomes in them, only structures: nothing to time the Overworld's areas with)
+    if (m.time === "area" && !m.area.some(x => NETHER.includes(x)) && !areas.some(([, v]) => BIOME_AREAS.includes(v))) { e.why = "nodata"; return e; }
     if (m.time === "area") {
       // visits to its area from Midgame on that got something done (and the one it's on now, while it lasts)
       const vs = visits(m.area).map(([a, b]) => [Math.max(a, midStart), b]).filter(([a, b]) => b == null || b > a);
-      segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b));
+      // (in the Overworld, something done just after stepping out, like an animal bred at the edge, still counts for that visit)
+      const grace = m.area.some(x => NETHER.includes(x)) ? 0 : GRACE;
+      segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b + grace));
     } else if (m.time === "active") {
       // bursts of activity: anything done within "gap" of the last thing (a burst still going now, while it's within that)
       segs = [];
@@ -266,18 +272,20 @@ function findMidgame(run, splits) {
       const g = segs[segs.length - 1]; if (g && now - g[1] <= m.gap) g[1] = null;
     } else segs = [[midStart, null]];
     // (not started; or everything was done before it started, or before Midgame: no split for it in this run)
-    if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) { if (done != null) e.why = "before"; return e; }
+    if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) { if (done != null) e.why = done <= midStart ? "before" : "outside"; return e; }
     const start = m.start === "mid" ? midStart : segs[0][0];
     // (part of it done before it started, like stews made beforehand; or it went on into Post-endgame: no split)
     if (m.notBefore && goals.some(g => g[3] === m.notBefore && g[0] != null && g[0] < start)) { e.why = "early"; return e; }
     if (postStart != null && start >= postStart) { e.why = "post"; return e; }
     e.start = start;
-    const leaveAfter = t => { if (t == null) return null; const s = segs.find(([a, b]) => b != null && b >= t); return s ? s[1] : null; };
+    // (leaving after t: the end of the visit it was done in or before; t itself if it was done after the last one)
+    const leaveAfter = t => { if (t == null) return null; const s = segs.find(([, b]) => b == null || b >= t); return s ? s[1] : t; };
     e.end = m.end === "done" ? done : m.end === "leave" ? leaveAfter(done)
       : [done, leaveAfter(coreDone)].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
     if (e.end != null && e.end < e.start) e.end = e.start;
     if (postStart != null && (e.end == null || e.end > postStart)) { e.start = e.end = null; e.why = done != null ? "post" : null; return e; }
-    e.complete = e.end != null && done != null && done <= e.end;
+    // (Snowy: leaving with only Zombie Doctor left counts as finished)
+    e.complete = e.end != null && ((done != null && done <= e.end) || (m.end === "doneOrLeave" && coreDone != null && coreDone <= e.end));
     const to = e.end ?? now;
     e.dur = sum(segs.map(([a, b]) => [Math.max(a, e.start), b == null ? null : Math.min(b, to)]).filter(([a, b]) => b == null || b >= a), to);
     const open = segs.find(([, b]) => b == null);

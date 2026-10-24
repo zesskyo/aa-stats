@@ -66,7 +66,8 @@ function renderSplitPage() {
     <div class="card" style="padding:0">
       <p class="muted" style="margin:0;padding:14px 18px 0">${esc(i === 3 ? T.splitRunsNoteMid : T.splitRunsNote)}</p>
       <div class="tablewrap sptable"><table>
-      <thead><tr><th scope="col">${esc(T.colRun)}</th>${cols.map(c => `<th scope="col"${c.about ? ` title="${esc(c.about)}"` : ""}><span class="spth">${c.icon ? ic(c.icon, 18) : ""}<span>${esc(c.name)}</span></span></th>`).join("")}</tr></thead>
+      <thead>${i === 3 ? `<tr class="spgroups"><th></th><th colspan="2"></th>${MID_GROUPS.map(([g, how, keys]) => { const n = cols.filter(c => keys.includes(c.key)).length;
+        return n ? `<th colspan="${n}" scope="colgroup" title="${esc(how)}">${esc(g)}</th>` : ""; }).join("")}</tr>` : ""}<tr><th scope="col">${esc(T.colRun)}</th>${cols.map(c => `<th scope="col"${c.about ? ` title="${esc(c.about)}"` : ""}><span class="spth">${c.icon ? ic(c.icon, 18) : ""}<span>${esc(c.name)}</span></span></th>`).join("")}</tr></thead>
       <tbody>
         <tr class="sumrow"><th scope="row">${esc(T.rowAverage)}</th>${avg.map((v, k) => sumCell(v, k)).join("")}</tr>
         <tr class="sumrow"><th scope="row">${esc(T.rowBest)}</th>${best.map((v, k) => sumCell(v, k)).join("")}</tr>

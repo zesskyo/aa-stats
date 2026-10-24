@@ -259,7 +259,7 @@ function findMidgame(run, splits) {
     // (rates the timer shows with it, as [name, icon, value]: since Midgame started)
     const since = arr => (arr || []).filter(t => t >= (midStart ?? Infinity)).length;
     if (m.info === "tnt") { const tnt = since(st.tnt), deb = since(st.debrisTnt || st.debris); e.info = [[deb ? "TNT per debris" : "TNT used", "item:tnt", deb ? (tnt / deb).toFixed(1) : String(tnt)]]; }
-    if (m.info === "kills") { const k = series("ws").length, n = series("skulls").length; e.info = [[n ? "Kills per skull" : "Kills", "mh:wither_skeleton", n ? (k / n).toFixed(1) : String(k)]]; }
+    if (m.info === "kills") { const k = series("ws").length, n = series("skulls").length; e.info = [["Skull rate", "mh:wither_skeleton", `${n}/${k}`]]; }
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     if (m.time === "farm") {
       // skulls: the Skulls split's own time (live, until now while the 3rd isn't got)

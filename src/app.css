@@ -520,7 +520,6 @@ td.best{color:var(--gold);font-weight:700}
 .good{color:var(--good)} .bad{color:var(--bad)} .gold{color:var(--gold);font-weight:700}
 @media (max-width:640px){.subpanel .subrow{grid-template-columns:22px minmax(0,1fr) 64px 60px}.subpanel .subrow > :last-child{display:none}}
 .splitbar > div{position:relative}
-.stick{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(255,255,255,.85);pointer-events:none}
 .tl{display:flex;flex-direction:column;gap:3px;margin-top:6px}
 .tlrow{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center}
 .tllabel{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;overflow:hidden}

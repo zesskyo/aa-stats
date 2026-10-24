@@ -47,7 +47,8 @@ function derive(run) {
 
   // Pickups right after a death are the dropped items being collected again, so they're skipped
   const deathT = (run.deaths || []).map(x => x[0]);
-  const obtains = key => (st[key] || []).filter(t => !deathT.some(dt => t >= dt && t - dt < RULES.pickupAfterDeath));
+  // (counted from the inventory now, which already leaves out what's picked up again; older stored runs: from pickups)
+  const obtains = key => st.invV ? (st[key] || []) : (st[key] || []).filter(t => !deathT.some(dt => t >= dt && t - dt < RULES.pickupAfterDeath));
 
   // Skulls
   const skulls = st.skulls || [];
@@ -65,7 +66,7 @@ function derive(run) {
   return run._d = {
     comp, missing, category, splits, deaths, multis, skullRate, debrisSplit, tntD, debD,
     tntPer: debD ? tntD / debD : null,
-    gold: st.goldV === 2 ? (st.gold || []) : [],
+    gold: st.goldV >= 2 ? (st.gold || []) : [],
     lanes: {trident: obtains("trident"), skull: obtains("skulls"), nautilus: obtains("nautilus")},
     skullSplit: findSkullSplit(run, ws, obtains("skulls")),
     rare: findRareBiomes(run),

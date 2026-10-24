@@ -14,10 +14,11 @@
 function parseLog(text, filename) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: only if one was typed in
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
-  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
+  const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 3, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
     tears: [], ghasts: [], areas: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
-  const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [], dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
+  const inv = {}; let inDesert = false, tntCum = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
+  const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let biome = null, structs = [];   // where they are (for st.areas)
   let fatigued = false;
@@ -33,11 +34,10 @@ function parseLog(text, filename) {
   let killedBy = null; const hits = [];   // for working out how each death happened
   const TRACK = {
     "minecraft.used:minecraft.tnt": "tnt", "minecraft.mined:minecraft.ancient_debris": "debris",
-    "minecraft.picked_up:minecraft.wither_skeleton_skull": "skulls", "minecraft.killed:minecraft.wither_skeleton": "ws",
+    "minecraft.killed:minecraft.wither_skeleton": "ws",
     "minecraft.picked_up:minecraft.enchanting_table": "ench",
-    "minecraft.picked_up:minecraft.trident": "trident", "minecraft.used:minecraft.trident": "tridentUse", "minecraft.picked_up:minecraft.nautilus_shell": "nautilus", "minecraft.killed:minecraft.drowned": "drowned", "minecraft.used:minecraft.campfire": "campfire",
-    "minecraft.picked_up:minecraft.bee_nest": "hives", "minecraft.picked_up:minecraft.beehive": "hives", "minecraft.killed:minecraft.wither": "wither", "minecraft.picked_up:minecraft.wither_rose": "rose",
-    "minecraft.picked_up:minecraft.ghast_tear": "tears", "minecraft.killed:minecraft.ghast": "ghasts"
+    "minecraft.used:minecraft.trident": "tridentUse", "minecraft.killed:minecraft.drowned": "drowned", "minecraft.used:minecraft.campfire": "campfire",
+    "minecraft.killed:minecraft.wither": "wither", "minecraft.killed:minecraft.ghast": "ghasts"
   };
   const TOT = {
     "minecraft.killed:minecraft.creeper": "creepers", "minecraft.custom:minecraft.damage_taken": "damage",
@@ -58,7 +58,7 @@ function parseLog(text, filename) {
     const type = line.slice(q + 8, line.indexOf('"', q + 8));
     // (inventory lines are only read for god apples and skulls: while skulls are held, every one, as any slot could lose one)
     // (and for debris: while any is held, every one too)
-    if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null") && !line.includes("wither_skeleton_skull") && !(skHeld.length && skHeld[skHeld.length - 1][1] > 0)
+    if (type === "inventory_slots" && !line.includes("enchanted_golden_apple") && !line.includes("null") && !KEPT_RE.test(line) && !Object.keys(kept).some(sl => kept[sl] && line.includes('"' + sl + '":'))
       && !line.includes("ancient_debris") && !line.includes("netherite_scrap") && !dbHeld && !line.includes("minecraft:riptide") && !ripHeld
       && !(st.channeling === false && line.includes("minecraft:channeling"))
       && !MINERAL.test(line) && !Object.keys(minInv).some(sl => (minInv[sl] || netInv[sl]) && line.includes('"' + sl + '":'))
@@ -87,23 +87,15 @@ function parseLog(text, filename) {
       const k = d.stat, diff = Math.max(1, d.diff || 1);
       let newDebris = k === "minecraft.mined:minecraft.ancient_debris" ? diff : 0;   // (less any that were placed and mined again)
       if (TOT[k]) tot[TOT[k]] = d.value;
-      // (skulls dropped by dying and picked up again aren't new skulls)
-      if (k === "minecraft.picked_up:minecraft.wither_skeleton_skull" && skOwed > 0) { const again = Math.min(diff, skOwed); skOwed -= again; for (let i = again; i < diff; i++) st.skulls.push(igt); }
       // (debris placed and mined again isn't new debris)
-      else if (k === "minecraft.mined:minecraft.ancient_debris" && debrisPlaced > 0) { const again = Math.min(diff, debrisPlaced); debrisPlaced -= again; newDebris = diff - again; for (let i = again; i < diff; i++) st.debris.push(igt); }
+      if (k === "minecraft.mined:minecraft.ancient_debris" && debrisPlaced > 0) { const again = Math.min(diff, debrisPlaced); debrisPlaced -= again; newDebris = diff - again; for (let i = again; i < diff; i++) st.debris.push(igt); }
       else if (TRACK[k]) for (let i = 0; i < diff; i++) st[TRACK[k]].push(igt);
       if (k === "minecraft.used:minecraft.ancient_debris") debrisPlaced += diff;
       if (k === "minecraft.used:minecraft.trident" && ripHeld) for (let i = 0; i < diff; i++) st.riptideUse.push(igt);
       if (k === "minecraft.custom:minecraft.damage_taken") { hits.push([igt, d.diff || 0]); if (hits.length > 12) hits.shift(); }
       if (k.startsWith("minecraft.killed_by:")) killedBy = [igt, k.slice(k.indexOf(":") + 1).replace(/^minecraft\./, "")];
       if (k === "minecraft.custom:minecraft.deaths") { deaths.push([igt, dim, deathCause(igt, dim, killedBy, hits)]); killedBy = null; hits.length = 0; // (the slots are often emptied just before the death is logged: what was held in the seconds before)
-        skOwed += Math.max(0, ...skHeld.filter(h => h[0] >= igt - 5000).map(h => h[1]), skHeld.length ? skHeld[skHeld.length - 1][1] : 0);
-        for (const sl in skInv) skInv[sl] = 0; skHeld.push([igt, 0]); for (const sl in dbInv) dbInv[sl] = 0; dbOwed += dbHeld; dbHeld = 0; for (const sl in ripInv) ripInv[sl] = 0; ripHeld = 0; }
-      let g = 0;
-      if (k === "minecraft.mined:minecraft.gold_block" || k === "minecraft.crafted:minecraft.gold_block") g = diff;
-      else if (k === "minecraft.used:minecraft.gold_block") g = -diff;
-      else if (k === "minecraft.crafted:minecraft.gold_ingot" && diff % 9 === 0) g = -diff / 9;   // blocks broken down into ingots
-      if (g) { goldCum += g; st.gold.push([igt, goldCum]); }
+        for (const sl in dbInv) dbInv[sl] = 0; dbOwed += dbHeld; dbHeld = 0; for (const sl in ripInv) ripInv[sl] = 0; ripHeld = 0; }
       let tg = 0;
       if (k === "minecraft.picked_up:minecraft.tnt" || k === "minecraft.crafted:minecraft.tnt") { tg = diff; tot.tntGot = (tot.tntGot || 0) + diff; }
       else if (k === "minecraft.used:minecraft.tnt") tg = -diff;
@@ -159,7 +151,17 @@ function parseLog(text, filename) {
       // (st.netherite: the same for netherite, in debris: the most there's been at once)
       const nh = Object.values(netInv).reduce((a, b) => a + b, 0);
       if (nh > netHeld) { netHeld = nh; const ln = st.netherite[st.netherite.length - 1]; if (ln && ln[0] === igt) ln[1] = nh; else st.netherite.push([igt, nh]); }
-      for (const [slot, v] of Object.entries(d.slots || {})) { inv[slot] = v && v.id === "minecraft:enchanted_golden_apple" ? (v.Count || 1) : 0; skInv[slot] = v && v.id === "minecraft:wither_skeleton_skull" ? (v.Count || 1) : 0; }
+      for (const [slot, v] of Object.entries(d.slots || {})) inv[slot] = v && v.id === "minecraft:enchanted_golden_apple" ? (v.Count || 1) : 0;
+      // skulls, shells, tridents, hives…: what's in the inventory, so one dropped or lost and picked up again isn't a new
+      // one (st.skulls and so on: a time for each one more than was ever held at once)
+      for (const [slot, v] of Object.entries(d.slots || {})) {
+        const c = {}, add = x => { const k = x && KEPT[String(x.id).replace("minecraft:", "")]; if (k) c[k] = (c[k] || 0) + (x.Count || 1); };
+        add(v); ((v && v.tag && v.tag.BlockEntityTag && v.tag.BlockEntityTag.Items) || []).forEach(add);
+        kept[slot] = Object.keys(c).length ? c : null;
+      }
+      const keptNow = {};
+      for (const c of Object.values(kept)) if (c) for (const k in c) keptNow[k] = (keptNow[k] || 0) + c[k];
+      for (const k in keptNow) while (keptNow[k] > (keptMax[k] || 0)) { keptMax[k] = (keptMax[k] || 0) + 1; st[k].push(igt); }
       // riptide tridents in the inventory (a trident use is only a riptide while one is held)
       for (const [slot, v] of Object.entries(d.slots || {})) ripInv[slot] = v && v.id === "minecraft:trident" && ((v.tag && v.tag.Enchantments) || []).some(e => String(e.id) === "minecraft:riptide") ? 1 : 0;
       ripHeld = Object.values(ripInv).reduce((a, b) => a + b, 0);
@@ -170,14 +172,13 @@ function parseLog(text, filename) {
       const db = Object.values(dbInv).reduce((a, b) => a + b, 0);
       if (db > dbHeld) { const again = Math.min(db - dbHeld, dbOwed); dbOwed -= again; if (db - dbHeld > again && dim === "n") st.debrisGot.push(igt); }   // (not what was dropped by dying)
       dbHeld = db;
-      const sk = Object.values(skInv).reduce((a, b) => a + b, 0), prev = skHeld.length ? skHeld[skHeld.length - 1] : null;
-      if (!prev || prev[1] !== sk) { if (prev && sk < prev[1]) skHeld.push([igt, prev[1]]); skHeld.push([igt, sk]); }
       const n = Object.values(inv).reduce((a, b) => a + b, 0);
       if (n > 0 && st.gapple == null) st.gapple = igt;
       st.gappleMax = Math.max(st.gappleMax, n);
     }
   }
   tot.skulls = st.skulls.length; tot.debris = st.debris.length;   // (not the picked-up stat, which counts skulls picked up again after dying)
+  st.gold = st.beacon;   // (blocks for the beacon: the most held at once, like the Midgame checklist's Beacon Blocks)
   if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
   const comp = events.filter(e => e[4]);
   const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
@@ -248,5 +249,8 @@ const BEACON = {iron_block: 1, gold_block: 1, emerald_block: 1, diamond_block: 1
 const NETHERITE = {ancient_debris: 1, netherite_scrap: 1, netherite_ingot: 4, netherite_block: 36};
 const worth = (table, v) => v && v.id ? (table[String(v.id).replace("minecraft:", "")] || 0) * (v.Count || 1) : 0;
 // items whose first time in the inventory is kept (st.held): foods for A Balanced Diet that are got in one place
+// Items counted from the inventory (see "inventory_slots" above): item → its timeline in st
+const KEPT = {wither_skeleton_skull: "skulls", nautilus_shell: "nautilus", trident: "trident", bee_nest: "hives", beehive: "hives", ghast_tear: "tears", wither_rose: "rose"};
+const KEPT_RE = new RegExp(Object.keys(KEPT).map(k => "minecraft:" + k + '"').join("|"));
 const HELD = ["melon_slice", "cocoa_beans", "cookie", "sweet_berries", "mushroom_stew", "suspicious_stew",
   "cod", "salmon", "tropical_fish", "pufferfish", "cooked_cod", "cooked_salmon", "dried_kelp"];

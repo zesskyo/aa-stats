@@ -127,7 +127,6 @@ function travelMount(run, d, P, body) {
   const dimSegs = run.dims.map((x, i) => [x[0], (run.dims[i + 1] || [endT])[0], x[1]]).filter(s => s[1] > s[0]);
   const BASE = 60;   // playing at 1×: one minute of the run per second; fast forward / rewind double it each press
   let rate = 0;      // 0 = paused, negative = rewinding
-  const hours = []; for (let h = 3600000; h < endT; h += 3600000) hours.push(h);
   body.innerHTML = `
     <div class="tvtop"><div class="tabs-inline" id="tvTabs">${"one".split("").filter(k => P.pieces[k].length).map(k => `<button type="button" data-d="${k}">${esc(DIMS[k])}</button>`).join("")}</div></div>
     <div class="tvmap"><canvas id="tvCanvas" aria-label="${esc(T.travelTitle)}"></canvas><span class="tvhover mono" id="tvHover"></span>
@@ -145,7 +144,7 @@ function travelMount(run, d, P, body) {
       </div>
       <div class="tvtrack" id="tvTrack" role="slider" tabindex="0" aria-label="${esc(T.travelTitle)}" aria-valuemin="0" aria-valuemax="${endT}">
         <div class="tvmarks">${events.filter(e => e.icon).map(e => `<span style="left:${pct(e.t)}"${e.faded ? ' class="faded"' : ""}>${eventIcon(e)}</span>`).join("")}</div>
-        <div class="tvstrip">${dimSegs.map(s => `<i class="${s[2] === "n" ? "c-ne" : s[2] === "e" ? "c-en" : "c-ow"}" style="left:${pct(s[0])};width:${pct(s[1] - s[0])}"></i>`).join("")}${hours.map(h => `<u style="left:${pct(h)}"></u>`).join("")}<b class="tvlater" id="tvLater"></b></div>
+        <div class="tvstrip">${dimSegs.map(s => `<i class="${s[2] === "n" ? "c-ne" : s[2] === "e" ? "c-en" : "c-ow"}" style="left:${pct(s[0])};width:${pct(s[1] - s[0])}"></i>`).join("")}<b class="tvlater" id="tvLater"></b></div>
         <div class="tvhead" id="tvHead"><span class="mono" id="tvNow"></span></div>
         <span class="tvpeek mono" id="tvPeek"></span>
       </div>

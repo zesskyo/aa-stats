@@ -474,7 +474,7 @@ async function invGoals(host, run, d) {
   const debris = d.splits[4] || {}, enchDone = d.splits[2] && d.splits[2].end;
   const god = st.gapple ?? crit("husbandry/balanced_diet", "enchanted_golden_apple");
   const GOALS = [
-    {adv: "nether/create_full_beacon", steps: [{at: advTime(run, "nether/create_full_beacon"), icon: "gold_block", title: "Gold Blocks", sub: t => `(${held(st.gold, t)} / 164)`}]},
+    {adv: "nether/create_full_beacon", steps: [{at: advTime(run, "nether/create_full_beacon"), icon: "gold_block", title: "Beacon Blocks", sub: t => `(${held(st.gold, t)} / 164)`}]},
     {adv: "husbandry/obtain_netherite_hoe", steps: [
       {at: debris.start ?? nth(st.debris, 1), icon: "tnt", title: "TNT", sub: t => `(${held(st.tntHeld, t)})`},
       {at: (debris.segs && debris.segs.length ? debris.segs[0][1] : null) ?? (st.debris || []).slice(-1)[0] ?? null, icon: "ancient_debris", title: "Debris", sub: t => `(${count(st.debris, t)})`},

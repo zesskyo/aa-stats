@@ -107,7 +107,7 @@ function splitsCard(d) {
   const pieces = d.splits.flatMap((p, i) => p.segs.map(g => ({p, i, g}))).sort((a, b) => a.g[0] - b.g[0]);
   const bar = pieces.map(({p, i, g}) => {
     const w = (g[1] - g[0]) / total;
-    const pick = hasSubs(d, i) ? ` role="button" tabindex="0" data-si="${i}" data-a="${g[0]}" data-b="${g[1]}"` : "";
+    const pick = hasSubs(d, i) ? ` role="button" tabindex="0" data-si="${i}"` : "";
     return w > 0 ? `<div class="tipped${pick ? " pick" : ""}"${pick} style="flex:${w};background:${SCOL[i]}" data-tip="${esc(p.name)} · ${fmtShort(p.dur)}">${ic(p.icon)}${w > .1 ? `<span>${esc(p.name)}</span>` : ""}</div>` : "";
   }).join("");
   const cards = SPLIT_CARDS.filter(i => i !== 6 || splitMark(d.splits[6], 6) != null).map(i => {
@@ -193,24 +193,11 @@ function subZoom(p, i) {
     return `<div class="tipped" style="flex:${x.dur};background:${SCOL[i]};opacity:${k % 2 ? .78 : 1}" data-tip="${esc(x.name)} · ${fmtShort(x.dur)}">${ic(itemIcon(x.item), 16)}${w > 11 ? `<span>${esc(x.name)}</span>` : ""}</div>`; }).join("")}</div>`;
 }
 
-// Ticks on the split bar where a split's sub-splits ended, for the split that's open
-function subTicks(d, i) {
-  document.querySelectorAll(".splitbar .stick").forEach(e => e.remove());
-  if (i == null || !d.splits[i].subs) return;
-  for (const x of d.splits[i].subs) {
-    if (x.t == null) continue;
-    const piece = [...document.querySelectorAll(`.splitbar [data-si="${i}"]`)].find(e => x.t >= +e.dataset.a && x.t <= +e.dataset.b);
-    if (!piece) continue;
-    const f = (x.t - piece.dataset.a) / (piece.dataset.b - piece.dataset.a) * 100;
-    piece.insertAdjacentHTML("beforeend", `<span class="stick" style="left:${f}%"></span>`);
-  }
-}
 function bindSubPanel(run, d) {
   subRun = run;
   const box = $("#subPanel"); if (!box) return;
   const show = () => {
     box.innerHTML = subPanel(d, subOpen);
-    subTicks(d, subOpen);
     document.querySelectorAll("[data-si]").forEach(b => b.classList.toggle("on", +b.dataset.si === subOpen));
     box.querySelectorAll("[data-allruns]").forEach(b => b.addEventListener("click", () => { state.split = +b.dataset.allruns; go("split"); }));
   };

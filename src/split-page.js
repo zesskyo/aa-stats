@@ -26,12 +26,14 @@ function subRefs(i, defs = subDefs(i)) {
 const vsAvg = (v, ref) => v == null || !ref || ref.avg == null ? `<span class="muted">—</span>`
   : `<span class="${ref.best != null && v <= ref.best ? "gold" : v <= ref.avg ? "good" : "bad"}">${v <= ref.avg ? "−" : "+"}${fmtShort(Math.abs(v - ref.avg))}</span>`;
 
+let spSort = null;   // the table's order: {split, k: the column (-1: the run's number), dir: 1 or -1}
 function renderSplitPage() {
   const el = $("#view-split"), i = Math.max(0, Math.min(SPLITS.length - 1, state.split || 0));
   syncUrl();
   const runs = validRuns().filter(r => !r.manual).sort((a, b) => runNum(a) - runNum(b));
+  if (!spSort || spSort.split !== i) spSort = {split: i, k: -1, dir: 1};
   const ds = runs.map(r => derive(r).splits[i]);
-  const cols = [{name: T.colSplitLength, f: p => p.dur, main: true}, {name: T.colSplitEnd, f: p => p.end, at: true},
+  const cols = [{name: T.subTook, f: p => p.dur, main: true}, {name: T.subDoneAt, f: p => p.end, at: true},
     ...subDefs(i).map(c => ({...c, sub: true}))];
   const vals = cols.map(c => ds.map(p => c.f(p)));
   const best = vals.map(v => { const xs = v.filter(x => x != null); return xs.length ? Math.min(...xs) : null; });
@@ -52,30 +54,36 @@ function renderSplitPage() {
       ${pts.map(({r, v}) => `<button type="button" class="spbar tipped${v != null && v === best[0] ? " best" : ""}" data-open="${esc(r.id)}" data-tip="${esc(runTitle(r))} · ${v != null ? fmtShort(v) : T.notDone}" aria-label="${esc(runTitle(r))}"><span style="height:${v != null ? Math.max(2, v / top * 100) : 0}%;background:${SCOL[i]}"></span><i>${esc(runNum(r))}</i></button>`).join("")}
     </div>` : "";
   const bestRun = best[0] != null ? runs[vals[0].indexOf(best[0])] : null;
-  const tiles = [[T.rowAverage, avg[0] != null ? fmtShort(avg[0]) : "—", ""], [T.rowBest, best[0] != null ? fmtShort(best[0]) : "—", bestRun ? runTitle(bestRun) : ""],
-    [T.splitLatest, vals[0].length && vals[0][vals[0].length - 1] != null ? fmtShort(vals[0][vals[0].length - 1]) : "—", runs.length ? runTitle(runs[runs.length - 1]) : ""],
-    [T.colSplitEnd + " · " + T.rowAverage.toLowerCase(), avg[1] != null ? fmt(avg[1], 0) : "—", ""]];
+  const tiles = [[T.rowAverage, avg[0] != null ? fmtShort(avg[0]) : "—", ""], [T.rowBest, best[0] != null ? fmtShort(best[0]) : "—", bestRun ? runTitle(bestRun) : ""]];
+  // the rows, in the order picked by clicking a heading (the run's number, or a column: fastest first, then slowest
+  // first; runs without that time always last)
+  const order = runs.map((_, n) => n);
+  if (spSort.k >= 0) order.sort((a, b) => { const x = vals[spSort.k][a], y = vals[spSort.k][b]; return x == null ? (y == null ? a - b : 1) : y == null ? -1 : (x - y) * spSort.dir || a - b; });
+  else if (spSort.dir < 0) order.reverse();
+  const arrow = k => spSort.k === k ? `<span class="sparrow">${spSort.dir > 0 ? "▲" : "▼"}</span>` : "";
 
   el.innerHTML = `
     <div class="pagerwrap"><button type="button" class="linkbtn" id="splitBack">${esc(T.backToOverview)}</button>
       <span class="splitpick">${SPLITS.map((x, k) => `<button type="button" class="chip${k === i ? " on" : ""}" data-split="${k}" aria-label="${esc(x.name)}">${ic(x.icon || FALLBACK_LAST_ICON, 18)} ${esc(x.name)}</button>`).join("")}</span></div>
     <section class="card" style="display:flex;flex-direction:column;gap:16px">
-      <div style="display:flex;align-items:center;gap:10px">${ic(icon, 28)}<h2>${esc(sp.name)}</h2><span class="muted">${esc(T.splitRunsCount(vals[0].filter(x => x != null).length))}</span></div>
+      <div style="display:flex;align-items:center;gap:10px">${ic(icon, 28)}<h2>${esc(sp.name)}</h2></div>
       <div class="sptiles">${tiles.map(([k, v, s]) => `<div class="sptile"><span class="label">${esc(k)}</span><span class="mono t">${v}</span>${s ? `<span class="muted">${esc(s)}</span>` : ""}</div>`).join("")}</div>
       ${chart}
     </section>
     <div class="card" style="padding:0">
-      <p class="muted" style="margin:0;padding:14px 18px 0">${esc(i === 3 ? T.splitRunsNoteMid : T.splitRunsNote)}</p>
       <div class="tablewrap sptable"><table>
       <thead>${i === 3 ? `<tr class="spgroups"><th></th><th colspan="2"></th>${MID_GROUPS.map(([g, keys]) => { const n = cols.filter(c => keys.includes(c.key)).length;
-        return n ? `<th colspan="${n}" scope="colgroup">${esc(g)}</th>` : ""; }).join("")}</tr>` : ""}<tr><th scope="col">${esc(T.colRun)}</th>${cols.map(c => `<th scope="col"${c.about ? ` title="${esc(c.about)}"` : ""}><span class="spth">${c.icon ? ic(c.icon, 18) : ""}<span>${esc(c.name)}</span></span></th>`).join("")}</tr></thead>
+        return n ? `<th colspan="${n}" scope="colgroup">${esc(g)}</th>` : ""; }).join("")}</tr>` : ""}<tr><th scope="col"><button type="button" class="spsort" data-sort="-1">${esc(T.colRun)}${arrow(-1)}</button></th>${cols.map((c, k) => `<th scope="col"${spSort.k === k ? ` aria-sort="${spSort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" class="spsort spth" data-sort="${k}">${c.icon ? ic(c.icon, 18) : ""}<span>${esc(c.name)}${arrow(k)}</span></button></th>`).join("")}</tr></thead>
       <tbody>
         <tr class="sumrow"><th scope="row">${esc(T.rowAverage)}</th>${avg.map((v, k) => sumCell(v, k)).join("")}</tr>
         <tr class="sumrow"><th scope="row">${esc(T.rowBest)}</th>${best.map((v, k) => sumCell(v, k)).join("")}</tr>
-        ${runs.map((r, n) => `<tr class="runrow" data-open="${esc(r.id)}" tabindex="0"><th scope="row"><span class="runno">${esc(runNum(r))}</span><span class="muted spdate">${esc(runDay(r))}</span></th>
+        ${order.map(n => [runs[n], n]).map(([r, n]) => `<tr class="runrow" data-open="${esc(r.id)}" tabindex="0"><th scope="row"><span class="runno">${esc(runNum(r))}</span><span class="muted spdate">${esc(runDay(r))}</span></th>
           ${vals.map((v, k) => cell(v[n], k, n)).join("")}</tr>`).join("")}
       </tbody></table></div></div>`;
   $("#splitBack").addEventListener("click", () => go("runs"));
   el.querySelectorAll("[data-split]").forEach(b => b.addEventListener("click", () => { state.split = +b.dataset.split; renderSplitPage(); }));
+  el.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", () => {
+    const k = +b.dataset.sort; spSort = {split: i, k, dir: spSort.k === k ? -spSort.dir : 1}; renderSplitPage();
+  }));
   el.querySelectorAll("[data-open]").forEach(t => t.addEventListener("click", () => go("run", t.dataset.open)));
 }

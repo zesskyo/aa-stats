@@ -547,8 +547,12 @@ td.best{color:var(--gold);font-weight:700}
 .sptable thead th{position:sticky;top:0;z-index:2;background:var(--surface);vertical-align:bottom}
 .sptable tbody th,.sptable thead th:first-child{position:sticky;left:0;z-index:1;background:var(--surface);text-align:left}
 .sptable thead th:first-child{z-index:3}
-.spth{display:inline-flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;white-space:normal;max-width:96px;line-height:1.2;text-align:right}
-.sptable td{text-align:right}
+.spsort{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer}
+.spsort:hover,.spsort:focus-visible{color:var(--accent);outline:none}
+.spth{display:inline-flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;white-space:normal;min-width:64px;max-width:110px;line-height:1.2;text-align:center}
+.sparrow{margin-left:4px;font-size:10px}
+.sptable thead th{text-align:center}
+.sptable td{text-align:center}
 .sptable th[scope="row"]{white-space:nowrap}
 .spdate{display:block;font-size:11px;font-weight:400}
 .sptable td.best{color:var(--gold);font-weight:700}

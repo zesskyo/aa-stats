@@ -15,11 +15,12 @@ function parseLog(text, filename) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: only if one was typed in
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
-    tears: [], ghasts: [], areas: [], beacon: [], netherite: [], held: {}};
+    tears: [], ghasts: [], areas: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
   const inv = {}, skInv = {}; let inDesert = false, goldCum = 0, tntCum = 0, skOwed = 0, skHeld = [], dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};   // skOwed: skulls dropped by dying, to be picked up again; skHeld: [time, skulls held] when it changes
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let biome = null, structs = [];   // where they are (for st.areas)
+  let fatigued = false;
   const minInv = {}, netInv = {}; let minHeld = 0, netHeld = 0;   // beacon blocks and netherite in each inventory slot (see BEACON, NETHERITE), and the most held
   // st.areas: [time, area] each time the kind of place they're in changes (areaOf); a few seconds somewhere else and back
   // (along a shore, say) is left out
@@ -62,7 +63,7 @@ function parseLog(text, filename) {
       && !(st.channeling === false && line.includes("minecraft:channeling"))
       && !MINERAL.test(line) && !Object.keys(minInv).some(sl => (minInv[sl] || netInv[sl]) && line.includes('"' + sl + '":'))
       && !HELD.some(x => st.held[x] == null && line.includes("minecraft:" + x))) continue;
-    if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots","biome"].includes(type)) continue;
+    if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots","biome","status_effects"].includes(type)) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
     // (times are SpeedRunIGT's retimed IGT, the IGT rounded to game ticks, which is what runs are timed with; logs
@@ -121,6 +122,11 @@ function parseLog(text, filename) {
         if (lr && igt - lr[0] < 2000) lr[1] = d.value; else st.rack.push([igt, d.value]);
       }
       if (/^minecraft\.used:minecraft\.[a-z_]*shulker_box$/.test(k)) tot.shulkerPlaced = (tot.shulkerPlaced || 0) + diff;
+    } else if (type === "status_effects") {
+      // st.fatigue: each time mining fatigue starts (from an elder guardian, for How Did We Get Here)
+      const has = Object.keys(d.effects || {}).includes("minecraft:mining_fatigue");
+      if (has && !fatigued) st.fatigue.push(igt);
+      fatigued = has;
     } else if (type === "biome") {
       // the first time in the outer End: any End biome but the central island's is over 1024 blocks out, past the
       // gateway (Remote Getaway is sometimes only given later; logs from older Hermes have no biome lines)

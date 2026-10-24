@@ -78,9 +78,9 @@ const MICON = {
 // or "icon:<name>" for one of the site's own icons (icons/<name>.png)
 const SUB_ITEMS = {
   "Nether": "netherrack", "Bastion": "gilded_blackstone", "Fortress": "nether_bricks", "Blind": "blaze_rod",
-  "Stronghold": "ender_eye", "End": "end_stone",
+  "Stronghold": "ender_eye", "End": "end_stone", "Dragon": "icon:dragon",
   "Elytra": "elytra", "End Leave": "ender_pearl",
-  "Setup": "brewing_stand", "Raid": "icon:ominous_banner", "Monument": "prismarine_bricks", "End Again": "end_crystal",
+  "Setup": "brewing_stand", "Raid": "icon:ominous_banner", "Monument": "prismarine_bricks", "HDWGH": "potion", "End Again": "end_crystal",
 };
 
 /*
@@ -95,7 +95,9 @@ const SUB_ITEMS = {
  * Goals: ["biome", name] (Adventuring Time), ["food", [items]] (eaten, or in the inventory: any of the items), ["bred",
  * animal] (Two by Two), ["kill", mob] (Monster Hunter), ["adv", id], ["cats"] (A Complete Catalogue), and count/need
  * (a timeline in the run's stats, and how many). Under the split it's on, what's left: "Biomes 3/5", "Foods 1/2", and
- * the rest by name. A counter (no target, no split) has need: null.
+ * the rest by name. A counter (no target, no split) has need: null; needIfNot: [advancement, need], a different target
+ * while that advancement isn't done. Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
+ * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
  */
 const MIDGAME = [
@@ -125,7 +127,7 @@ const MIDGAME = [
   {key: "godapple", name: "God Apple", item: "enchanted_golden_apple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
   {key: "tnt", name: "TNT", item: "tnt", area: ["desert"], count: "tnt", need: null},
   // the Overworld's animals: while they're being done
-  {key: "horses", name: "Horses", item: "saddle", area: ["plains", "desert"], start: "first", time: "active", gap: 180000, end: "done",
+  {key: "horses", name: "HDM", item: "hay_block", area: ["plains", "desert"], start: "first", time: "active", gap: 180000, end: "done",
     goals: [["bred", "horse"], ["bred", "donkey"], ["bred", "mule"]]},
   // the Nether
   {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: ["fortress", "nether"], start: "first", time: "active", gap: 60000, end: "done",
@@ -136,7 +138,9 @@ const MIDGAME = [
     goals: [["adv", "nether/ride_strider"], ["bred", "strider"]]},
   {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: ["nether", "crimson", "warped", "fortress", "bastion"], start: "first", time: "active", gap: 180000, end: "done",
     count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
-  {key: "debris", name: "Debris", item: "ancient_debris", area: ["bastion"], count: "netherite", need: null},
+  // (netherite: 20 debris for the armour and the hoe; 24 when the lodestone for Country Lode is still needed too)
+  {key: "debris", name: "Debris", item: "ancient_debris", area: ["bastion"], start: "mid", time: "clock", end: "done", count: "netherite", need: 20,
+    needIfNot: ["nether/use_lodestone", 24]},
 ];
 
 const SPLITS = [

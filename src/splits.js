@@ -135,10 +135,10 @@ const splitMark = (p, i) => i <= 1 ? p.end : p.start;
  * item the Minecraft item shown with it (SUB_ITEMS in config.js). Each step is named after what's done in
  * it, and the last one ends with the split.
  *   Any%       Nether → 1st structure (Bastion or Fortress, whichever came first) → 2nd structure → Blind (back to the
- *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (from entering it to the dragon)
+ *              Overworld with blaze rods) → Stronghold (Eye Spy) → End (entering it) → Dragon
  *   Outer End  Elytra → End Leave
- *   Endgame    Setup (for How Did We Get Here, until Voluntary Exile) → Raid (Hero of the Village) → Monument (How Did We
- *              Get Here) → End Again
+ *   Endgame    Setup (for How Did We Get Here, until Voluntary Exile) → Raid (Hero of the Village) → Monument (mining
+ *              fatigue from an elder guardian) → HDWGH (How Did We Get Here) → End Again
  */
 function findSubSplits(run, splits, {anyEnd}) {
   const dims = run.dims.filter(d => d[2] !== "live");   // (the timer adds a pretend dimension change "now")
@@ -158,7 +158,8 @@ function findSubSplits(run, splits, {anyEnd}) {
     [firstFortress ? "Bastion" : "Fortress", firstFortress ? bastion : fortress],
     ["Blind", dimAfter(advTime(run, "nether/obtain_blaze_rod"), "o")],
     ["Stronghold", advTime(run, "story/follow_ender_eye")],
-    ["End", anyEnd],
+    ["End", advTime(run, "story/enter_the_end")],
+    ["Dragon", anyEnd],
   ]);
   // (leaving the End for real, not the timer's pretend "now")
   const loot = advTime(run, "end/elytra") ?? advTime(run, "end/find_end_city"), left = loot == null ? null : dims.find(d => d[0] > loot && d[1] !== "e");
@@ -166,7 +167,8 @@ function findSubSplits(run, splits, {anyEnd}) {
   sub(5, [
     ["Setup", advTime(run, "adventure/voluntary_exile")],
     ["Raid", advTime(run, "adventure/hero_of_the_village")],
-    ["Monument", advTime(run, "nether/all_effects")],
+    ["Monument", ((run.st || {}).fatigue || []).find(t => t >= (startOf(5) ?? Infinity)) ?? null],
+    ["HDWGH", advTime(run, "nether/all_effects")],
     ["End Again", advTime(run, "end/respawn_dragon")],
   ]);
 }
@@ -176,7 +178,8 @@ function findSubSplits(run, splits, {anyEnd}) {
  *   {key, name, item, area, split, start, end, complete, dur, since, done, have, need, parts, missing}
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
- * parts: what's left, as [name, have, need] ("Biomes", "Foods", a counter, the rest one by one); missing: the same as text.
+ * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
+ * rest one by one); missing: the same as text.
  * Also the area the runner is in now, and the areas they've been in over the last NEAR (to keep showing those).
  * Leaving an area only counts once they've been out of it for LEAVE_AFTER.
  */
@@ -190,13 +193,13 @@ function findMidgame(run, splits) {
   for (const e of run.events) { const k = e[2] + "|" + e[3]; if (!(k in crit)) crit[k] = e[0]; }
   const held = st.held || {};
   const first = ts => { ts = ts.filter(t => t != null); return ts.length ? Math.min(...ts) : null; };
-  // each goal: [when it was done, its group ("Biomes", "Foods") or name]
+  // each goal: [when it was done, its group ("Biomes", "Foods", "Breeds", "Kills") or name, its icon (goalIcon)]
   const GOAL = {
-    biome: x => [crit["adventure/adventuring_time|" + x], "Biomes"],
-    food: xs => [first(xs.flatMap(x => [crit["husbandry/balanced_diet|" + x], held[x]])), "Foods"],
-    bred: x => [crit["husbandry/bred_all_animals|" + x], "Breed " + nameOf(x)],
-    kill: x => [crit["adventure/kill_all_mobs|" + x], "Kill " + nameOf(x)],
-    adv: x => [advTime(run, x), ADV[x] || x],
+    biome: x => [crit["adventure/adventuring_time|" + x], "Biomes", goalIcon("biome", x)],
+    food: xs => [first(xs.flatMap(x => [crit["husbandry/balanced_diet|" + x], held[x]])), "Foods", goalIcon("food", xs)],
+    bred: x => [crit["husbandry/bred_all_animals|" + x], "Breeds", goalIcon("bred", x)],
+    kill: x => [crit["adventure/kill_all_mobs|" + x], "Kills", goalIcon("kill", x)],
+    adv: x => [advTime(run, x), ADV[x] || x, goalIcon("adv", x)],
   };
   // counters: [time, how many] as it changes (beacon blocks and netherite: the most held so far, as they get used up)
   const series = k => {
@@ -224,18 +227,20 @@ function findMidgame(run, splits) {
     const cats = (m.goals || []).some(g => g[0] === "cats");
     const goals = (m.goals || []).filter(g => g[0] !== "cats").map(([kind, x]) => GOAL[kind](x));
     if (cats) { const ts = Object.keys(crit).filter(k => k.startsWith("husbandry/complete_catalogue|")).map(k => crit[k]).sort((a, b) => a - b);
-      const need = REQ["husbandry/complete_catalogue"]; for (let i = 0; i < need; i++) goals.push([ts[i] ?? null, "Cats"]); }
+      const need = REQ["husbandry/complete_catalogue"]; for (let i = 0; i < need; i++) goals.push([ts[i] ?? null, "Cats", "item:cod"]); }
     const xs = m.count ? series(m.count) : [];
     if (m.count && m.need == null)   // (a counter: just how many)
       return {key: m.key, name: m.name, item: m.item, area: m.area, split: false, start: null, end: null, complete: false, dur: null, since: null, done: null, have: countAt(xs, now), need: null, parts: [], missing: []};
     // what's left, in groups
     const groups = new Map();
-    const addTo = (name, t) => { const g = groups.get(name) || {have: 0, need: 0}; g.need++; if (t != null) g.have++; groups.set(name, g); };
-    for (const [t, name] of goals) addTo(name, t);
+    for (const [t, name, icon] of goals) { const g = groups.get(name) || {have: 0, need: 0, icons: []}; g.need++; if (t != null) g.have++; else g.icons.push(icon); groups.set(name, g); }
+    // (a different target while an advancement isn't done: debris, without the lodestone)
+    const target = m.needIfNot && advTime(run, m.needIfNot[0]) == null ? m.needIfNot[1] : m.need;
     let v = 0, reached = null;
-    if (m.count) { v = countAt(xs, now); const r = xs.find(([, c]) => c >= m.need); reached = r ? r[0] : null; }
-    const parts = [...(m.count ? [[m.countName || m.name, Math.min(v, m.need), m.need]] : []), ...[...groups].map(([name, g]) => [name, g.have, g.need])].filter(p => p[1] < p[2]);
-    const need = goals.length + (m.count ? m.need : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, m.need) : 0);
+    if (m.count) { v = countAt(xs, now); const r = xs.find(([, c]) => c >= target); reached = r ? r[0] : null; }
+    const parts = [...(m.count ? [[m.countName || m.name, Math.min(v, target), target, ["item:" + m.item]]] : []),
+      ...[...groups].map(([name, g]) => [name, g.have, g.need, g.icons])].filter(p => p[1] < p[2]);
+    const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
     const e = {key: m.key, name: m.name, item: m.item, area: m.area, split: true, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
       parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n)};
@@ -272,3 +277,9 @@ function findMidgame(run, splits) {
   const near = [...new Set(areas.filter(([t], i) => t >= now - NEAR || i === areas.length - 1 || (areas[i + 1] && areas[i + 1][0] >= now - NEAR)).map(a => a[1]))];
   return {area: areas.length ? areas[areas.length - 1][1] : null, near, sections: out};
 }
+
+// The icon for a goal of the Midgame checklist: the stats site's own for biomes ("at:"), mobs ("mh:") and animals
+// ("2x2:"), from icons/adventuring time, monsters hunted and two by two; an item otherwise ("item:", from the item atlas)
+const ADV_ITEMS = {"story/cure_zombie_villager": "golden_apple", "nether/return_to_sender": "fire_charge", "nether/uneasy_alliance": "ghast_tear", "nether/ride_strider": "warped_fungus_on_a_stick"};
+const goalIcon = (kind, x) => kind === "biome" ? "at:" + x : kind === "kill" ? "mh:" + x : kind === "bred" ? "2x2:" + x
+  : kind === "food" ? "item:" + x[0] : "item:" + (ADV_ITEMS[x] || "book");

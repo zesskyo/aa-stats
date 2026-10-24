@@ -226,10 +226,10 @@ for (const dir of [inCode("icons"), inSite("icons")]) if (fs.existsSync(dir)) fo
 // the sub-splits' and the Midgame checklist's icons (config.js' SUB_ITEMS and MIDGAME), as "item:<item>" (cut out of the
 // item atlas; "item:icon:<name>" is one of the icons above) or as they're named ("mh:<mob>": icons/monsters hunted/…)
 {
-  const {SUB_ITEMS, MIDGAME} = new Function(read(inCode("src/config.js")) + "\nreturn { SUB_ITEMS, MIDGAME };")();
+  const {SUB_ITEMS, MIDGAME, AREA_LANES} = new Function(read(inCode("src/config.js")) + "\nreturn { SUB_ITEMS, MIDGAME, AREA_LANES };")();
   const items = JSON.parse(read(inCode("items/items.json"))), atlas = readPng(fs.readFileSync(inCode("items/atlas.png")));
   const DIRS = {"at:": "adventuring time", "mh:": "monsters hunted", "2x2:": "two by two"};
-  for (const id of new Set([...Object.values(SUB_ITEMS), ...MIDGAME.map(m => m.item)])) {
+  for (const id of new Set([...Object.values(SUB_ITEMS), ...MIDGAME.map(m => m.item), ...Object.values(AREA_LANES).map(a => a[1])])) {
     const prefix = Object.keys(DIRS).find(p => id.startsWith(p)), key = prefix ? id : "item:" + id;
     if (icons[key]) continue;
     if (prefix) icons[key] = "data:image/png;base64," + fs.readFileSync(path.join(inCode("icons"), DIRS[prefix], id.slice(prefix.length) + ".png")).toString("base64");

@@ -123,9 +123,9 @@ const MIDGAME = [
   {key: "cats", about: "From the start of Midgame until all 11 cats are tamed", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]]},
   {key: "shells", about: "From the start of Midgame until 8 nautilus shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "nautilus", need: 8},
   {key: "trident", about: "From the start of Midgame until a trident", name: "Trident", item: "trident", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "trident", need: 1},
-  {key: "oceanbiomes", about: "From the start of Midgame until the six ocean biomes", name: "Biomes", item: "kelp", area: ["ocean"], start: "mid", time: "clock", end: "done",
+  {key: "oceanbiomes", about: "Not timed: the six ocean biomes", name: "Biomes", item: "kelp", area: ["ocean"],
     goals: [["biome", "warm_ocean"], ["biome", "lukewarm_ocean"], ["biome", "deep_lukewarm_ocean"], ["biome", "cold_ocean"], ["biome", "deep_cold_ocean"], ["biome", "deep_frozen_ocean"]]},
-  {key: "oceanfood", about: "From the start of Midgame until the seven ocean foods are eaten", name: "Foods", item: "tropical_fish", area: ["ocean"], start: "mid", time: "clock", end: "done",
+  {key: "oceanfood", about: "Not timed: the seven ocean foods", name: "Foods", item: "tropical_fish", area: ["ocean"],
     goals: [["food", ["cod"]], ["food", ["salmon"]], ["food", ["tropical_fish"]], ["food", ["pufferfish"]], ["food", ["cooked_cod"]], ["food", ["cooked_salmon"]], ["food", ["dried_kelp"]]]},
   {key: "beacon", about: "From the start of Midgame until the 164 blocks for a full beacon (netherite not counted)", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164},
   {key: "godapple", about: "From the start of Midgame until an enchanted golden apple", name: "God Apple", item: "enchanted_golden_apple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
@@ -143,13 +143,23 @@ const MIDGAME = [
     needIfNot: ["nether/use_lodestone", 24]},
 ];
 
-// The Midgame checklist on a run's page, by where it's done (keys of MIDGAME)
+// The Midgame checklist's splits on a run's page, by where they're done (keys of MIDGAME; the ones that aren't timed
+// aren't shown there)
 const MID_GROUPS = [
   ["Rare biomes", ["mushroom", "badlands", "jungle", "snowy", "taiga"]],
-  ["Villages, the ocean and deserts", ["cats", "shells", "trident", "oceanbiomes", "oceanfood", "beacon", "godapple"]],
+  ["Villages, the ocean and deserts", ["cats", "shells", "trident", "beacon", "godapple"]],
   ["The Nether", ["skulls", "alliance", "debris"]],
-  ["Not timed", ["horses", "zoglin", "striders"]],
 ];
+// The areas on the Midgame timeline (areaOf in parse-log.js): name, icon, colour; in this order, those visited (visits
+// under 3 seconds aren't shown, and ones less than 10 seconds apart are joined)
+const AREA_LANES = {
+  mushroom: ["Mushroom Island", "red_mushroom_block", "var(--s2)"], badlands: ["Badlands", "terracotta", "var(--s2)"], jungle: ["Jungle", "jungle_log", "var(--s2)"],
+  snowy: ["Snowy", "snow_block", "var(--s2)"], taiga: ["Taiga", "spruce_log", "var(--s2)"],
+  village: ["Village", "bell", "var(--s0)"], ocean: ["Ocean", "prismarine", "var(--s1)"], desert: ["Desert", "sand", "var(--s0)"],
+  other: ["Elsewhere", "grass_block", "var(--muted)"],   // (plains go here too)
+  nether: ["Nether", "netherrack", "var(--ne)"], crimson: ["Crimson Forest", "crimson_nylium", "var(--ne)"], warped: ["Warped Forest", "warped_nylium", "var(--ne)"],
+  fortress: ["Fortress", "nether_bricks", "var(--ne)"], bastion: ["Bastion", "gilded_blackstone", "var(--ne)"], end: ["The End", "end_stone", "var(--en)"],
+};
 
 const SPLITS = [
   {name: "Any%",         icon: "dragon"},

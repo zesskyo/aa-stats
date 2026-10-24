@@ -34,7 +34,7 @@ function renderRunPage() {
   drawDebris(run, d);
   drawSkulls(run, d);
   drawStatsScreen(run);
-  bindSubPanel(d);
+  bindSubPanel(run, d);
   bindPager(el);
   el.querySelectorAll(".wrhist [data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
   mountRunBar(run, d);
@@ -107,7 +107,7 @@ function splitsCard(d) {
   const pieces = d.splits.flatMap((p, i) => p.segs.map(g => ({p, i, g}))).sort((a, b) => a.g[0] - b.g[0]);
   const bar = pieces.map(({p, i, g}) => {
     const w = (g[1] - g[0]) / total;
-    const pick = hasSubs(d, i) ? ` role="button" tabindex="0" data-si="${i}"` : "";
+    const pick = hasSubs(d, i) ? ` role="button" tabindex="0" data-si="${i}" data-a="${g[0]}" data-b="${g[1]}"` : "";
     return w > 0 ? `<div class="tipped${pick ? " pick" : ""}"${pick} style="flex:${w};background:${SCOL[i]}" data-tip="${esc(p.name)} · ${fmtShort(p.dur)}">${ic(p.icon)}${w > .1 ? `<span>${esc(p.name)}</span>` : ""}</div>` : "";
   }).join("");
   const cards = SPLIT_CARDS.filter(i => i !== 6 || splitMark(d.splits[6], 6) != null).map(i => {
@@ -125,38 +125,92 @@ function splitsCard(d) {
 // ---------- Sub-splits: a split's steps, opened by clicking it in the bar or its card (see splits.js) ----------
 // Each step: its icon and name, a bar for how long it took (out of the split), the time, against the average of the
 // runs on the site, and when it was done. Midgame: the checklist, by where it's done.
-let subOpen = null;   // the split whose sub-splits are open (its number in SPLITS), or null
+let subOpen = null, subRun = null;   // the split whose sub-splits are open (its number in SPLITS), or null
 const hasSubs = (d, i) => i === 3 ? !!d.splits[3].mid : !!(d.splits[i].subs && d.splits[i].subs.length);
 function subPanel(d, i) {
   if (i == null || !hasSubs(d, i)) return `<p class="muted subhint">${esc(T.subHint)}</p>`;
-  const p = d.splits[i], defs = subDefs(i), refs = subRefs(i, defs), whole = p.dur || 1;
-  const bar = v => v == null ? `<span></span>` : `<span class="subbar"><span style="width:${v != null ? Math.min(100, Math.max(1.5, v / whole * 100)) : 0}%;background:${SCOL[i]}"></span></span>`;
+  const p = d.splits[i], defs = subDefs(i), refs = subRefs(i, defs);
   const row = (icon, name, about, v, took, ref, at) => `<div class="subrow"><span class="subic">${ic(icon, 20)}</span>
-    <span class="subname">${esc(name)}${about ? `<small>${esc(about)}</small>` : ""}</span>${bar(v)}${v == null && ref !== undefined && !/^[\d:—]+$/.test(took) ? `<span class="mono wide">${took}</span>` : `<span class="mono">${took}</span><span class="mono">${ref === false ? "" : vsAvg(v, ref)}</span>`}<span class="mono muted">${at}</span></div>`;
-  const head = `<div class="subrow subcols"><span></span><span></span><span></span><span>${esc(T.subTook)}</span><span>${esc(T.subVsAvg)}</span><span>${esc(T.subDoneAt)}</span></div>`;
+    <span class="subname">${esc(name)}${about ? `<small>${esc(about)}</small>` : ""}</span>${v == null && !/^[\d:—]+$/.test(took) ? `<span class="mono wide">${took}</span>` : `<span class="mono">${took}</span><span class="mono">${vsAvg(v, ref)}</span>`}<span class="mono muted">${at}</span></div>`;
+  const head = `<div class="subrow subcols"><span></span><span></span><span>${esc(T.subTook)}</span><span>${esc(T.subVsAvg)}</span><span>${esc(T.subDoneAt)}</span></div>`;
   let body;
   if (i === 3) {
+    // (only the checklist's splits: what isn't timed isn't here)
     const secs = new Map(p.mid.sections.map(x => [x.key, x]));
     body = MID_GROUPS.map(([g, keys]) => {
-      const xs = keys.map(k => secs.get(k)).filter(x => x && (x.split || x.need));
+      const xs = keys.map(k => secs.get(k)).filter(x => x && x.split);
       if (!xs.length) return "";
       return `<div class="subgrp">${esc(g)}</div>` + xs.map(x => {
-        const timed = x.split && x.complete, status = timed ? fmtShort(x.dur)
-          : x.why === "untimed" ? (x.done != null ? "✓" : `${esc(T.notDone)} ${x.have}/${x.need}`)
+        const timed = x.complete, status = timed ? fmtShort(x.dur)
           : x.why ? `<span class="muted">${esc(T.whyNoSplit[x.why])}</span>` : `<span class="bad">${esc(T.notDone)}${x.need > 1 ? ` ${x.have}/${x.need}` : ""}</span>`;
-        return row(itemIcon(x.item), x.name, x.about, timed ? x.dur : null, status, x.split ? refs[x.key] : false, x.done != null ? fmt(x.done, 0) : "");
+        return row(itemIcon(x.item), x.name, x.about, timed ? x.dur : null, status, refs[x.key], x.done != null ? fmt(x.done, 0) : "");
       }).join("");
-    }).join("");
-  } else body = p.subs.map((x, j) => row(itemIcon(x.item), x.name, "", x.dur, x.dur != null ? fmtShort(x.dur) : "—", refs[j], x.t != null ? fmt(x.t, 0) : "—")).join("");
+    }).join("") + midTimeline(d, subRun);
+  } else body = subZoom(p, i) + p.subs.map((x, j) => row(itemIcon(x.item), x.name, "", x.dur, x.dur != null ? fmtShort(x.dur) : "—", refs[j], x.t != null ? fmt(x.t, 0) : "—")).join("");
   return `<div class="subpanel" style="--sc:${SCOL[i]}">
     <div class="subphead">${ic(p.icon, 22)}<b>${esc(p.name)}</b><span class="mono">${p.dur != null ? fmtShort(p.dur) : "—"}</span>${vsAvg(p.dur, refs.split)}
       <button type="button" class="linkbtn" data-allruns="${i}">${esc(T.subAllRuns)}</button></div>
     ${head}${body}</div>`;
 }
-function bindSubPanel(d) {
+
+// Midgame's route: a lane for each kind of place visited during it, when they were there, and the checklist's splits
+// marked where they ended
+function midTimeline(d, run) {
+  const p = d.splits[3], a = p.start, b = p.end, areas = (run && run.st || {}).areas || [];
+  if (a == null || b == null || b <= a || !areas.length) return "";
+  const X = t => (Math.max(a, Math.min(b, t)) - a) / (b - a) * 100;
+  const lanes = new Map();
+  areas.forEach(([t, v], k) => {
+    const to = k + 1 < areas.length ? areas[k + 1][0] : b;
+    if (v === "plains") v = "other";
+    if (to <= a || t >= b || !AREA_LANES[v]) return;
+    const segs = lanes.get(v) || lanes.set(v, []).get(v), last = segs[segs.length - 1], x = Math.max(a, t), y = Math.min(b, to);
+    if (last && x - last[1] < 10000) last[1] = y; else segs.push([x, y]);
+  });
+  for (const [k, segs] of lanes) { const keep = segs.filter(([x, y]) => y - x >= 3000); if (keep.length) lanes.set(k, keep); else lanes.delete(k); }
+  if (!lanes.size) return "";
+  const order = Object.keys(AREA_LANES).filter(k => lanes.has(k));
+  const marks = p.mid.sections.filter(x => x.split && x.complete && x.end != null && x.end >= a && x.end <= b)
+    .map(x => `<span class="tlmark tipped" style="left:${X(x.end)}%" data-tip="${esc(x.name)} · ${fmt(x.end, 0)}">${ic(itemIcon(x.item), 16)}</span>`).join("");
+  const step = (b - a) > 2 * 3600000 ? 1800000 : (b - a) > 3600000 ? 900000 : 600000;
+  const ticks = []; for (let t = Math.ceil(a / step) * step; t < b; t += step) ticks.push(`<span class="tltick" style="left:${X(t)}%">${fmt(t, 0)}</span>`);
+  return `<div class="subgrp">${esc(T.midRoute)}</div>
+    <div class="tl">
+      <div class="tlrow"><span></span><div class="tltrack tlmarks">${marks}</div></div>
+      ${order.map(k => { const [name, item, col] = AREA_LANES[k];
+        return `<div class="tlrow"><span class="tllabel">${ic(itemIcon(item), 16)}${esc(name)}</span><div class="tltrack">${lanes.get(k).map(([x, y]) =>
+          `<span class="tlseg tipped" style="left:${X(x)}%;width:${Math.max(.25, X(y) - X(x))}%;background:${col}" data-tip="${esc(name)} · ${fmt(x, 0)}–${fmt(y, 0)}"></span>`).join("")}</div></div>`; }).join("")}
+      <div class="tlrow"><span></span><div class="tltrack tlaxis">${ticks.join("")}</div></div>
+    </div>`;
+}
+
+// The open split, full width, cut where its sub-splits ended (in the order they were done)
+function subZoom(p, i) {
+  if (p.start == null || !p.dur) return "";
+  const xs = p.subs.filter(x => x.t != null && x.dur != null).sort((a, b) => a.t - b.t);
+  if (!xs.length) return "";
+  return `<div class="subzoom">${xs.map((x, k) => { const w = x.dur / p.dur * 100;
+    return `<div class="tipped" style="flex:${x.dur};background:${SCOL[i]};opacity:${k % 2 ? .78 : 1}" data-tip="${esc(x.name)} · ${fmtShort(x.dur)}">${ic(itemIcon(x.item), 16)}${w > 11 ? `<span>${esc(x.name)}</span>` : ""}</div>`; }).join("")}</div>`;
+}
+
+// Ticks on the split bar where a split's sub-splits ended, for the split that's open
+function subTicks(d, i) {
+  document.querySelectorAll(".splitbar .stick").forEach(e => e.remove());
+  if (i == null || !d.splits[i].subs) return;
+  for (const x of d.splits[i].subs) {
+    if (x.t == null) continue;
+    const piece = [...document.querySelectorAll(`.splitbar [data-si="${i}"]`)].find(e => x.t >= +e.dataset.a && x.t <= +e.dataset.b);
+    if (!piece) continue;
+    const f = (x.t - piece.dataset.a) / (piece.dataset.b - piece.dataset.a) * 100;
+    piece.insertAdjacentHTML("beforeend", `<span class="stick" style="left:${f}%"></span>`);
+  }
+}
+function bindSubPanel(run, d) {
+  subRun = run;
   const box = $("#subPanel"); if (!box) return;
   const show = () => {
     box.innerHTML = subPanel(d, subOpen);
+    subTicks(d, subOpen);
     document.querySelectorAll("[data-si]").forEach(b => b.classList.toggle("on", +b.dataset.si === subOpen));
     box.querySelectorAll("[data-allruns]").forEach(b => b.addEventListener("click", () => { state.split = +b.dataset.allruns; go("split"); }));
   };

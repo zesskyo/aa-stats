@@ -92,6 +92,7 @@ const T = {
   nthStructure: ["1st structure", "2nd structure"],
   whyNoSplit: {before: "done before", early: "started beforehand", post: "in Post-endgame"},
   splitLatest: "Latest",
+  midRoute: "Where Midgame went",
   splitRunsCount: n => `${n} run${n === 1 ? "" : "s"}`,
   splitChartLabel: name => `${name}: its length in each run`,
   splitRunsNoteMid: "The checklist's splits, in each run: blank when it wasn't timed (done before it started, started beforehand, or finished in Post-endgame). Hover a heading for what it times. Click a run to open it.",

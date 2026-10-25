@@ -18,7 +18,7 @@ function parseLog(text, filename, opts = {}) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
-    tears: [], ghasts: [], areas: [], beacon: [], netherite: [], held: {}, fatigue: []};
+    tears: [], ghasts: [], areas: [], underwater: [], prism: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
   const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
@@ -99,6 +99,12 @@ function parseLog(text, filename, opts = {}) {
       else if (TRACK[k]) for (let i = 0; i < diff; i++) st[TRACK[k]].push(igt);
       if (k === "minecraft.used:minecraft.ancient_debris") debrisPlaced += diff;
       if (k === "minecraft.used:minecraft.trident" && ripHeld) for (let i = 0; i < diff; i++) st.riptideUse.push(igt);
+      // underwater (Hermes doesn't log the distance swum: seagrass, kelp or sea pickles broken while swimming through
+      // them, drowned killed), and prismarine (an ocean monument) picked up: a time every 5 seconds or so while it goes on
+      // (for the timer: what they're doing in the ocean)
+      const every5 = (arr, t) => { if (!arr.length || t - arr[arr.length - 1] >= 5000) arr.push(t); };
+      if (/^minecraft\.mined:minecraft\.(seagrass|tall_seagrass|kelp|kelp_plant|sea_pickle)$/.test(k) || k === "minecraft.killed:minecraft.drowned") every5(st.underwater, igt);
+      if (/^minecraft\.picked_up:minecraft\.(prismarine(_shard|_crystals|_bricks)?|dark_prismarine|sea_lantern)$/.test(k)) every5(st.prism, igt);
       if (k === "minecraft.custom:minecraft.damage_taken") { hits.push([igt, d.diff || 0]); if (hits.length > 12) hits.shift(); }
       if (k.startsWith("minecraft.killed_by:")) killedBy = [igt, k.slice(k.indexOf(":") + 1).replace(/^minecraft\./, "")];
       if (k === "minecraft.custom:minecraft.deaths") { deaths.push([igt, dim, deathCause(igt, dim, killedBy, hits)]); killedBy = null; hits.length = 0; // (the slots are often emptied just before the death is logged: what was held in the seconds before)
@@ -130,6 +136,8 @@ function parseLog(text, filename, opts = {}) {
     } else if (type === "status_effects") {
       // st.fatigue: each time mining fatigue starts (from an elder guardian, for How Did We Get Here)
       const has = Object.keys(d.effects || {}).includes("minecraft:mining_fatigue");
+      // (and conduit power or dolphin's grace: in the water)
+      if (Object.keys(d.effects || {}).some(x => x === "minecraft:conduit_power" || x === "minecraft:dolphins_grace") && (!st.underwater.length || igt - st.underwater[st.underwater.length - 1] >= 5000)) st.underwater.push(igt);
       if (has && !fatigued) st.fatigue.push(igt);
       fatigued = has;
     } else if (type === "biome") {

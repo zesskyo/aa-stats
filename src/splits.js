@@ -335,7 +335,9 @@ function findMidgame(run, splits) {
   const rareGone = out.filter(e => ["mushroom", "badlands", "jungle", "snowy", "taiga"].includes(e.key) && (e.start != null || e.done != null)).length;
   for (const e of out) { const m = MIDGAME.find(x => x.key === e.key); if (m.showAfter) e.hidden = rareGone < m.showAfter; if (m.pin) e.pin = true; }
   const near = [...new Set(areas.filter(([t], i) => t >= now - NEAR || i === areas.length - 1 || (areas[i + 1] && areas[i + 1][0] >= now - NEAR)).map(a => a[1]))];
-  return {area: areas.length ? areas[areas.length - 1][1] : null, near, sections: out};
+  // (when they were last underwater: the timer puts the shells first then)
+  const uw = st.underwater || [];
+  return {area: areas.length ? areas[areas.length - 1][1] : null, near, sections: out, underwater: uw.length ? uw[uw.length - 1] : null};
 }
 
 // The icon for a goal of the Midgame checklist: the stats site's own for biomes ("at:"), mobs ("mh:") and animals

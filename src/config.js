@@ -161,7 +161,7 @@ const MIDGAME = [
       ["food", ["chicken"]], ["food", ["cooked_chicken"]], ["food", ["rabbit"]], ["food", ["cooked_rabbit"]], ["food", ["rabbit_stew"]]]},
   {key: "nethermisc", name: "Nether Misc", item: "warped_fungus_on_a_stick", area: NETHER, start: "first", time: "active", lead: 120000, end: "done",
     goals: [["nbiome", "nether_wastes"], ["nbiome", "crimson_forest"], ["nbiome", "warped_forest"], ["nbiome", "soul_sand_valley"], ["nbiome", "basalt_deltas"],
-      ["bred", "hoglin"], ["bred", "strider"], ["adv", "nether/ride_strider"],
+      ["bred", "hoglin"], ["bred", "strider"],
       ["kill", "hoglin"], ["kill", "zoglin"], ["kill", "piglin"], ["kill", "zombified_piglin"], ["kill", "blaze"], ["kill", "magma_cube"]]},
   // (netherite: 20 debris for the armour and the hoe; 24 when the lodestone for Country Lode is still needed too)
   // (not timed: it has its own split, Debris)

@@ -311,6 +311,14 @@ function findMidgame(run, splits) {
       const grace = m.area.some(x => NETHER.includes(x)) ? 0 : GRACE;
       // (and in the Overworld, a visit of MIN_STAY or more: looking around for what's needed counts, flying across doesn't)
       segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b + grace) || (grace && b - a >= MIN_STAY));
+      // (finished out of its area, like a ghast brought to the Overworld: from leaving it until then, if not too long)
+      if (m.finishOutside && done != null) {
+        const lastOut = vs.filter(([, b]) => b != null && b <= done).pop();
+        if (lastOut && !vs.some(([a, b]) => done >= a && (b == null || done <= b)) && done - lastOut[1] <= m.finishOutside) {
+          if (!segs.includes(lastOut)) segs.push(lastOut);
+          segs.push([lastOut[1], done]); segs.sort((x, y) => x[0] - y[0]);
+        }
+      }
     } else if (m.time === "active") {
       // the "lead" before each thing done for it, joined where they overlap (live: one going on now, while it's within that)
       // (what's done in an area another split is timing, like cows bred on a mushroom island, counts as done but adds no

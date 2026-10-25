@@ -104,7 +104,8 @@ const SUB_ITEMS = {
  * "kills": skulls got out of wither skeletons killed, like 3/64). extra: {name, until, goals}: not part of
  * the split, what's left of these is shown with it on the timer until the advancement "until" is done. showAfter: on the timer, only once that many
  * of the rare biomes' splits have started (hidden until then); pin: on the timer, shown wherever they are, under the
- * rest; pinLeft: pinned once only that many are left. notTimedIn: areas where what's done
+ * rest; pinLeft: pinned once only that many are left. finishOutside: done out of its area (a ghast
+ * brought to the Overworld), the time from leaving it until then counts too, up to that long. notTimedIn: areas where what's done
  * for it counts but adds no time (it's in another split's time there). notBefore: a kind of goal ("food") that, done before the split started (stews made
  * beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
@@ -146,7 +147,7 @@ const MIDGAME = [
   {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: NETHER, start: "enter", time: "farm", end: "done",
     count: "skulls", need: 3, activity: ["ws", "skulls"], info: "kills"},
   {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: NETHER, start: "enter", time: "area", end: "done",
-    count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
+    count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], finishOutside: 300000, goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
   // the rest, wherever and whenever it's done: only the time just before each thing (up to "lead") counts, so what's left
   // for later in the run doesn't stretch it
   {key: "ocean", name: "Ocean Misc", item: "heart_of_the_sea", area: ["ocean"], start: "first", time: "active", lead: 120000, end: "done",

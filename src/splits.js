@@ -188,13 +188,22 @@ function findSubSplits(run, splits, {anyEnd}) {
  * Also the area the runner is in now, and the areas they've been in over the last NEAR (to keep showing those).
  * Leaving an area only counts once they've been out of it for LEAVE_AFTER.
  */
-const LEAVE_AFTER = 10000, NEAR = 10000, GRACE = 60000, MIN_STAY = 30000;
+const LEAVE_AFTER = 10000, NEAR = 10000, GRACE = 60000, MIN_STAY = 30000, VILLAGE_IN = 5000;
 const BIOME_AREAS = ["plains", "taiga", "jungle", "badlands", "mushroom", "crimson", "warped"];   // (areas only a biome gives)
 const nameOf = x => titleCase(String(x).replace(/_/g, " "));
 function findMidgame(run, splits) {
   const st = run.st || {}, now = run.finalIgt;
   const midStart = splits[3].start ?? splits[2].end, postStart = splits[6].start;
-  const areas = st.areas || [];
+  // (a village only counts once they've been in it for VILLAGE_IN: villagers and cats wandering in and out of its
+  // bounds make the game say they're in and out of it)
+  const areas = [];
+  (st.areas || []).forEach(([t, v], k, A) => {
+    const to = k + 1 < A.length ? A[k + 1][0] : now;
+    if (v === "village" && to - t < VILLAGE_IN) return;
+    const l = areas[areas.length - 1];
+    if (l && l[1] === v) return;
+    if (v === "village") areas.push([t + VILLAGE_IN, v]); else areas.push([t, v]);
+  });
   const crit = {};
   for (const e of run.events) { const k = e[2] + "|" + e[3]; if (!(k in crit)) crit[k] = e[0]; }
   const held = st.held || {};

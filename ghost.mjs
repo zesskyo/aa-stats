@@ -55,7 +55,22 @@ export function readGhost(buf, run) {
     px = x; pz = z;
   }
   if (lastKept !== n - 1) push(n - 1);
-  return out.t.length ? out : null;
+  if (!out.t.length) return null;
+  // The log's dimension change and the ghost's teleport don't land on quite the same tick, so a few points either side
+  // would be in the wrong dimension (Overworld coordinates in the Nether, the stronghold's in The End): move each
+  // change to the teleport itself (the nearest jump within 10 seconds)
+  const d = out.d.split(""), jumps = [];
+  for (let i = 1; i < d.length; i++) if (out.t[i] - out.t[i - 1] <= 2 && Math.hypot(out.x[i] - out.x[i - 1], out.z[i] - out.z[i - 1]) > 50) jumps.push(i);
+  for (let k = 1; k < d.length; k++) {
+    if (out.d[k] === out.d[k - 1]) continue;
+    let j = null;
+    for (const i of jumps) if (Math.abs(out.t[i] - out.t[k]) <= 100 && (j == null || Math.abs(i - k) < Math.abs(j - k))) j = i;
+    if (j == null || j === k) continue;
+    if (j < k) for (let i = j; i < k; i++) d[i] = out.d[k];
+    else for (let i = k; i < j; i++) d[i] = out.d[k - 1];
+  }
+  out.d = d.join("");
+  return out;
 }
 
 

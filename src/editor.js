@@ -223,6 +223,7 @@ function renderEditor() {
         </div>
       </div>
       ${ld && ld.category === "Invalid" && !(noChanneling && ED.countAnyway) ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
+      ${lr && lr.st.noBiomes ? `<p class="note" style="margin:0">${esc(T.edOldHermes(lr.st.hermes || "?"))}</p>` : ""}
       ${noChanneling ? `<label class="check"><input type="checkbox" id="edCountAnyway"${ED.countAnyway ? " checked" : ""}> ${esc(T.edCountAnyway)}</label>` : ""}` : ""}
 
       <div class="edgrid">

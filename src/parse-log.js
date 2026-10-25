@@ -76,7 +76,7 @@ function parseLog(text, filename, opts = {}) {
     const igt = e.speedrunigt ? e.speedrunigt.retime ?? e.speedrunigt.igt : 0, rta = e.speedrunigt ? e.speedrunigt.rta : 0, d = e.data || {};
     if (given) while (bi < given.length && given[bi][0] <= igt) { biome = given[bi][1]; setArea(given[bi][0]); bi++; }
     if (!player && d.player && d.player.name) { player = d.player.name; if (/^[0-9a-f-]{32,36}$/i.test(d.player.uuid || "")) uuid = d.player.uuid; }
-    if (type === "initialize") { mc = d.mc_version; if (e.time) start = e.time; if (d.entered_seed) seed = String(d.entered_seed); }
+    if (type === "initialize") { mc = d.mc_version; if (e.time) start = e.time; if (d.entered_seed) seed = String(d.entered_seed); if (d.hermes_version) st.hermes = String(d.hermes_version).replace(/\+.*/, ""); }
     else if (type === "dimension") {
       const x = String(d.dimension || "").replace("minecraft:", "");
       dim = x === "the_nether" ? "n" : x === "the_end" ? "e" : "o";

@@ -200,6 +200,7 @@ const T = {
   edOptional: "Optional",
   edStatsRead: km => `${km} km of elytra flight`,
   edNeedLog: "Add the Hermes log, or switch to Manual.",
+  edOldHermes: v => `This log is from Hermes ${v}, which doesn't log biomes (Hermes 0.14 or newer does). Add the run's seed and its ghost file, and the biomes are worked out from those; otherwise the biome splits and the Midgame distribution can't be shown for it. For your next runs, update Hermes.`,
   edLogRead: (time, cat, deaths) => `${time} · ${cat} · ${deaths} death${deaths === 1 ? "" : "s"}`,
   edGhostBad: "That isn't a Hermes ghost file.",
   edDeaths: "Deaths",

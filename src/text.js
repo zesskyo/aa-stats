@@ -90,7 +90,7 @@ const T = {
   subDoneAt: "Done at",
   subAllRuns: "Every run →",
   nthStructure: ["1st structure", "2nd structure"],
-  whyNoSplit: {before: "done before Midgame", early: "Stew Precrafted", post: "in Post-endgame", outside: "done elsewhere", nodata: "no biomes in log"},
+  whyNoSplit: {before: "done before Midgame", early: "Stew Precrafted", post: "in Post-endgame", outside: "done elsewhere", debris: "done in Debris", endgame: "done in Endgame", nodata: "no biomes in log"},
   midRoute: "Midgame Distribution",
   midNoBiomes: "This run's log is from before Hermes logged biomes (0.14), so the biomes' splits and the Midgame distribution can't be shown. With the run's seed and its ghost file, they're worked out from those.",
   midBiomesFromGhost: "This run's log is from before Hermes logged biomes (0.14): its biomes are worked out from the seed and the ghost file.",

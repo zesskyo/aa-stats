@@ -179,7 +179,7 @@ function findSubSplits(run, splits, {anyEnd}) {
  * The Midgame checklist (MIDGAME in config.js), as the run stands at its end (or, live, now). For each entry:
  *   {key, about, name, item, area, split, why, start, end, complete, dur, since, done, have, need, parts, missing}
  * why: why it has no time in this run: "untimed" (never timed), "before" (done before Midgame), "outside" (done without
- * a visit to its area), "early" (part of it done beforehand, see notBefore), "post" (finished in Post-endgame),
+ * a visit to its area), "debris" / "endgame" (done then: those aren't timed), "early" (part of it done beforehand, see notBefore),
  * "nodata" (an old log, with no biomes); null otherwise. extra: more to do alongside it (see extra in config.js). last: when something was last done for it. info: rates to show with it (see info in config.js)
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
@@ -193,7 +193,14 @@ const BIOME_AREAS = ["plains", "taiga", "jungle", "badlands", "mushroom", "crims
 const nameOf = x => titleCase(String(x).replace(/_/g, " "));
 function findMidgame(run, splits) {
   const st = run.st || {}, now = run.finalIgt;
-  const midStart = splits[3].start ?? splits[2].end, postStart = splits[6].start;
+  const midStart = splits[3].start ?? splits[2].end;
+  // The checklist is timed in Midgame and in Post-endgame (Midgame's leftovers, done later): not in Debris and Endgame.
+  // W: those times, [from, to] (to: null while going on now)
+  let W = [...(splits[3].segs || []), ...(splits[6].segs || [])].filter(([a, b]) => b > a).map(([a, b]) => [a, b >= now ? null : b]).sort((x, y) => x[0] - y[0]);
+  if (!W.length && midStart != null) W = [[midStart, null]];
+  const inW = segs => { const out = [];
+    for (const [a, b] of segs) for (const [c, d] of W) { const lo = Math.max(a, c), hi = Math.min(b ?? Infinity, d ?? Infinity); if (hi > lo || (hi === Infinity && lo < Infinity)) out.push([lo, hi === Infinity ? null : hi]); }
+    return out.sort((x, y) => x[0] - y[0]); };
   // (a village only counts once they've been in it for VILLAGE_IN: villagers and cats wandering in and out of its
   // bounds make the game say they're in and out of it)
   const areas = [];
@@ -282,7 +289,6 @@ function findMidgame(run, splits) {
       // skulls: the Skulls split's own time (live, until now while the 3rd isn't got)
       const sk = findSkullSplit(run, series("ws").map(x => x[0]), series(m.count).map(x => x[0]), done == null ? now : null);
       if (!sk || !sk.segs.length || (done != null && sk.end <= midStart)) { if (done != null) e.why = "before"; return e; }
-      if (postStart != null && (done == null || sk.end > postStart)) { e.why = done != null ? "post" : null; return e; }
       e.start = sk.start; e.end = done != null ? sk.end : null; e.complete = done != null; e.dur = sk.dur;
       const g = sk.segs[sk.segs.length - 1]; e.last = g[1];
       // (still going: up to now, like the other splits, so the timer counts on from it)
@@ -314,19 +320,23 @@ function findMidgame(run, splits) {
       for (const t of progress.filter(t => !(m.notTimedIn || []).includes(areaAt(t)))) { const g = segs[segs.length - 1], a = Math.max(midStart, t - m.lead); if (g && a <= g[1]) g[1] = t; else segs.push([a, t]); }
       const g = segs[segs.length - 1]; if (g && done == null && now - g[1] <= m.lead) g[1] = null;
     } else segs = [[midStart, null]];
+    segs = inW(segs);
     // (not started; or everything was done before it started, or before Midgame: no split for it in this run)
-    if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) { if (done != null) e.why = done <= midStart ? "before" : "outside"; return e; }
+    if (!segs.length || (done != null && (done <= midStart || (done < segs[0][0] && m.start !== "mid")))) {
+      // (why: before Midgame; in Debris or Endgame, which aren't timed; or without going to its area)
+      const inSplit = (i, t) => (splits[i].segs || []).some(([a, b]) => t >= a && t <= b);
+      if (done != null) e.why = done <= midStart ? "before" : inSplit(4, done) ? "debris" : inSplit(5, done) ? "endgame" : "outside";
+      return e;
+    }
     const start = m.start === "mid" ? midStart : segs[0][0];
-    // (part of it done before it started, like stews made beforehand; or it went on into Post-endgame: no split)
+    // (part of it done before it started, like stews made beforehand: no split)
     if (m.notBefore && goals.some(g => g[3] === m.notBefore && g[0] != null && g[0] < start)) { e.why = "early"; return e; }
-    if (postStart != null && start >= postStart) { e.why = "post"; return e; }
     e.start = start;
     // (leaving after t: the end of the visit it was done in or before; t itself if it was done after the last one)
     const leaveAfter = t => { if (t == null) return null; const s = segs.find(([, b]) => b == null || b >= t); return s ? s[1] : t; };
     e.end = m.end === "done" ? done : m.end === "leave" ? leaveAfter(done)
       : [done, leaveAfter(coreDone)].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
     if (e.end != null && e.end < e.start) e.end = e.start;
-    if (postStart != null && (e.end == null || e.end > postStart)) { e.start = e.end = null; e.why = done != null ? "post" : null; return e; }
     // (Snowy: leaving with only Zombie Doctor left counts as finished)
     e.complete = e.end != null && ((done != null && done <= e.end) || (m.end === "doneOrLeave" && coreDone != null && coreDone <= e.end));
     const to = e.end ?? now;

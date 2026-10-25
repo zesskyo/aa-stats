@@ -44,7 +44,8 @@ async function viewAdd(files, only) {
     viewPend[k] = f;
     // the seed, if the log has one (and none was typed in)
     if (k === "log" && !viewPend.seedTyped) {
-      try { const m = /"entered_seed":"?(-?[^",}]+)/.exec((await f.slice(0, 20000).text())); viewPend.seed = m ? m[1] : ""; } catch {}
+      // (typed in when the world was made, or /seed used in the run: anywhere in the log)
+      try { const t = await f.text(), m = /"entered_seed":"?(-?[^",}]+)/.exec(t.slice(0, 20000)) || /"type":"seed","data":\{"seed":"?(-?\d+)/.exec(t); viewPend.seed = m ? m[1] : ""; } catch {}
     }
   }
   viewStatus = ""; renderCompare();

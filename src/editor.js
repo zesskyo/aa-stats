@@ -327,6 +327,7 @@ async function edPickLog(file) {
     run.id = runKey(run); run.meta = {};
     ED.log = {file, run}; ED.deaths = null; ED.causes = null;
     if (ED.draft && !ED.draft.date) ED.draft.date = null;   // let the log's date fill in
+    if (ED.draft && !ED.draft.seed) ED.draft.seed = null;   // and its seed (typed in, or /seed used in the run)
     ED.msg = ""; renderEditor(); edRestore();
   } catch (e) { edMsg(esc(e.message || String(e)), true); }
 }

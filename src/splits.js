@@ -242,8 +242,8 @@ function findMidgame(run, splits) {
   const out = MIDGAME.map(m => {
     const cats = (m.goals || []).some(g => g[0] === "cats");
     const goals = (m.goals || []).filter(g => g[0] !== "cats").map(([kind, x]) => [...GOAL[kind](x), kind, x]);
-    if (cats) { const ts = Object.keys(crit).filter(k => k.startsWith("husbandry/complete_catalogue|")).map(k => crit[k]).sort((a, b) => a - b);
-      const need = REQ["husbandry/complete_catalogue"]; for (let i = 0; i < need; i++) goals.push([ts[i] ?? null, "Cats", "item:cod"]); }
+    // (each cat, with the stats site's icon of it: icons/acc/)
+    if (cats) for (const v of CATS) goals.push([crit["husbandry/complete_catalogue|textures/entity/cat/" + v + ".png"] ?? null, "Cats", "acc:" + (CAT_FILE[v] || v)]);
     const xs = m.count ? series(m.count) : [];
     if (m.count && m.need == null)   // (a counter: just how many)
       return {key: m.key, name: m.name, item: m.item, area: m.area, split: false, start: null, end: null, complete: false, dur: null, since: null, done: null, have: countAt(xs, now), need: null, parts: [], missing: []};
@@ -343,6 +343,9 @@ function findMidgame(run, splits) {
 
 // The icon for a goal of the Midgame checklist: the stats site's own for biomes ("at:"), mobs ("mh:") and animals
 // ("2x2:"), from icons/adventuring time, monsters hunted and two by two; an item otherwise ("item:", from the item atlas)
+// A Complete Catalogue's cats (as its criteria name them), and their icons' files where named differently
+const CATS = ["tabby", "black", "red", "siamese", "british_shorthair", "calico", "persian", "ragdoll", "white", "jellie", "all_black"];
+const CAT_FILE = {black: "tuxedo", all_black: "black", british_shorthair: "british"};
 // (shorter names for advancements in the checklist, where the long ones don't fit)
 const SHORT_ADV = {"nether/return_to_sender": "Sender"};
 const ADV_ITEMS = {"adventure/bullseye": "target", "story/upgrade_tools": "stone_pickaxe", "husbandry/fishy_business": "fishing_rod", "adventure/trade": "emerald",

@@ -104,7 +104,8 @@ const SUB_ITEMS = {
  * "kills": skulls got out of wither skeletons killed, like 3/64). extra: {name, until, goals}: not part of
  * the split, what's left of these is shown with it on the timer until the advancement "until" is done. showAfter: on the timer, only once that many
  * of the rare biomes' splits have started (hidden until then); pin: on the timer, shown wherever they are, under the
- * rest; pinLeft: pinned once only that many are left. notBefore: a kind of goal ("food") that, done before the split started (stews made
+ * rest; pinLeft: pinned once only that many are left. notTimedIn: areas where what's done
+ * for it counts but adds no time (it's in another split's time there). notBefore: a kind of goal ("food") that, done before the split started (stews made
  * beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
@@ -152,7 +153,7 @@ const MIDGAME = [
     goals: [["biome", "warm_ocean"], ["biome", "lukewarm_ocean"], ["biome", "deep_lukewarm_ocean"], ["biome", "cold_ocean"], ["biome", "deep_cold_ocean"], ["biome", "deep_frozen_ocean"],
       ["food", ["cod"]], ["food", ["salmon"]], ["food", ["tropical_fish"]], ["food", ["pufferfish"]], ["food", ["cooked_cod"]], ["food", ["cooked_salmon"]], ["food", ["dried_kelp"]],
       ["bred", "turtle"], ["kill", "elder_guardian"], ["kill", "drowned"]]},   // (not the guardian: often killed later)
-  {key: "animals", name: "Temperate", item: "wheat", area: ["plains", "other"], start: "first", time: "active", lead: 120000, end: "done",
+  {key: "animals", name: "Temperate", item: "wheat", area: ["plains", "other"], start: "first", time: "active", lead: 120000, end: "done", notTimedIn: ["mushroom"],
     // (the bee isn't here: usually bred in Endgame)
     goals: [["biome", "forest"], ["biome", "wooded_hills"], ["biome", "birch_forest"], ["biome", "birch_forest_hills"], ["biome", "dark_forest"],
       ["biome", "mountains"], ["biome", "wooded_mountains"], ["biome", "stone_shore"],

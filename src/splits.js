@@ -307,8 +307,11 @@ function findMidgame(run, splits) {
       segs = vs.filter(([a, b]) => b == null || progress.some(t => t >= a && t <= b + grace) || (grace && b - a >= MIN_STAY));
     } else if (m.time === "active") {
       // the "lead" before each thing done for it, joined where they overlap (live: one going on now, while it's within that)
+      // (what's done in an area another split is timing, like cows bred on a mushroom island, counts as done but adds no
+      // time: that's already in the other split; notTimedIn in config.js)
+      const areaAt = t => { let v = null; for (const [x, a] of areas) { if (x > t) break; v = a; } return v; };
       segs = [];
-      for (const t of progress) { const g = segs[segs.length - 1], a = Math.max(midStart, t - m.lead); if (g && a <= g[1]) g[1] = t; else segs.push([a, t]); }
+      for (const t of progress.filter(t => !(m.notTimedIn || []).includes(areaAt(t)))) { const g = segs[segs.length - 1], a = Math.max(midStart, t - m.lead); if (g && a <= g[1]) g[1] = t; else segs.push([a, t]); }
       const g = segs[segs.length - 1]; if (g && done == null && now - g[1] <= m.lead) g[1] = null;
     } else segs = [[midStart, null]];
     // (not started; or everything was done before it started, or before Midgame: no split for it in this run)

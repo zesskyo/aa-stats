@@ -334,7 +334,7 @@ function findMidgame(run, splits) {
   });
   // (shown on the timer once enough of the rare biomes have been gone to: showAfter in config.js)
   const rareGone = out.filter(e => ["mushroom", "badlands", "jungle", "snowy", "taiga"].includes(e.key) && (e.start != null || e.done != null)).length;
-  for (const e of out) { const m = MIDGAME.find(x => x.key === e.key); if (m.showAfter) e.hidden = rareGone < m.showAfter; if (m.pin) e.pin = true; }
+  for (const e of out) { const m = MIDGAME.find(x => x.key === e.key); if (m.showAfter) e.hidden = rareGone < m.showAfter; if (m.pin) e.pin = true; if (m.pinLeft != null && e.need && e.need - e.have <= m.pinLeft && e.have < e.need) e.pin = true; }
   const near = [...new Set(areas.filter(([t], i) => t >= now - NEAR || i === areas.length - 1 || (areas[i + 1] && areas[i + 1][0] >= now - NEAR)).map(a => a[1]))];
   // (when they were last underwater: the timer puts the shells first then)
   const uw = st.underwater || [];

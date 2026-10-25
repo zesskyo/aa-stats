@@ -104,7 +104,7 @@ const SUB_ITEMS = {
  * "kills": skulls got out of wither skeletons killed, like 3/64). extra: {name, until, goals}: not part of
  * the split, what's left of these is shown with it on the timer until the advancement "until" is done. showAfter: on the timer, only once that many
  * of the rare biomes' splits have started (hidden until then); pin: on the timer, shown wherever they are, under the
- * rest. notBefore: a kind of goal ("food") that, done before the split started (stews made
+ * rest; pinLeft: pinned once only that many are left. notBefore: a kind of goal ("food") that, done before the split started (stews made
  * beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
@@ -135,7 +135,7 @@ const MIDGAME = [
   {key: "at", name: "Adventuring Time", item: "icon:boots", area: [], start: "mid", time: "clock", end: "done", showAfter: 3, pin: true,
     goals: [["biome", "badlands"], ["biome", "badlands_plateau"], ["biome", "bamboo_jungle"], ["biome", "bamboo_jungle_hills"], ["biome", "beach"], ["biome", "birch_forest"], ["biome", "birch_forest_hills"], ["biome", "cold_ocean"], ["biome", "dark_forest"], ["biome", "deep_cold_ocean"], ["biome", "deep_frozen_ocean"], ["biome", "deep_lukewarm_ocean"], ["biome", "desert"], ["biome", "desert_hills"], ["biome", "forest"], ["biome", "frozen_river"], ["biome", "giant_tree_taiga"], ["biome", "giant_tree_taiga_hills"], ["biome", "jungle"], ["biome", "jungle_edge"], ["biome", "jungle_hills"], ["biome", "lukewarm_ocean"], ["biome", "mountains"], ["biome", "mushroom_field_shore"], ["biome", "mushroom_fields"], ["biome", "plains"], ["biome", "river"], ["biome", "savanna"], ["biome", "savanna_plateau"], ["biome", "snowy_beach"], ["biome", "snowy_mountains"], ["biome", "snowy_tundra"], ["biome", "snowy_taiga"], ["biome", "snowy_taiga_hills"], ["biome", "stone_shore"], ["biome", "swamp"], ["biome", "taiga"], ["biome", "taiga_hills"], ["biome", "warm_ocean"], ["biome", "wooded_badlands_plateau"], ["biome", "wooded_hills"], ["biome", "wooded_mountains"]]},
   // villages, the ocean and deserts: from the start of Midgame
-  {key: "cats", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]]},
+  {key: "cats", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]], pinLeft: 3},
   {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "nautilus", need: 8, activity: ["drowned"]},
   {key: "trident", name: "Trident", item: "trident", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "trident", need: 1, activity: ["drowned"]},
   {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164, activity: ["prism"]},

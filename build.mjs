@@ -20,7 +20,7 @@
 // Usage: node build.mjs <site folder>      (no packages to install; the site folder defaults to the current folder)
 import fs from "node:fs";
 import path from "node:path";
-import { readGhost } from "./ghost.mjs";
+import { readGhost, deepTimes } from "./ghost.mjs";
 import { biomesFromPath } from "./biome-path.mjs";
 import { readInventory } from "./inv.mjs";
 import { readPng, writePng, pickSquares } from "./png.mjs";
@@ -38,7 +38,7 @@ const FILES = [
 ];
 // (and the ghost and inventory readers, for a run looked at on the Compare page)
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n")
-  + "\n/* ======== ghost.mjs ======== */\nconst readGhost = (() => {\n" + read(inCode("ghost.mjs")).replace("export function readGhost", "function readGhost") + "\nreturn readGhost;\n})();"
+  + "\n/* ======== ghost.mjs ======== */\nconst {readGhost, deepTimes} = (() => {\n" + read(inCode("ghost.mjs")).replace(/export function/g, "function") + "\nreturn {readGhost, deepTimes};\n})();"
   + "\n/* ======== inv.mjs ======== */\nconst readInventory = (() => {\n" + read(inCode("inv.mjs")).replace("export function readInventory", "function readInventory") + "\nreturn readInventory;\n})();\n})();\n";
 // the Minecraft font (fonts/), inside the page
 const fontFace = (file, weight) => `@font-face{font-family:"Minecraft";src:url(data:font/otf;base64,${fs.readFileSync(inCode("fonts/" + file)).toString("base64")}) format("opentype");font-weight:${weight};font-display:swap}`;
@@ -89,11 +89,14 @@ if (fs.existsSync(inSite("logs"))) for (const f of fs.readdirSync(inSite("logs")
   const n = numOf(f); if (n == null || !/\.(log|txt|jsonl)$/i.test(f)) continue;
   let r = parseLog(read(inSite("logs/" + f)), f);
   const ghostF = inSite(`logs/${n}.ghost`), seed = seedOf(n) || r.seed;
-  if (r.st.noBiomes && seed && fs.existsSync(ghostF)) {
-    const g = readGhost(fs.readFileSync(ghostF), r);
+  // (the ghost file's heights: when they were deep in the Nether, mining debris, for the Debris split)
+  const gp = fs.existsSync(ghostF) ? readGhost(fs.readFileSync(ghostF), r) : null;
+  if (r.st.noBiomes && seed && gp) {
+    const g = gp;
     const biomes = g && await biomesFromPath(fs.readFileSync(inCode("wasm/cubiomes.wasm")), BIOME_IDS, g, seed, r.mc);
     if (biomes && biomes.length) { r = parseLog(read(inSite("logs/" + f)), f, {biomes}); console.log(`logs/${f} has no biomes (Hermes before 0.14): worked out ${biomes.length} biome changes from the seed and the ghost file`); }
   }
+  if (gp) r.st.deep = deepTimes(gp);
   r.id = runKey(r);
   clocks.set(n, r); logFiles.set(n, inSite("logs/" + f));
   runs.set(n, encodeRun(r));

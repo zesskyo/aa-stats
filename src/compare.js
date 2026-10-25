@@ -64,7 +64,7 @@ async function viewOpen() {
     // elytra distance (stats.json)
     if (viewPend.stats) try { const st = JSON.parse(await viewPend.stats.text()).stats || {}, v = (st["minecraft:custom"] || {})["minecraft:aviate_one_cm"]; if (v != null) r.meta.elytraCm = v; r.meta.statsData = st; } catch {}
     // the travel map (the .ghost, lined up with the log)
-    if (viewPend.ghost) { const g = readGhost(new Uint8Array(await viewPend.ghost.arrayBuffer()), r); if (g) { travelCache[r.id] = travelPrep(g); r.meta.path = "-"; } }
+    if (viewPend.ghost) { const g = readGhost(new Uint8Array(await viewPend.ghost.arrayBuffer()), r); if (g) { travelCache[r.id] = travelPrep(g); r.meta.path = "-"; r.st.deep = deepTimes(g); delete r._d; } }
     // the inventory (every icon, as it can have any item)
     try { const items = await (await fetch("items/all.json")).json(); const inv = readInventory(text, items, r.finalIgt); if (inv) { invData[r.id] = invPrep(inv); r.meta.inv = "-"; } } catch {}
   } catch (e) { viewStatus = T.viewFailed; renderCompare(); return; }

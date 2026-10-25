@@ -58,3 +58,16 @@ export function readGhost(buf, run) {
   return out.t.length ? out : null;
 }
 
+
+// When the player was deep in the Nether (below DEEP: where debris is mined, under the lava sea), from readGhost's
+// path: an IGT (ms) every 5 seconds or so while there (splits.js: a Nether trip spent down there is Debris)
+const DEEP = 25;
+export function deepTimes(path) {
+  const out = [];
+  if (!path || !path.t) return out;
+  for (let i = 0; i < path.t.length; i++) if (path.d[i] === "n" && path.y && path.y[i] < DEEP) {
+    const t = path.t[i] * 100;
+    if (!out.length || t - out[out.length - 1] >= 5000) out.push(t);
+  }
+  return out;
+}

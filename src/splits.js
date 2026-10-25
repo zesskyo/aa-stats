@@ -44,16 +44,30 @@ function findSplits(run, comp) {
   const session = pickups.length ? clusters(pickups, RULES.enchantPickupGap)[0] : null;
   const enchDone = session ? session[session.length - 1] : null;
 
-  // Debris: the biggest burst of debris mining
-  const debrisSession = (st.debris || []).length ? clusters(st.debris, RULES.debrisSessionGap).sort((a, b) => b.length - a.length)[0] : null;
+  // Debris: the first burst of debris mining that's a real one: 3 or more debris, or on a Nether trip spent a minute or
+  // more deep down (below y 25, where debris is mined: st.deep, from the ghost file), even if it got few (or none);
+  // with neither, the biggest burst
+  const deep = st.deep || [];
+  const deepIn = (a, b) => deep.filter(t => t >= a && t <= b);
+  const tripOf = t => { const i = run.dims.findLastIndex(x => x[0] <= t); return i >= 0 && run.dims[i][1] === "n" ? [run.dims[i][0], i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt] : null; };
+  const after = enchDone ?? -Infinity;
+  const bursts = (st.debris || []).length ? clusters(st.debris.filter(t => t >= after), RULES.debrisSessionGap) : [];
+  const deepTrip = run.dims.map((x, i) => x[1] === "n" && x[0] >= after ? [x[0], i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt] : null)
+    .find(tr => tr && deepIn(tr[0], tr[1]).length * 5000 >= RULES.debrisDeepMin);
+  let debrisSession = bursts.find(b => b.length >= 3) || null;
+  if (deepTrip && (!debrisSession || deepTrip[0] < debrisSession[0])) debrisSession = (st.debris || []).filter(t => t >= deepTrip[0] && t <= deepTrip[1]).concat(deepIn(deepTrip[0], deepTrip[1])).sort((a, b) => a - b);
+  if (!debrisSession && (st.debris || []).length) debrisSession = clusters(st.debris, RULES.debrisSessionGap).sort((a, b) => b.length - a.length)[0];
   let debrisStart = null, debrisEnd = null;
-  if (debrisSession) {
+  if (debrisSession && debrisSession.length) {
     const d0 = debrisSession[0];
     const netherIn = run.dims.filter(x => x[0] <= d0 && x[1] === "n").pop();
     const nIn = netherIn && (enchDone == null || netherIn[0] >= enchDone) ? netherIn[0] : null;
+    // (it starts when they go down to mine, or at the first netherrack mined on the trip)
+    const tr = tripOf(d0), firstDeep = tr ? deepIn(tr[0], tr[1])[0] : null;
     const firstRack = nIn != null ? (st.rack || []).find(p => p[0] >= nIn && p[0] <= d0) : null;
-    debrisStart = firstRack ? firstRack[0] : nIn != null ? nIn : d0;
-    debrisEnd = firstDimAfter(run, debrisSession[debrisSession.length - 1], x => x === "o");
+    debrisStart = firstDeep != null && firstDeep <= d0 ? firstDeep : firstRack ? firstRack[0] : nIn != null ? nIn : d0;
+    // (it ends back out of the Nether; a run that finishes there, when it finishes)
+    debrisEnd = firstDimAfter(run, debrisSession[debrisSession.length - 1], x => x !== "n") ?? run.finalIgt;
   }
   // more debris later on (more netherite needed): each Nether trip after that where debris was mined or turned up in the
   // inventory (from a chest) is more Debris, with what's between paused
@@ -61,7 +75,8 @@ function findSplits(run, comp) {
   if (debrisEnd != null) run.dims.forEach((x, i) => {
     if (x[1] !== "n" || x[0] < debrisEnd) return;
     const out = i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt;
-    if ([...(st.debris || []), ...(st.debrisGot || [])].some(t => t >= x[0] && t <= out)) moreDebris.push([x[0], out]);
+    // (or a minute spent deep down mining, before any debris turns up)
+    if ([...(st.debris || []), ...(st.debrisGot || [])].some(t => t >= x[0] && t <= out) || deepIn(x[0], out).length * 5000 >= RULES.debrisDeepMin) moreDebris.push([x[0], out]);
   });
   const debrisSegs = debrisStart != null && debrisEnd != null ? [[debrisStart, debrisEnd], ...moreDebris] : [];
 
@@ -76,7 +91,9 @@ function findSplits(run, comp) {
     const trip = firstDimAfter(run, hdwgh, x => x === "n");
     if (trip != null && (postStart == null || trip < postStart)) postStart = trip;
   }
-  if (postStart != null && run.finalIgt - postStart < RULES.postEndgameMin) postStart = null;
+  // (not while the run is still going, on the timer: it would sit in Endgame, then jump out after a few minutes)
+  const live = (run.dims[run.dims.length - 1] || [])[2] === "live";
+  if (postStart != null && !live && run.finalIgt - postStart < RULES.postEndgameMin) postStart = null;
 
   // Early Endgame (campfire placed before debris, or no Debris split). Only a campfire that's used for honey soon after
   // counts (Bee Our Guest within RULES.campfireToHoney): hives set up long before, e.g. while passing 0,0 in Midgame,

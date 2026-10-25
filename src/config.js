@@ -234,6 +234,7 @@ const RULES = {
   postEndgameMin: 5 * 60000,        // a Post-endgame shorter than this is folded into Endgame
   enchantPickupGap: 15 * 60000,     // enchanting-table pickups closer than this count as one enchanting session
   debrisSessionGap: 10 * 60000,     // debris mined closer together than this counts as one debris session
+  debrisDeepMin: 60000,             // a Nether trip with this long below y 25 (the ghost file) is Debris, however much it got
   skullIdleGap: 60000,              // skull split pauses after this long without a kill or skull
   pickupAfterDeath: 2 * 60000,      // pickups this soon after a death are dropped items, not new ones
   rareVisitGap: 10 * 60000,         // biome criteria closer than this count as one visit

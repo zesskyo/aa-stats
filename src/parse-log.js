@@ -265,4 +265,5 @@ const worth = (table, v) => v && v.id ? (table[String(v.id).replace("minecraft:"
 const KEPT = {wither_skeleton_skull: "skulls", nautilus_shell: "nautilus", trident: "trident", bee_nest: "hives", beehive: "hives", ghast_tear: "tears", wither_rose: "rose"};
 const KEPT_RE = new RegExp(Object.keys(KEPT).map(k => "minecraft:" + k + '"').join("|"));
 const HELD = ["melon_slice", "cocoa_beans", "cookie", "sweet_berries", "mushroom_stew", "suspicious_stew",
-  "cod", "salmon", "tropical_fish", "pufferfish", "cooked_cod", "cooked_salmon", "dried_kelp", "rabbit_stew", "beetroot", "beetroot_soup"];
+  "cod", "salmon", "tropical_fish", "pufferfish", "cooked_cod", "cooked_salmon", "dried_kelp", "rabbit_stew", "beetroot", "beetroot_soup",
+  "mutton", "cooked_mutton", "beef", "cooked_beef", "porkchop", "cooked_porkchop", "chicken", "cooked_chicken", "rabbit", "cooked_rabbit"];

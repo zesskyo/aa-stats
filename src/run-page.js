@@ -138,7 +138,8 @@ function subPanel(d, i) {
     // (only the checklist's splits: what isn't timed isn't here)
     // (an old log, with no biomes in it: the biomes and where Midgame went can't be told, so they're left out)
     const secs = new Map(p.mid.sections.map(x => [x.key, x])), noBiomes = p.mid.sections.some(x => x.why === "nodata");
-    body = (noBiomes ? `<p class="muted subhint" style="margin-top:10px">${esc(T.midNoBiomes)}</p>` : "") + MID_GROUPS.map(([g, keys]) => {
+    const fromGhost = subRun && subRun.st && subRun.st.noBiomes === "ghost";
+    body = (noBiomes ? `<p class="muted subhint" style="margin-top:10px">${esc(T.midNoBiomes)}</p>` : fromGhost ? `<p class="muted subhint" style="margin-top:10px">${esc(T.midBiomesFromGhost)}</p>` : "") + MID_GROUPS.map(([g, keys]) => {
       const xs = keys.map(k => secs.get(k)).filter(x => x && x.split && x.why !== "nodata");
       if (!xs.length) return "";
       return `<div class="subgrp">${esc(g)}</div>` + xs.map(x => {

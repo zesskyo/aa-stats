@@ -21,6 +21,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readGhost } from "./ghost.mjs";
+import { biomesFromPath } from "./biome-path.mjs";
 import { readInventory } from "./inv.mjs";
 import { readPng, writePng, pickSquares } from "./png.mjs";
 
@@ -80,9 +81,19 @@ if (fs.existsSync(inSite("runs"))) for (const f of fs.readdirSync(inSite("runs")
   runs.set(n, JSON.parse(read(inSite("runs/" + f))));
 }
 // 2) logs (a log always wins over an older parsed copy)
+// (a log from Hermes before 0.14 has no biomes in it: with the seed and the ghost file, they're worked out along the
+// path, and the log read again with them)
+const seedOf = n => { try { const d = JSON.parse(read(inSite("runs.json")))[String(n)]; return d && d.seed ? String(d.seed) : null; } catch { return null; } };
+const BIOME_IDS = new Function(read(inCode("src/biomes.js")) + "\nreturn BIOMES;")();
 if (fs.existsSync(inSite("logs"))) for (const f of fs.readdirSync(inSite("logs"))) {
   const n = numOf(f); if (n == null || !/\.(log|txt|jsonl)$/i.test(f)) continue;
-  const r = parseLog(read(inSite("logs/" + f)), f);
+  let r = parseLog(read(inSite("logs/" + f)), f);
+  const ghostF = inSite(`logs/${n}.ghost`), seed = seedOf(n) || r.seed;
+  if (r.st.noBiomes && seed && fs.existsSync(ghostF)) {
+    const g = readGhost(fs.readFileSync(ghostF), r);
+    const biomes = g && await biomesFromPath(fs.readFileSync(inCode("wasm/cubiomes.wasm")), BIOME_IDS, g, seed, r.mc);
+    if (biomes && biomes.length) { r = parseLog(read(inSite("logs/" + f)), f, {biomes}); console.log(`logs/${f} has no biomes (Hermes before 0.14): worked out ${biomes.length} biome changes from the seed and the ghost file`); }
+  }
   r.id = runKey(r);
   clocks.set(n, r); logFiles.set(n, inSite("logs/" + f));
   runs.set(n, encodeRun(r));

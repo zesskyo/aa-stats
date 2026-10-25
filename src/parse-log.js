@@ -11,7 +11,10 @@
  *   clock   – [real time (ms), igt] several times a second, to line up other recordings (the ghost file) with the run.
  *             Only build.mjs uses it; it isn't stored.
  */
-function parseLog(text, filename) {
+function parseLog(text, filename, opts = {}) {
+  // opts.biomes: [[igt, biome name], …] to use as if Hermes had logged them (old logs without biomes: build.mjs works
+  // them out from the seed and the ghost file, see biome-path.mjs)
+  const given = opts.biomes || null; let bi = 0, biomeLines = 0;
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
@@ -71,6 +74,7 @@ function parseLog(text, filename) {
     // (times are SpeedRunIGT's retimed IGT, the IGT rounded to game ticks, which is what runs are timed with; logs
     // from before SpeedRunIGT had it use the IGT)
     const igt = e.speedrunigt ? e.speedrunigt.retime ?? e.speedrunigt.igt : 0, rta = e.speedrunigt ? e.speedrunigt.rta : 0, d = e.data || {};
+    if (given) while (bi < given.length && given[bi][0] <= igt) { biome = given[bi][1]; setArea(given[bi][0]); bi++; }
     if (!player && d.player && d.player.name) { player = d.player.name; if (/^[0-9a-f-]{32,36}$/i.test(d.player.uuid || "")) uuid = d.player.uuid; }
     if (type === "initialize") { mc = d.mc_version; if (e.time) start = e.time; if (d.entered_seed) seed = String(d.entered_seed); }
     else if (type === "dimension") {
@@ -136,7 +140,7 @@ function parseLog(text, filename) {
         if (d.biome === "minecraft:the_end") onIsland = true;
         else if (d.biome && onIsland) st.outerEnd = igt;
       }
-      biome = String(d.biome || "").replace("minecraft:", "");
+      biome = String(d.biome || "").replace("minecraft:", ""); biomeLines++;
       setArea(igt);
     } else if (type === "inside_structures") {
       structs = d.structures || [];
@@ -185,6 +189,7 @@ function parseLog(text, filename) {
       st.gappleMax = Math.max(st.gappleMax, n);
     }
   }
+  if (!biomeLines) st.noBiomes = given ? "ghost" : true;   // (no biome lines: none known, or worked out from the ghost)
   tot.skulls = st.skulls.length; tot.debris = st.debris.length;   // (not the picked-up stat, which counts skulls picked up again after dying)
   if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
   const comp = events.filter(e => e[4]);

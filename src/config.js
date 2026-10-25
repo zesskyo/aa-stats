@@ -127,7 +127,7 @@ const MIDGAME = [
     optional: ["Zombie Doctor"],   // (Snowy can end on leaving with only this missing: it's sometimes done somewhere else)
     // (not timed, as runners do different things: what's often done while waiting for the zombie villager to be cured,
     // on the timer under Snowy while Zombie Doctor isn't done)
-    extra: {name: "While Curing", until: "story/cure_zombie_villager", goals: [["food", ["beetroot"]], ["food", ["beetroot_soup"]], ["food", ["rabbit_stew"]],
+    extra: {name: "Zombie Doctor", until: "story/cure_zombie_villager", goals: [["food", ["beetroot"]], ["food", ["beetroot_soup"]], ["food", ["rabbit_stew"]],
       ["kill", "endermite"], ["kill", "zombie_villager"], ["adv", "adventure/bullseye"], ["adv", "story/upgrade_tools"], ["adv", "husbandry/fishy_business"],
       ["adv", "adventure/trade"], ["adv", "adventure/sniper_duel"], ["adv", "adventure/arbalistic"], ["adv", "adventure/summon_iron_golem"]]}},
   {key: "taiga", name: "Taiga", item: "spruce_log", area: ["taiga"], start: "enter", time: "area", end: "done",

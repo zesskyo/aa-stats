@@ -275,7 +275,7 @@ function findMidgame(run, splits) {
     if (m.info === "tnt") { const tnt = since(st.tnt), deb = since(st.debrisTnt || st.debris); e.info = [[deb ? "TNT Per Debris" : "TNT Used", "item:tnt", deb ? (tnt / deb).toFixed(1) : String(tnt)]];
       // (netherrack mined since then: from the mined stat's total, which st.rack follows)
       const rack = st.rack || [], at = t => { let v = 0; for (const [x, n] of rack) { if (x > t) break; v = n; } return v; };
-      if (midStart != null && rack.length) e.info.push(["Netherrack Mined", "item:netherrack", (at(now) - at(midStart)).toLocaleString("en-US")]); }
+      if (midStart != null && rack.length) e.info.push(["Netherrack", "item:netherrack", (at(now) - at(midStart)).toLocaleString("en-US")]); }
     if (m.info === "kills") { const k = series("ws").length, n = series("skulls").length; e.info = [["Skull Rates", "mh:wither_skeleton", `${n}/${k}`]]; }
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     if (m.time === "farm") {

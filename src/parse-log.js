@@ -18,7 +18,7 @@ function parseLog(text, filename, opts = {}) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
-    tears: [], ghasts: [], areas: [], underwater: [], prism: [], beacon: [], netherite: [], held: {}, fatigue: []};
+    tears: [], ghasts: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
   const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
@@ -41,7 +41,7 @@ function parseLog(text, filename, opts = {}) {
     "minecraft.killed:minecraft.wither_skeleton": "ws",
     "minecraft.picked_up:minecraft.enchanting_table": "ench",
     "minecraft.used:minecraft.trident": "tridentUse", "minecraft.killed:minecraft.drowned": "drowned", "minecraft.used:minecraft.campfire": "campfire",
-    "minecraft.killed:minecraft.wither": "wither", "minecraft.killed:minecraft.ghast": "ghasts"
+    "minecraft.killed:minecraft.wither": "wither", "minecraft.killed:minecraft.ghast": "ghasts", "minecraft.picked_up:minecraft.ghast_tear": "tears"
   };
   const TOT = {
     "minecraft.killed:minecraft.creeper": "creepers", "minecraft.custom:minecraft.damage_taken": "damage",
@@ -104,6 +104,8 @@ function parseLog(text, filename, opts = {}) {
       // (for the timer: what they're doing in the ocean)
       const every5 = (arr, t) => { if (!arr.length || t - arr[arr.length - 1] >= 5000) arr.push(t); };
       if (/^minecraft\.mined:minecraft\.(seagrass|tall_seagrass|kelp|kelp_plant|sea_pickle)$/.test(k) || k === "minecraft.killed:minecraft.drowned") every5(st.underwater, igt);
+      // (a fishing rod cast in the Nether: almost always a ghast being hooked, to take it to the Overworld)
+      if (k === "minecraft.used:minecraft.fishing_rod" && dim === "n") st.rodNether.push(igt);
       if (/^minecraft\.picked_up:minecraft\.(prismarine(_shard|_crystals|_bricks)?|dark_prismarine|sea_lantern)$/.test(k)) every5(st.prism, igt);
       if (k === "minecraft.custom:minecraft.damage_taken") { hits.push([igt, d.diff || 0]); if (hits.length > 12) hits.shift(); }
       if (k.startsWith("minecraft.killed_by:")) killedBy = [igt, k.slice(k.indexOf(":") + 1).replace(/^minecraft\./, "")];
@@ -281,7 +283,8 @@ const NETHERITE = {ancient_debris: 1, netherite_scrap: 1, netherite_ingot: 4, ne
 const worth = (table, v) => v && v.id ? (table[String(v.id).replace("minecraft:", "")] || 0) * (v.Count || 1) : 0;
 // items whose first time in the inventory is kept (st.held): foods for A Balanced Diet that are got in one place
 // Items counted from the inventory (see "inventory_slots" above): item → its timeline in st
-const KEPT = {wither_skeleton_skull: "skulls", nautilus_shell: "nautilus", trident: "trident", bee_nest: "hives", beehive: "hives", ghast_tear: "tears", wither_rose: "rose"};
+// (not ghast tears: they're used up along the way, for end crystals or potions, so they're counted as picked up)
+const KEPT = {wither_skeleton_skull: "skulls", nautilus_shell: "nautilus", trident: "trident", bee_nest: "hives", beehive: "hives", wither_rose: "rose"};
 const KEPT_RE = new RegExp(Object.keys(KEPT).map(k => "minecraft:" + k + '"').join("|"));
 const HELD = ["melon_slice", "cocoa_beans", "cookie", "sweet_berries", "mushroom_stew", "suspicious_stew",
   "cod", "salmon", "tropical_fish", "pufferfish", "cooked_cod", "cooked_salmon", "dried_kelp", "rabbit_stew", "beetroot", "beetroot_soup",

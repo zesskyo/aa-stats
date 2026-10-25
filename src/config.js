@@ -147,7 +147,7 @@ const MIDGAME = [
   {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: NETHER, start: "enter", time: "farm", end: "done",
     count: "skulls", need: 3, activity: ["ws", "skulls"], info: "kills"},
   {key: "alliance", name: "Uneasy Alliance", item: "ghast_tear", area: NETHER, start: "enter", time: "area", end: "done",
-    count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears"], finishOutside: 300000, goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
+    count: "tears", need: 4, countName: "Ghast Tears", activity: ["ghasts", "tears", "rodNether"], finishOutside: 300000, goals: [["adv", "nether/return_to_sender"], ["adv", "nether/uneasy_alliance"]]},
   // the rest, wherever and whenever it's done: only the time just before each thing (up to "lead") counts, so what's left
   // for later in the run doesn't stretch it
   {key: "ocean", name: "Ocean Misc", item: "heart_of_the_sea", area: ["ocean"], start: "first", time: "active", lead: 120000, end: "done",

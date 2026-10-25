@@ -101,7 +101,8 @@ const SUB_ITEMS = {
  * as getting something done for it (for "enter"). item: its icon, an item's name, or "mh:<mob>" (and so on, see goalIcon in splits.js) for one of the
  * stats site's own icons. A counter (no target, no split) has need: null; needIfNot: [advancement, need], a different target
  * while that advancement isn't done. info: a rate the timer shows with it ("tnt": TNT used per debris found with TNT, and netherrack mined,
- * "kills": skulls got out of wither skeletons killed, like 3/64). showAfter: on the timer, only once that many
+ * "kills": skulls got out of wither skeletons killed, like 3/64). extra: {name, until, goals}: not part of
+ * the split, what's left of these is shown with it on the timer until the advancement "until" is done. showAfter: on the timer, only once that many
  * of the rare biomes' splits have started (hidden until then); pin: on the timer, shown wherever they are, under the
  * rest. notBefore: a kind of goal ("food") that, done before the split started (stews made
  * beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
@@ -121,7 +122,12 @@ const MIDGAME = [
   {key: "snowy", name: "Snowy", item: "snow_block", area: ["snowy"], start: "enter", time: "area", end: "doneOrLeave",
     goals: [["biome", "snowy_tundra"], ["biome", "snowy_mountains"], ["biome", "snowy_taiga"], ["biome", "snowy_taiga_hills"], ["biome", "snowy_beach"], ["biome", "frozen_river"],
       ["kill", "stray"], ["adv", "story/cure_zombie_villager"]],
-    optional: ["Zombie Doctor"]},   // (Snowy can end on leaving with only this missing: it's sometimes done somewhere else)
+    optional: ["Zombie Doctor"],   // (Snowy can end on leaving with only this missing: it's sometimes done somewhere else)
+    // (not timed, as runners do different things: what's often done while waiting for the zombie villager to be cured,
+    // on the timer under Snowy while Zombie Doctor isn't done)
+    extra: {name: "While Curing", until: "story/cure_zombie_villager", goals: [["food", ["beetroot"]], ["food", ["beetroot_soup"]], ["food", ["rabbit_stew"]],
+      ["kill", "endermite"], ["kill", "zombie_villager"], ["adv", "adventure/bullseye"], ["adv", "story/upgrade_tools"], ["adv", "husbandry/fishy_business"],
+      ["adv", "adventure/trade"], ["adv", "adventure/sniper_duel"], ["adv", "adventure/arbalistic"], ["adv", "adventure/summon_iron_golem"]]}},
   {key: "taiga", name: "Taiga", item: "spruce_log", area: ["taiga"], start: "enter", time: "area", end: "done",
     goals: [["biome", "taiga"], ["biome", "taiga_hills"], ["food", ["sweet_berries"]], ["bred", "fox"], ["bred", "wolf"]]},
   // every biome (Adventuring Time): from the start of Midgame; on the timer once 3 of the rare biomes have been gone to

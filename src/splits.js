@@ -180,7 +180,7 @@ function findSubSplits(run, splits, {anyEnd}) {
  *   {key, about, name, item, area, split, why, start, end, complete, dur, since, done, have, need, parts, missing}
  * why: why it has no time in this run: "untimed" (never timed), "before" (done before Midgame), "outside" (done without
  * a visit to its area), "early" (part of it done beforehand, see notBefore), "post" (finished in Post-endgame),
- * "nodata" (an old log, with no biomes); null otherwise. last: when something was last done for it. info: rates to show with it (see info in config.js)
+ * "nodata" (an old log, with no biomes); null otherwise. extra: more to do alongside it (see extra in config.js). last: when something was last done for it. info: rates to show with it (see info in config.js)
  * start/end: the split's (null until then); dur: its time (see "time" in config.js); since: when it's running now and
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
  * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
@@ -265,6 +265,11 @@ function findMidgame(run, splits) {
     if (m.count && v < target) e.left.push(`${m.countName || m.name} ${v}/${target}`);
     if (cl.length && cHave < cl.length) e.left.push(`Cats ${cHave}/${cl.length}`);
     for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? SHORT_ADV[x] || ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
+    // (more to do alongside it, not timed: [name, have, need, icons of what's left], until its advancement is done)
+    if (m.extra && advTime(run, m.extra.until) == null) {
+      const xg = m.extra.goals.map(([kind, x]) => GOAL[kind](x));
+      e.extra = [m.extra.name, xg.filter(g => g[0] != null).length, xg.length, xg.filter(g => g[0] == null).map(g => g[2])];
+    }
     // (rates the timer shows with it, as [name, icon, value]: since Midgame started)
     const since = arr => (arr || []).filter(t => t >= (midStart ?? Infinity)).length;
     if (m.info === "tnt") { const tnt = since(st.tnt), deb = since(st.debrisTnt || st.debris); e.info = [[deb ? "TNT Per Debris" : "TNT Used", "item:tnt", deb ? (tnt / deb).toFixed(1) : String(tnt)]];
@@ -337,7 +342,8 @@ function findMidgame(run, splits) {
 // ("2x2:"), from icons/adventuring time, monsters hunted and two by two; an item otherwise ("item:", from the item atlas)
 // (shorter names for advancements in the checklist, where the long ones don't fit)
 const SHORT_ADV = {"nether/return_to_sender": "Sender"};
-const ADV_ITEMS = {"nether/explore_nether|nether_wastes": "netherrack", "nether/explore_nether|crimson_forest": "crimson_nylium", "nether/explore_nether|warped_forest": "warped_nylium",
+const ADV_ITEMS = {"adventure/bullseye": "target", "story/upgrade_tools": "stone_pickaxe", "husbandry/fishy_business": "fishing_rod", "adventure/trade": "emerald",
+  "adventure/sniper_duel": "arrow", "adventure/arbalistic": "crossbow", "adventure/summon_iron_golem": "carved_pumpkin","nether/explore_nether|nether_wastes": "netherrack", "nether/explore_nether|crimson_forest": "crimson_nylium", "nether/explore_nether|warped_forest": "warped_nylium",
   "nether/explore_nether|soul_sand_valley": "soul_sand", "nether/explore_nether|basalt_deltas": "basalt","story/cure_zombie_villager": "golden_apple", "nether/return_to_sender": "fire_charge", "nether/uneasy_alliance": "ghast_tear", "nether/ride_strider": "warped_fungus_on_a_stick"};
 const goalIcon = (kind, x) => kind === "biome" ? "at:" + x : kind === "kill" ? "mh:" + x : kind === "bred" ? "2x2:" + x
   : kind === "food" ? "item:" + x[0] : kind === "nbiome" ? "item:" + ADV_ITEMS["nether/explore_nether|" + x] : "item:" + (ADV_ITEMS[x] || "book");

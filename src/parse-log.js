@@ -25,6 +25,7 @@ function parseLog(text, filename, opts = {}) {
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let biome = null, structs = [];   // where they are (for st.areas)
   let fatigued = false;
+  let chBook = null, chTrident = null;   // when a Channeling book, and a trident, were first held (see st.channeling)
   const minInv = {}, netInv = {}; let minHeld = 0, netHeld = 0;   // beacon blocks and netherite in each inventory slot (see BEACON, NETHERITE), and the most held
   // st.areas: [time, area] each time the kind of place they're in changes (areaOf); a few seconds somewhere else and back
   // (along a shore, say) is left out
@@ -178,7 +179,17 @@ function parseLog(text, filename, opts = {}) {
       for (const [slot, v] of Object.entries(d.slots || {})) ripInv[slot] = v && v.id === "minecraft:trident" && ((v.tag && v.tag.Enchantments) || []).some(e => String(e.id) === "minecraft:riptide") ? 1 : 0;
       ripHeld = Object.values(ripInv).reduce((a, b) => a + b, 0);
       // when a channeling trident was first in the inventory (a Thunderless run needs one: see stats.js)
-      if (st.channeling === false && Object.values(d.slots || {}).some(v => v && v.id === "minecraft:trident" && ((v.tag && v.tag.Enchantments) || []).some(e => String(e.id) === "minecraft:channeling"))) st.channeling = igt;
+      // (or once there's been a Channeling book and a trident, at any time: they can be put together on an anvil)
+      if (st.channeling === false) {
+        const all = Object.values(d.slots || {}).flatMap(v => v ? [v, ...((v.tag && v.tag.BlockEntityTag && v.tag.BlockEntityTag.Items) || [])] : []);
+        const ench = (v, k) => ((v.tag && v.tag[k]) || []).some(e => String(e.id) === "minecraft:channeling");
+        if (all.some(v => v.id === "minecraft:trident" && ench(v, "Enchantments"))) st.channeling = igt;
+        else {
+          if (chBook == null && all.some(v => v.id === "minecraft:enchanted_book" && ench(v, "StoredEnchantments"))) chBook = igt;
+          if (chTrident == null && all.some(v => v.id === "minecraft:trident")) chTrident = igt;
+          if (chBook != null && chTrident != null) st.channeling = igt;
+        }
+      }
       // debris (or scrap) turning up in the inventory in the Nether: mined, or from a chest (which the stats don't count)
       for (const [slot, v] of Object.entries(d.slots || {})) dbInv[slot] = v && (v.id === "minecraft:ancient_debris" || v.id === "minecraft:netherite_scrap") ? (v.Count || 1) : 0;
       const db = Object.values(dbInv).reduce((a, b) => a + b, 0);

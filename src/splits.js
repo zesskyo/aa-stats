@@ -285,7 +285,8 @@ function findMidgame(run, splits) {
       if (postStart != null && (done == null || sk.end > postStart)) { e.why = done != null ? "post" : null; return e; }
       e.start = sk.start; e.end = done != null ? sk.end : null; e.complete = done != null; e.dur = sk.dur;
       const g = sk.segs[sk.segs.length - 1]; e.last = g[1];
-      if (done == null && now - g[1] <= RULES.skullIdleGap) e.since = g[1];
+      // (still going: up to now, like the other splits, so the timer counts on from it)
+      if (done == null && now - g[1] <= RULES.skullIdleGap) { e.since = g[1]; e.dur += now - g[1]; }
       return e;
     }
     // when something was done for it (in Midgame and after)

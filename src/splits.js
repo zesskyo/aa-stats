@@ -326,6 +326,9 @@ function findMidgame(run, splits) {
     if (e.end == null && open) e.since = Math.max(open[0], e.start);
     return e;
   });
+  // (shown on the timer once enough of the rare biomes have been gone to: showAfter in config.js)
+  const rareGone = out.filter(e => ["mushroom", "badlands", "jungle", "snowy", "taiga"].includes(e.key) && (e.start != null || e.done != null)).length;
+  for (const e of out) { const m = MIDGAME.find(x => x.key === e.key); if (m.showAfter) e.hidden = rareGone < m.showAfter; if (m.pin) e.pin = true; }
   const near = [...new Set(areas.filter(([t], i) => t >= now - NEAR || i === areas.length - 1 || (areas[i + 1] && areas[i + 1][0] >= now - NEAR)).map(a => a[1]))];
   return {area: areas.length ? areas[areas.length - 1][1] : null, near, sections: out};
 }

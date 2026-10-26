@@ -199,6 +199,7 @@ function renderEditor() {
         <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
       </div>` : ""}
       ${ED.mode === "files" ? `
+      <p class="note" style="margin:0">${esc(T.edWorldTip)}</p>
       <div class="edfiles">
         <div class="edfilecard" data-drop="log">
           <b>${esc(T.edLog)}</b>
@@ -297,7 +298,14 @@ function renderEditor() {
   el.querySelectorAll("[data-drop]").forEach(z => {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
-    z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over"); const f = e.dataTransfer.files[0]; if (!f) return;
+    z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over");
+      // (a folder: the world's; several files: each where it goes, by its name. The entries have to be taken now, in the event)
+      const entries = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+      const dir = entries.find(x => x.isDirectory);
+      if (dir && z.dataset.drop !== "shot") return edPickWorld(dir, pickGhost);
+      const files = [...e.dataTransfer.files]; if (!files.length) return;
+      if (z.dataset.drop !== "shot" && files.length > 1) return edPickFiles(files, pickGhost);
+      const f = files[0];
       if (z.dataset.drop === "log") edPickLog(f); else if (z.dataset.drop === "ghost") pickGhost(f); else if (z.dataset.drop === "stats") edPickStats(f); else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); } });
   });
   $("#edCancel").addEventListener("click", () => { const r = ED.run; ED = null; r ? go("run", r.id) : go("runs"); });
@@ -339,6 +347,41 @@ async function edPickLog(file) {
     if (ED.draft && !ED.draft.seed) ED.draft.seed = null;   // and its seed (typed in, or /seed used in the run)
     ED.msg = ""; renderEditor(); edRestore();
   } catch (e) { edMsg(esc(e.message || String(e)), true); }
+}
+// A world folder dropped on the files: only its hermes/play.log, hermes/ghosts/<uuid>.ghost and stats/<uuid>.json are read
+// (the player's, by the uuid in the log; nothing else in the world is opened, and only these are uploaded on saving)
+const entryFile = (dir, p) => new Promise(ok => dir.getFile(p, {}, f => f.file(ok, () => ok(null)), () => ok(null)));
+const entryList = (dir, p) => new Promise(ok => dir.getDirectory(p, {}, d => {
+  const r = d.createReader(), all = [];
+  const more = () => r.readEntries(xs => { if (!xs.length) return ok(all); all.push(...xs); more(); }, () => ok(all));
+  more();
+}, () => ok([])));
+const byUuid = (entries, ext, uuid) => {
+  const xs = entries.filter(x => x.isFile && x.name.endsWith(ext));
+  return (uuid && xs.find(x => x.name.toLowerCase().startsWith(uuid.toLowerCase()))) || (xs.length === 1 ? xs[0] : null);
+};
+async function edPickWorld(dir, pickGhost) {
+  edMsg(esc(T.cmpReading));
+  const log = await entryFile(dir, "hermes/play.log");
+  if (!log) return edMsg(esc(T.edWorldNoLog), true);
+  await edPickLog(log);
+  if (!ED.log) return;   // (couldn't read it: edPickLog said why)
+  const uuid = ED.log.run.uuid, found = ["play.log"];
+  const g = byUuid(await entryList(dir, "hermes/ghosts"), ".ghost", uuid);
+  const gf = g && await new Promise(ok => g.file(ok, () => ok(null)));
+  if (gf && gf.size >= 46 && gf.size % 46 === 0) { pickGhost(gf); found.push(gf.name); }
+  const st = byUuid(await entryList(dir, "stats"), ".json", uuid);
+  const sf = st && await new Promise(ok => st.file(ok, () => ok(null)));
+  if (sf) { await edPickStats(sf); if (ED.stats) found.push("stats/" + sf.name); }
+  edMsg(esc(T.edWorldRead(found)));
+}
+// Several files dropped at once: each where it goes, by its name
+async function edPickFiles(files, pickGhost) {
+  for (const f of files) {
+    if (/\.ghost$/i.test(f.name)) pickGhost(f);
+    else if (/\.json$/i.test(f.name)) await edPickStats(f);
+    else if (/\.(log|txt|jsonl)$/i.test(f.name)) await edPickLog(f);
+  }
 }
 async function edPickStats(file) {
   ED.draft = edRead();

@@ -86,3 +86,19 @@ export function deepTimes(path) {
   }
   return out;
 }
+
+// The first time in the outer End: the gateway's teleport, past the central island (it's ~1000 blocks out; the island
+// is ~200 across). More exact than the log: Remote Getaway isn't given for a pearl through the gateway, and the biome
+// lines (Hermes 0.14+) come a few seconds late. IGT ms, or null.
+export function outerEndTime(path) {
+  if (!path || !path.t) return null;
+  for (let i = 0; i < path.t.length; i++) if (path.d[i] === "e" && Math.hypot(path.x[i], path.z[i]) > 500) return path.t[i] * 100;
+  return null;
+}
+
+// What the splits use from the ghost file, for a run's st: when they were deep in the Nether, and when they got to the outer End
+export function ghostFacts(path) {
+  const out = {deep: deepTimes(path)}, oe = outerEndTime(path);
+  if (oe != null) out.outerEnd = oe;
+  return out;
+}

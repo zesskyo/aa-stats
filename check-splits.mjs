@@ -8,7 +8,7 @@
 // Usage: node check-splits.mjs <site folder> [--save <file>] [--diff <file>]
 import fs from "node:fs";
 import path from "node:path";
-import { readGhost, deepTimes } from "./ghost.mjs";
+import { readGhost, ghostFacts } from "./ghost.mjs";
 
 const code = path.dirname(new URL(import.meta.url).pathname), site = path.resolve(process.argv[2] || ".");
 const opt = k => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
@@ -27,7 +27,7 @@ const logs = (fs.existsSync(path.join(site, "logs")) ? fs.readdirSync(path.join(
 for (const f of logs) {
   const n = parseInt(f), r = parseLog(read(path.join(site, "logs", f)), f), gf = path.join(site, "logs", n + ".ghost");
   const g = fs.existsSync(gf) ? readGhost(fs.readFileSync(gf), r) : null;
-  if (g) r.st.deep = deepTimes(g);
+  if (g) Object.assign(r.st, ghostFacts(g));
   const d = derive(r), b = {};
   for (const s of d.splits) { const segs = s.segs.filter(x => x[1] > x[0]); if (segs.length) b[s.name] = segs[segs.length - 1][1]; }
   const deb = d.splits.find(s => s.name === "Debris");

@@ -1,8 +1,8 @@
 /*
  * splits.js — works out when each split of a run starts and ends.
  *
- *   Any%          start → dragon killed ("Free the End"; if that only came later, going through the gateway: reaching
- *                 the outer End, or "Remote Getaway" in logs without biomes)
+ *   Any%          start → reaching the outer End through the gateway (the ghost file's position, or the log's biome
+ *                 lines; else "Remote Getaway", or the dragon if that's missing or only came long after)
  *   Outer End     → leaving the End after getting elytra (or finding an End City)
  *   Enchanting    → last enchanting-table pickup of the first pickup session after leaving the End
  *   Midgame       → debris starts (or Endgame starts early, see below)
@@ -30,9 +30,12 @@ function findSplits(run, comp) {
   const st = run.st || {};
 
   // Any%
-  const kd = advTime(run, "end/kill_dragon"), gw = st.outerEnd ?? advTime(run, "end/enter_end_gateway");
-  const anyUsesGateway = kd == null || (gw != null && kd > gw);
-  const anyEnd = anyUsesGateway ? gw : kd;
+  // (getting to the outer End: from the ghost file, or the log's biome lines (st.outerEnd); else Remote Getaway, unless
+  // that's long after the dragon (then it was only given later, a pearl through the gateway doesn't give it): the dragon)
+  const kd = advTime(run, "end/kill_dragon"), rg = advTime(run, "end/enter_end_gateway");
+  // (on the timer, while the run's going: not at the dragon, Any% runs until they're through the gateway)
+  const live = (run.dims[run.dims.length - 1] || [])[2] === "live";
+  const anyEnd = st.outerEnd ?? (rg != null && (kd == null || rg - kd <= RULES.gatewayAfterDragon) ? rg : live ? null : kd ?? rg);
 
   // Outer End: leave the End after the elytra
   const lootDone = advTime(run, "end/elytra") ?? advTime(run, "end/find_end_city");
@@ -91,8 +94,7 @@ function findSplits(run, comp) {
     const trip = firstDimAfter(run, hdwgh, x => x === "n");
     if (trip != null && (postStart == null || trip < postStart)) postStart = trip;
   }
-  // (not while the run is still going, on the timer: it would sit in Endgame, then jump out after a few minutes)
-  const live = (run.dims[run.dims.length - 1] || [])[2] === "live";
+  // (not while the run is still going, on the timer (live): it would sit in Endgame, then jump out after a few minutes)
   // (its own time: Debris during it doesn't count)
   const postOwn = postStart == null ? 0 : run.finalIgt - postStart - debrisSegs.reduce((a, [x, y]) => a + Math.max(0, Math.min(y, run.finalIgt) - Math.max(x, postStart)), 0);
   if (postStart != null && !live && postOwn < RULES.postEndgameMin) postStart = null;

@@ -19,13 +19,13 @@ function subRefs(i, defs = subDefs(i)) {
   const ds = validRuns().filter(r => !r.manual).map(r => derive(r).splits[i]), out = {};
   for (const c of [{key: "split", f: p => p.dur}, ...defs]) {
     const xs = ds.map(c.f).filter(x => x != null);
-    out[c.key] = {avg: average(xs), best: xs.length ? Math.min(...xs) : null, n: xs.length};
+    out[c.key] = {avg: average(xs), best: xs.length ? Math.min(...xs) : null, worst: xs.length > 1 ? Math.max(...xs) : null, n: xs.length};
   }
   return out;
 }
-// "+1:02" / "−0:15" against the average (with a class: faster or slower), and gold for the best
+// "+1:02" / "−0:15" against the average (with a class: faster or slower), gold for the best and red for the worst
 const vsAvg = (v, ref) => v == null || !ref || ref.avg == null ? `<span class="muted">—</span>`
-  : `<span class="${ref.best != null && v <= ref.best ? "gold" : v <= ref.avg ? "good" : "bad"}">${v <= ref.avg ? "−" : "+"}${fmtShort(Math.abs(v - ref.avg))}</span>`;
+  : `<span class="${ref.best != null && v <= ref.best ? "gold" : ref.worst != null && v >= ref.worst ? "worst" : v <= ref.avg ? "good" : "bad"}">${v <= ref.avg ? "−" : "+"}${fmtShort(Math.abs(v - ref.avg))}</span>`;
 
 let spSort = null;   // the table's order: {split, k: the column (-1: the run's number), dir: 1 or -1}
 function renderSplitPage() {
@@ -38,12 +38,13 @@ function renderSplitPage() {
     ...subDefs(i).map(c => ({...c, sub: true}))];
   const vals = cols.map(c => ds.map(p => c.f(p)));
   const best = vals.map(v => { const xs = v.filter(x => x != null); return xs.length ? Math.min(...xs) : null; });
+  const worst = vals.map(v => { const xs = v.filter(x => x != null); return xs.length > 1 ? Math.max(...xs) : null; });
   const avg = vals.map(v => average(v));
   const sp = SPLITS[i], icon = sp.icon || FALLBACK_LAST_ICON;
-  // how a time compares: the best in gold, faster than average in green
+  // how a time compares: the best in gold, faster than average in green, the worst in red
   const cell = (v, k, n) => {
     if (v == null) return `<td class="mono muted">—</td>`;
-    const c = cols[k], cls = c.at ? "" : v === best[k] ? " best" : avg[k] != null && v < avg[k] ? " fast" : "";
+    const c = cols[k], cls = c.at ? "" : v === best[k] ? " best" : v === worst[k] ? " worst" : avg[k] != null && v < avg[k] ? " fast" : "";
     return `<td class="mono${cls}">${c.at ? fmt(v, 0) : fmtShort(v)}</td>`;
   };
   const sumCell = (v, k) => `<td class="mono">${v == null ? "—" : cols[k].at ? fmt(v, 0) : fmtShort(v)}</td>`;
@@ -52,7 +53,7 @@ function renderSplitPage() {
   const pts = runs.map((r, n) => ({r, v: vals[0][n]})), top = Math.max(1, ...pts.map(x => x.v || 0));
   const chart = pts.some(x => x.v != null) ? `<div class="spchart" role="img" aria-label="${esc(T.splitChartLabel(sp.name))}">
       ${avg[0] != null ? `<div class="spavg" style="bottom:${avg[0] / top * 100}%"><span>${esc(T.rowAverage)} ${fmtShort(avg[0])}</span></div>` : ""}
-      ${pts.map(({r, v}) => `<button type="button" class="spbar tipped${v != null && v === best[0] ? " best" : ""}" data-open="${esc(r.id)}" data-tip="${esc(runTitle(r))} · ${v != null ? fmtShort(v) : T.notDone}" aria-label="${esc(runTitle(r))}"><span style="height:${v != null ? Math.max(2, v / top * 100) : 0}%;background:${SCOL[i]}"></span><i>${esc(runNum(r))}</i></button>`).join("")}
+      ${pts.map(({r, v}) => `<button type="button" class="spbar tipped${v != null && v === best[0] ? " best" : v != null && v === worst[0] ? " worst" : ""}" data-open="${esc(r.id)}" data-tip="${esc(runTitle(r))} · ${v != null ? fmtShort(v) : T.notDone}" aria-label="${esc(runTitle(r))}"><span style="height:${v != null ? Math.max(2, v / top * 100) : 0}%;background:${SCOL[i]}"></span><i>${esc(runNum(r))}</i></button>`).join("")}
     </div>` : "";
   const bestRun = best[0] != null ? runs[vals[0].indexOf(best[0])] : null;
   const tiles = [[T.rowAverage, avg[0] != null ? fmtShort(avg[0]) : "—", ""], [T.rowBest, best[0] != null ? fmtShort(best[0]) : "—", bestRun ? runTitle(bestRun) : ""]];

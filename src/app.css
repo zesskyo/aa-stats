@@ -517,7 +517,7 @@ td.best{color:var(--gold);font-weight:700}
 .subbar{height:8px;border-radius:4px;background:rgba(127,127,127,.15);overflow:hidden}
 .subbar > span{display:block;height:100%;border-radius:4px}
 .subgrp{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 2px}
-.good{color:var(--good)} .bad{color:var(--bad)} .gold{color:var(--gold);font-weight:700}
+.good{color:var(--good)} .bad{color:var(--bad)} .gold{color:var(--gold);font-weight:700} .worst{color:var(--bad);font-weight:700}
 @media (max-width:640px){.subpanel .subrow{grid-template-columns:22px minmax(0,1fr) 64px 60px}.subpanel .subrow > :last-child{display:none}}
 .splitbar > div{position:relative}
 .tl{display:flex;flex-direction:column;gap:3px;margin-top:6px}
@@ -540,6 +540,7 @@ td.best{color:var(--gold);font-weight:700}
 .spbar > span{display:block;border-radius:4px 4px 0 0;opacity:.85}
 .spbar:hover > span,.spbar:focus-visible > span{opacity:1}
 .spbar.best > span{background:var(--gold)!important}
+.spbar.worst > span{background:var(--bad)!important}
 .spbar i{position:absolute;bottom:-17px;left:0;right:0;text-align:center;font-style:normal;font-size:10px;color:var(--muted);font-family:var(--mono)}
 .spavg{position:absolute;left:0;right:0;border-top:2px dashed var(--muted);pointer-events:none;z-index:1}
 .spavg span{position:absolute;right:0;bottom:2px;font-size:11px;font-family:var(--mono);color:var(--muted);background:var(--surface);padding:0 4px}
@@ -556,6 +557,7 @@ td.best{color:var(--gold);font-weight:700}
 .sptable th[scope="row"]{white-space:nowrap}
 .spdate{display:block;font-size:11px;font-weight:400}
 .sptable td.best{color:var(--gold);font-weight:700}
+.sptable td.worst{color:var(--bad);font-weight:700}
 .sptable td.fast{color:var(--good)}
 .sptable tr.sumrow th,.sptable tr.sumrow td{background:var(--surface2)}
 .subzoom{display:flex;gap:2px;height:30px;margin:4px 0 10px}

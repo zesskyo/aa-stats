@@ -7,8 +7,9 @@
  *   Enchanting    → last enchanting-table pickup of the first pickup session after leaving the End
  *   Midgame       → debris starts (or Endgame starts early, see below)
  *   Debris        first netherrack mined after entering the Nether for the main debris session
- *                 → back in the Overworld after the last debris of that session; then any later Nether trip where
- *                 more debris was got (mined, or from a chest) is more Debris, paused in between
+ *                 → back in the Overworld after the last debris of that session (or at most RULES.debrisReturnMax after
+ *                 the last debris or time deep down); then any later Nether trip where more debris was mined is more
+ *                 Debris, paused in between (a quick restock in the Overworld in between doesn't pause it)
  *   Endgame       → Overworld after The End... Again..., or the end of the run
  *   Post-endgame  from there to the final advancement; only counted if it lasts at least RULES.postEndgameMin.
  *                 If How Did We Get Here was done before getting a god apple, it starts earlier: the next time
@@ -72,17 +73,23 @@ function findSplits(run, comp) {
     // (it ends back out of the Nether; a run that finishes there, when it finishes)
     debrisEnd = firstDimAfter(run, debrisSession[debrisSession.length - 1], x => x !== "n") ?? run.finalIgt;
   }
-  // more debris later on (more netherite needed): each Nether trip after that where debris was mined or turned up in the
-  // inventory (from a chest) is more Debris, with what's between paused
+  // more debris later on (more netherite needed): each Nether trip after that where debris was mined is more Debris, with
+  // what's between paused (not just debris taken out of a shulker box or chest: that's smelting it, for the netherite)
   const moreDebris = [];
   if (debrisEnd != null) run.dims.forEach((x, i) => {
     if (x[1] !== "n" || x[0] < debrisEnd) return;
     const out = i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt;
     // (or a minute spent deep down mining, before any debris turns up)
-    if ([...(st.debris || []), ...(st.debrisGot || [])].some(t => t >= x[0] && t <= out) || deepIn(x[0], out).length * 5000 >= RULES.debrisDeepMin) moreDebris.push([x[0], out]);
+    if ((st.debris || []).some(t => t >= x[0] && t <= out) || deepIn(x[0], out).length * 5000 >= RULES.debrisDeepMin) moreDebris.push([x[0], out]);
   });
   // (a quick stop in the Overworld between trips, to restock beds or TNT, is still Debris: one stretch, not several)
-  const debrisSegs = (debrisStart != null && debrisEnd != null ? [[debrisStart, debrisEnd], ...moreDebris] : [])
+  // (and each trip ends at most a few minutes after the last debris, or the last time deep down: the way back to the
+  // portal; staying on in the Nether after that, smelting it or getting gold for the netherite, isn't Debris)
+  const tripEnd = ([a, b]) => {
+    const last = Math.max(-Infinity, ...(st.debris || []).filter(t => t >= a && t <= b), ...deepIn(a, b));
+    return [a, last > -Infinity ? Math.min(b, Math.max(a, last) + RULES.debrisReturnMax) : b];
+  };
+  const debrisSegs = (debrisStart != null && debrisEnd != null ? [[debrisStart, debrisEnd], ...moreDebris] : []).map(tripEnd)
     .reduce((out, g) => { const last = out[out.length - 1]; if (last && g[0] - last[1] <= RULES.debrisRestockGap) last[1] = Math.max(last[1], g[1]); else out.push([...g]); return out; }, []);
 
   // Post-endgame: back in the Overworld after The End... Again...

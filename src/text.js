@@ -198,6 +198,8 @@ const T = {
   edOnSite: "Already on the site",
   edNeeded: "Needed",
   edOptional: "Optional",
+  edRecommended: "Recommended",
+  edNoGhost: "No ghost file: add it if you can (the world's hermes/ghosts folder). It's what places the Debris split exactly (when you went down to mine) and draws the travel map; without it, Debris is worked out from the debris alone.",
   edStatsRead: km => `${km} km of elytra flight`,
   edNeedLog: "Add the Hermes log, or switch to Manual.",
   edOldHermes: v => `This log is from Hermes ${v}, which doesn't log biomes (Hermes 0.14 or newer does). Add the run's seed and its ghost file, and the biomes are worked out from those; otherwise the biome splits and the Midgame distribution can't be shown for it. For your next runs, update Hermes.`,

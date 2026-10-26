@@ -93,7 +93,9 @@ function findSplits(run, comp) {
   }
   // (not while the run is still going, on the timer: it would sit in Endgame, then jump out after a few minutes)
   const live = (run.dims[run.dims.length - 1] || [])[2] === "live";
-  if (postStart != null && !live && run.finalIgt - postStart < RULES.postEndgameMin) postStart = null;
+  // (its own time: Debris during it doesn't count)
+  const postOwn = postStart == null ? 0 : run.finalIgt - postStart - debrisSegs.reduce((a, [x, y]) => a + Math.max(0, Math.min(y, run.finalIgt) - Math.max(x, postStart)), 0);
+  if (postStart != null && !live && postOwn < RULES.postEndgameMin) postStart = null;
 
   // Early Endgame (campfire placed before debris, or no Debris split). Only a campfire that's used for honey soon after
   // counts (Bee Our Guest within RULES.campfireToHoney): hives set up long before, e.g. while passing 0,0 in Midgame,

@@ -217,12 +217,13 @@ function renderEditor() {
         <div class="edfilecard" data-drop="ghost">
           <b>${esc(T.edGhost)}</b>
           <span class="note">${esc(T.edFileWhere)} <code>${esc(T.edWhereGhost)}</code></span>
-          <span class="note edstatus">${ED.ghost ? esc(ED.ghost.name) : run && meta.path ? esc(T.edOnSite) : esc(T.edOptional)}</span>
+          <span class="note edstatus">${ED.ghost ? esc(ED.ghost.name) : run && meta.path ? esc(T.edOnSite) : esc(T.edRecommended)}</span>
           <button type="button" class="btn" id="edGhostBtn">${esc(T.edChooseFile)}</button>
           <input type="file" id="edGhostFile" accept=".ghost" hidden>
         </div>
       </div>
       ${ld && ld.category === "Invalid" && !(noChanneling && ED.countAnyway) ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
+      ${ED.log && !ED.ghost && !(run && meta.path) ? `<p class="note" style="margin:0">${esc(T.edNoGhost)}</p>` : ""}
       ${lr && lr.st.noBiomes ? `<p class="note" style="margin:0">${esc(T.edOldHermes(lr.st.hermes || "?"))}</p>` : ""}
       ${noChanneling ? `<label class="check"><input type="checkbox" id="edCountAnyway"${ED.countAnyway ? " checked" : ""}> ${esc(T.edCountAnyway)}</label>` : ""}` : ""}
 

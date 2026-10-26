@@ -29,6 +29,16 @@ node build.mjs example                       # the small example site in this re
 
 Then open `dist/index.html` in a browser.
 
+To see how a change to the split rules (`src/splits.js`, `RULES` in `src/config.js`) moves the splits on a site's runs:
+
+```
+node check-splits.mjs ../aa-stats-no-reset-zesskyo-log --save before.json   # every run's split times, kept
+node check-splits.mjs ../aa-stats-no-reset-zesskyo-log --diff before.json   # after the change: what moved
+```
+
+With a `truth.json` in the site folder (the right times, from the runs' videos: `{"29": {"Midgame": "3:25:28", "Debris start": "3:25:28"}}`,
+each split's end time in IGT), it also says how far off each split is.
+
 | File | What it does |
 | --- | --- |
 | `src/text.js` | Every word on the site. These are the defaults; a site changes its own in `site.json`. |

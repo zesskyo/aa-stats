@@ -102,13 +102,20 @@ if (fs.existsSync(inSite("logs"))) for (const f of fs.readdirSync(inSite("logs")
   runs.set(n, encodeRun(r));
   console.log(`Parsed logs/${f} as run ${n}`);
 }
+// (the same log under two numbers, uploaded again by mistake: only the first counts, or both would open as one)
+const seenIds = new Map(), dupes = new Set();
+for (const n of [...runs.keys()].sort((a, b) => a - b)) {
+  const id = runs.get(n).id;
+  if (id && seenIds.has(id)) { console.warn(`Run ${n} is the same run as run ${seenIds.get(id)} (the same log uploaded again?), so it's skipped`); runs.delete(n); clocks.delete(n); logFiles.delete(n); dupes.add(n); }
+  else if (id) seenIds.set(id, n);
+}
 // 3) details from runs.json
 const details = fs.existsSync(inSite("runs.json")) ? JSON.parse(read(inSite("runs.json"))) : {};
 // Runs with no log: only what runs.json says about them
 for (const [key, d] of Object.entries(details)) {
   const n = Number(key);
   if (!/^\d+$/.test(key)) throw new Error(`runs.json: "${key}" should be a run number`);
-  if (runs.has(n)) continue;
+  if (runs.has(n) || dupes.has(n)) continue;
   runs.set(n, {manual: true, id: "run-manual-" + n, start: 0, player: "", finalIgt: d.time != null ? parseTime(d.time, `runs.json run ${n}`) : null,
     finalRta: 0, events: [], dims: [], deaths: [], st: {}, tot: {}});
   console.log(`Run ${n} has no log: using runs.json only`);

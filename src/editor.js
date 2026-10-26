@@ -222,6 +222,7 @@ function renderEditor() {
           <input type="file" id="edGhostFile" accept=".ghost" hidden>
         </div>
       </div>
+      ${edSameRun(lr) ? `<p class="note bad" style="margin:0">${esc(T.edSameRun(runNum(edSameRun(lr))))}</p>` : ""}
       ${ld && ld.category === "Invalid" && !(noChanneling && ED.countAnyway) ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
       ${ED.log && !ED.ghost && !(run && meta.path) ? `<p class="note" style="margin:0">${esc(T.edNoGhost)}</p>` : ""}
       ${lr && lr.st.noBiomes ? `<p class="note" style="margin:0">${esc(T.edOldHermes(lr.st.hermes || "?"))}</p>` : ""}
@@ -319,6 +320,13 @@ function edRestore() {
 }
 const edMsg = (html, bad) => { ED.msg = html; ED.msgBad = !!bad; const m = $("#edMsg"); if (m) { m.innerHTML = html; m.classList.toggle("bad", !!bad); } };
 
+// A run already on the site that this log is (uploaded again by mistake): same player and the same start, or the same
+// first advancements to the millisecond (the start moves if the world was opened again after the run)
+function edSameRun(lr) {
+  if (!lr) return null;
+  const sig = r => (r.events || []).slice(0, 5).map(e => Array.isArray(e) ? e.join("|") : e).join(",");
+  return RUNS.find(r => r !== ED.run && !(r.meta && r.meta.wr) && r.player === lr.player && (r.start === lr.start || (lr.events.length && sig(r) === sig(lr)))) || null;
+}
 async function edPickLog(file) {
   ED.draft = edRead();
   edMsg(esc(T.cmpReading));
@@ -353,6 +361,7 @@ async function edSave() {
   if (ED.proof === "shot" && f.shotLink && !isLink(f.shotLink)) return err(T.edBadShotLink);
   const withLog = ED.mode === "files";
   if (withLog && !ED.log && !ED.hasLog) return err(T.edNeedLog);
+  if (withLog && ED.log && edSameRun(ED.log.run)) return err(T.edSameRun(runNum(edSameRun(ED.log.run))));
   if (!withLog && f.time && !/^(\d+:)?\d{1,2}:\d{2}(\.\d{1,3})?$/.test(f.time)) return err(T.edBadTime(T.timeLabel));
 
   ED.busy = true; $("#edSave").disabled = true; edMsg(esc(T.edSaving));

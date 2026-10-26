@@ -198,6 +198,7 @@ const T = {
   edOnSite: "Already on the site",
   edNeeded: "Needed",
   edOptional: "Optional",
+  edSameRun: n => `This log is Run ${n} again (the same world and times): it's already on the site. Pick this run's own log.`,
   edRecommended: "Recommended",
   edNoGhost: "No ghost file: add it if you can (the world's hermes/ghosts folder). It's what places the Debris split exactly (when you went down to mine) and draws the travel map; without it, Debris is worked out from the debris alone.",
   edStatsRead: km => `${km} km of elytra flight`,

@@ -23,7 +23,7 @@ const truth = fs.existsSync(path.join(site, "truth.json")) ? JSON.parse(read(pat
 
 // each run's split boundaries: when each split ends (its last stretch), and when Debris starts
 const out = {};
-const logs = fs.readdirSync(path.join(site, "logs")).filter(f => /^\d+\.log$/.test(f)).sort((a, b) => parseInt(a) - parseInt(b));
+const logs = (fs.existsSync(path.join(site, "logs")) ? fs.readdirSync(path.join(site, "logs")) : []).filter(f => /^\d+\.log$/.test(f)).sort((a, b) => parseInt(a) - parseInt(b));
 for (const f of logs) {
   const n = parseInt(f), r = parseLog(read(path.join(site, "logs", f)), f), gf = path.join(site, "logs", n + ".ghost");
   const g = fs.existsSync(gf) ? readGhost(fs.readFileSync(gf), r) : null;

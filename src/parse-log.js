@@ -52,7 +52,7 @@ function parseLog(text, filename, opts = {}) {
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
     tears: [], ghasts: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
-  const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
+  const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0, tntOwed = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let biome = null, structs = [];   // where they are (for st.areas)
@@ -150,8 +150,13 @@ function parseLog(text, filename, opts = {}) {
       else if (k === "minecraft.crafted:minecraft.gold_ingot" && diff % 9 === 0) g = -diff / 9;
       if (g) { goldCum += g; st.gold.push([igt, goldCum]); }
       let tg = 0;
-      if (k === "minecraft.picked_up:minecraft.tnt" || k === "minecraft.crafted:minecraft.tnt") { tg = diff; tot.tntGot = (tot.tntGot || 0) + diff; }
+      // (TNT dropped and picked up again isn't more TNT: it's only back)
+      if (k === "minecraft.picked_up:minecraft.tnt" || k === "minecraft.crafted:minecraft.tnt") {
+        const back = k === "minecraft.picked_up:minecraft.tnt" ? Math.min(diff, tntOwed) : 0;
+        tntOwed -= back; tg = diff; tot.tntGot = (tot.tntGot || 0) + diff - back;
+      }
       else if (k === "minecraft.used:minecraft.tnt") tg = -diff;
+      else if (k === "minecraft.dropped:minecraft.tnt") { tg = -diff; tntOwed += diff; }
       if (tg) { tntCum += tg; st.tntHeld.push([igt, tntCum]); }
       // debris from TNT: TNT used in the 5 minutes before, and no more than a few netherrack mined in the 15 seconds before
       // (checking around the blast); debris hit while mining netherrack non-stop (strip mining, digging the TNT tunnel) isn't

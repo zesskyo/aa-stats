@@ -11,7 +11,39 @@
  *   clock   – [real time (ms), igt] several times a second, to line up other recordings (the ghost file) with the run.
  *             Only build.mjs uses it; it isn't stored.
  */
+// The timer going back: a world opened with SpeedRunIGT's timer lost (its file corrupted, say) starts again near 0:00.
+// If a later opening carries on from where the run had got to (the timer was put back), that opening is left out
+// (what the game did in it, like giving advancements again, isn't part of the run); if not, the lost time is added
+// to everything from there on, so the run's time carries on.
+function fixTimerResets(text) {
+  if (!text.includes('"type":"initialize"')) return text;
+  const lines = text.split("\n");
+  const timeOf = l => { const m = /"retime":(\d+)/.exec(l) || /"igt":(\d+)/.exec(l); return m ? +m[1] : null; };
+  // each opening of the world: [first line, its first time]
+  const opens = [];
+  lines.forEach((l, i) => { if (l.includes('"type":"initialize"')) opens.push({i, t: null}); });
+  if (opens.length < 2) return text;
+  for (let k = 0; k < opens.length; k++) {
+    const end = k + 1 < opens.length ? opens[k + 1].i : lines.length;
+    for (let i = opens[k].i; i < end && opens[k].t == null; i++) if (lines[i].startsWith('{"time":') && !lines[i].includes('"type":"initialize"')) opens[k].t = timeOf(lines[i]);
+  }
+  let max = 0, offset = 0, changed = false;
+  const drop = new Set();
+  for (let k = 0; k < opens.length; k++) {
+    const o = opens[k], end = k + 1 < opens.length ? opens[k + 1].i : lines.length;
+    if (o.t != null && o.t + offset < max - 60000) {
+      if (opens.slice(k + 1).some(x => x.t != null && x.t + offset >= max - 60000)) { for (let i = o.i; i < end; i++) drop.add(i); changed = true; continue; }
+      offset = max - o.t; changed = true;
+    }
+    for (let i = o.i; i < end; i++) {
+      if (offset) lines[i] = lines[i].replace(/"(igt|retime)":(\d+)/g, (m, k2, v) => `"${k2}":${+v + offset}`);
+      const t = timeOf(lines[i]); if (t != null && t > max) max = t;
+    }
+  }
+  return changed ? lines.filter((l, i) => !drop.has(i)).join("\n") : text;
+}
 function parseLog(text, filename, opts = {}) {
+  text = fixTimerResets(text);
   // opts.biomes: [[igt, biome name], …] to use as if Hermes had logged them (old logs without biomes: build.mjs works
   // them out from the seed and the ghost file, see biome-path.mjs)
   const given = opts.biomes || null; let bi = 0, biomeLines = 0;

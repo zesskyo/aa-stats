@@ -81,7 +81,9 @@ function findSplits(run, comp) {
     // (or a minute spent deep down mining, before any debris turns up)
     if ([...(st.debris || []), ...(st.debrisGot || [])].some(t => t >= x[0] && t <= out) || deepIn(x[0], out).length * 5000 >= RULES.debrisDeepMin) moreDebris.push([x[0], out]);
   });
-  const debrisSegs = debrisStart != null && debrisEnd != null ? [[debrisStart, debrisEnd], ...moreDebris] : [];
+  // (a quick stop in the Overworld between trips, to restock beds or TNT, is still Debris: one stretch, not several)
+  const debrisSegs = (debrisStart != null && debrisEnd != null ? [[debrisStart, debrisEnd], ...moreDebris] : [])
+    .reduce((out, g) => { const last = out[out.length - 1]; if (last && g[0] - last[1] <= RULES.debrisRestockGap) last[1] = Math.max(last[1], g[1]); else out.push([...g]); return out; }, []);
 
   // Post-endgame: back in the Overworld after The End... Again...
   const endAgain = advTime(run, "end/respawn_dragon");

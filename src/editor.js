@@ -199,28 +199,15 @@ function renderEditor() {
         <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
       </div>` : ""}
       ${ED.mode === "files" ? `
-      <p class="note" style="margin:0">${esc(T.edWorldTip)}</p>
       <div class="edfiles">
-        <div class="edfilecard" data-drop="log">
-          <b>${esc(T.edLog)}</b>
-          <span class="note">${esc(T.edFileWhere)} <code>${esc(T.edWhereLog)}</code></span>
-          <span class="note edstatus">${ED.log ? esc(ED.log.file.name) + " · " + esc(T.edLogRead(fmt(lr.finalIgt), ld.category, lr.deaths.length)) : ED.hasLog ? esc(T.edOnSite) : esc(T.edNeeded)}</span>
-          <button type="button" class="btn" id="edLogBtn">${esc(T.edChooseFile)}</button>
-          <input type="file" id="edLogFile" accept=".log,.txt,.jsonl" hidden>
-        </div>
-        <div class="edfilecard" data-drop="stats">
-          <b>${esc(T.edStats)}</b>
-          <span class="note">${esc(T.edFileWhere)} <code>${esc(T.edWhereStats)}</code></span>
-          <span class="note edstatus">${ED.stats ? esc(ED.stats.file.name) + " · " + esc(T.edStatsRead(ED.stats.km)) : ED.elytraStart != null ? esc(T.edStatsRead(ED.elytraStart.toFixed(1))) : esc(T.edOptional)}</span>
-          <button type="button" class="btn" id="edStatsBtn">${esc(T.edChooseFile)}</button>
-          <input type="file" id="edStatsFile" accept=".json" hidden>
-        </div>
-        <div class="edfilecard" data-drop="ghost">
-          <b>${esc(T.edGhost)}</b>
-          <span class="note">${esc(T.edFileWhere)} <code>${esc(T.edWhereGhost)}</code></span>
-          <span class="note edstatus">${ED.ghost ? esc(ED.ghost.name) : run && meta.path ? esc(T.edOnSite) : esc(T.edRecommended)}</span>
-          <button type="button" class="btn" id="edGhostBtn">${esc(T.edChooseFile)}</button>
-          <input type="file" id="edGhostFile" accept=".ghost" hidden>
+        <div class="edfilecard edworld" data-drop="world">
+          <b>${esc(T.worldTitle)} <span class="note">(${esc(T.worldWhere)})</span></b>
+          <span class="note">${esc(T.worldNote)}</span>
+          <span class="note edstatus">${esc(T.edLog)}: ${ED.log ? "✓ " + esc(T.edLogRead(fmt(lr.finalIgt), ld.category, lr.deaths.length)) : ED.hasLog ? esc(T.edOnSite) : esc(T.edNeeded)}</span>
+          <span class="note edstatus">${esc(T.edGhost)}: ${ED.ghost ? "✓ " + esc(ED.ghost.name) : run && meta.path ? esc(T.edOnSite) : esc(T.edRecommended)}</span>
+          <span class="note edstatus">${esc(T.edStats)}: ${ED.stats ? "✓ " + esc(T.edStatsRead(ED.stats.km)) : ED.elytraStart != null ? esc(T.edStatsRead(ED.elytraStart.toFixed(1))) : esc(T.edOptional)}</span>
+          <button type="button" class="btn" id="edWorldBtn">${esc(CAN_PICK_FOLDER ? T.worldUpload : T.worldChooseFiles)}</button>
+          <input type="file" id="edWorldFiles" multiple accept=".log,.txt,.jsonl,.ghost,.json" hidden>
         </div>
       </div>
       ${edSameRun(lr) ? `<p class="note bad" style="margin:0">${esc(T.edSameRun(runNum(edSameRun(lr))))}</p>` : ""}
@@ -285,10 +272,10 @@ function renderEditor() {
     $(btn).addEventListener("click", () => $(input).click());
     $(input).addEventListener("change", e => { const f = e.target.files[0]; if (f) onFile(f); });
   };
-  const pickGhost = f => { keep(); if (f.size < 46 || f.size % 46) return edMsg(esc(T.edGhostBad), true); ED.ghost = f; renderEditor(); edRestore(); };
-  pick("#edLogBtn", "#edLogFile", edPickLog);
-  pick("#edStatsBtn", "#edStatsFile", edPickStats);
-  pick("#edGhostBtn", "#edGhostFile", pickGhost);
+  if ($("#edWorldBtn")) {
+    $("#edWorldBtn").addEventListener("click", async () => { const w = await pickWorld($("#edWorldFiles")); if (w) edPickWorld(w); });
+    $("#edWorldFiles").addEventListener("change", e => edPickFiles([...e.target.files]));
+  }
   if ($("#edModes")) $("#edModes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (!b || b.dataset.mode === ED.mode) return; keep(); ED.mode = b.dataset.mode; renderEditor(); edRestore(); });
   pick("#edShotBtn", "#edShotFile", f => { keep(); if (!/^image\//.test(f.type)) return edMsg(T.edShotBad, true); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; if (ED.draft) ED.draft.shotLink = ""; renderEditor(); edRestore(); });
   if ($("#edShotRemove")) $("#edShotRemove").addEventListener("click", () => { keep(); ED.shot = null; ED.removeShot = true; renderEditor(); edRestore(); });
@@ -299,14 +286,10 @@ function renderEditor() {
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
     z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over");
-      // (a folder: the world's; several files: each where it goes, by its name. The entries have to be taken now, in the event)
-      const entries = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
-      const dir = entries.find(x => x.isDirectory);
-      if (dir && z.dataset.drop !== "shot") return edPickWorld(dir, pickGhost);
-      const files = [...e.dataTransfer.files]; if (!files.length) return;
-      if (z.dataset.drop !== "shot" && files.length > 1) return edPickFiles(files, pickGhost);
-      const f = files[0];
-      if (z.dataset.drop === "log") edPickLog(f); else if (z.dataset.drop === "ghost") pickGhost(f); else if (z.dataset.drop === "stats") edPickStats(f); else { keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); } });
+      // (the world box: a folder, the world's, or its files, each where it goes by its name)
+      if (z.dataset.drop === "world") { const w = droppedWorld(e); return w ? edPickWorld(w) : edPickFiles([...e.dataTransfer.files]); }
+      const f = e.dataTransfer.files[0]; if (!f) return;
+      keep(); ED.shot = {file: f, url: URL.createObjectURL(f)}; ED.removeShot = false; ED.draft.shotLink = ""; renderEditor(); edRestore(); });
   });
   $("#edCancel").addEventListener("click", () => { const r = ED.run; ED = null; r ? go("run", r.id) : go("runs"); });
   $("#edForm").addEventListener("submit", e => { e.preventDefault(); edSave(); });
@@ -348,40 +331,30 @@ async function edPickLog(file) {
     ED.msg = ""; renderEditor(); edRestore();
   } catch (e) { edMsg(esc(e.message || String(e)), true); }
 }
-// A world folder dropped on the files: only its hermes/play.log, hermes/ghosts/<uuid>.ghost and stats/<uuid>.json are read
-// (the player's, by the uuid in the log; nothing else in the world is opened, and only these are uploaded on saving)
-const entryFile = (dir, p) => new Promise(ok => dir.getFile(p, {}, f => f.file(ok, () => ok(null)), () => ok(null)));
-const entryList = (dir, p) => new Promise(ok => dir.getDirectory(p, {}, d => {
-  const r = d.createReader(), all = [];
-  const more = () => r.readEntries(xs => { if (!xs.length) return ok(all); all.push(...xs); more(); }, () => ok(all));
-  more();
-}, () => ok([])));
-const byUuid = (entries, ext, uuid) => {
-  const xs = entries.filter(x => x.isFile && x.name.endsWith(ext));
-  return (uuid && xs.find(x => x.name.toLowerCase().startsWith(uuid.toLowerCase()))) || (xs.length === 1 ? xs[0] : null);
-};
-async function edPickWorld(dir, pickGhost) {
+// A world folder (see readWorld): its log, then the player's ghost and stats files
+async function edPickWorld(w) {
   edMsg(esc(T.cmpReading));
-  const log = await entryFile(dir, "hermes/play.log");
-  if (!log) return edMsg(esc(T.edWorldNoLog), true);
-  await edPickLog(log);
+  const got = await readWorld(w);
+  if (!got) return edMsg(esc(T.worldNoLog), true);
+  await edPickLog(got.log);
   if (!ED.log) return;   // (couldn't read it: edPickLog said why)
-  const uuid = ED.log.run.uuid, found = ["play.log"];
-  const g = byUuid(await entryList(dir, "hermes/ghosts"), ".ghost", uuid);
-  const gf = g && await new Promise(ok => g.file(ok, () => ok(null)));
-  if (gf && gf.size >= 46 && gf.size % 46 === 0) { pickGhost(gf); found.push(gf.name); }
-  const st = byUuid(await entryList(dir, "stats"), ".json", uuid);
-  const sf = st && await new Promise(ok => st.file(ok, () => ok(null)));
-  if (sf) { await edPickStats(sf); if (ED.stats) found.push("stats/" + sf.name); }
-  edMsg(esc(T.edWorldRead(found)));
+  const found = ["play.log"];
+  if (got.ghost && edPickGhost(got.ghost)) found.push(got.ghost.name);
+  if (got.stats) { await edPickStats(got.stats); if (ED.stats) found.push("stats/" + got.stats.name); }
+  edMsg(esc(T.worldFound(found)));
 }
-// Several files dropped at once: each where it goes, by its name
-async function edPickFiles(files, pickGhost) {
+// Its files instead (no folder picker in this browser): each where it goes, by its name
+async function edPickFiles(files) {
   for (const f of files) {
-    if (/\.ghost$/i.test(f.name)) pickGhost(f);
+    if (/\.ghost$/i.test(f.name)) edPickGhost(f);
     else if (/\.json$/i.test(f.name)) await edPickStats(f);
     else if (/\.(log|txt|jsonl)$/i.test(f.name)) await edPickLog(f);
   }
+}
+function edPickGhost(f) {
+  ED.draft = edRead();
+  if (f.size < 46 || f.size % 46) { edMsg(esc(T.edGhostBad), true); return false; }
+  ED.ghost = f; renderEditor(); edRestore(); return true;
 }
 async function edPickStats(file) {
   ED.draft = edRead();

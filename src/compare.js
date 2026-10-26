@@ -24,6 +24,46 @@ function cmpSave() {
   catch { try { localStorage.setItem(CMP_STORE, JSON.stringify({ids})); } catch {} }   // too big to keep: remember the picks only
 }
 
+// ---------- A world folder (dropped, or picked with the button): its play.log, and the player's ghost and stats ----------
+// Only those three are read; nothing else in the world is opened. (Here and in the editor.)
+const CAN_PICK_FOLDER = "showDirectoryPicker" in window;
+// (the folder, however it came: a dropped folder's entry, or a picked one's handle) → {file(path), list(folder)}
+const worldOfEntry = dir => ({
+  file: p => new Promise(ok => dir.getFile(p, {}, f => f.file(ok, () => ok(null)), () => ok(null))),
+  list: p => new Promise(ok => dir.getDirectory(p, {}, d => {
+    const r = d.createReader(), all = [];
+    const more = () => r.readEntries(xs => { if (!xs.length) return ok(all); for (const x of xs) if (x.isFile) all.push({name: x.name, get: () => new Promise(o => x.file(o, () => o(null)))}); more(); }, () => ok(all));
+    more();
+  }, () => ok([]))),
+});
+const worldOfHandle = dir => {
+  const sub = async parts => { let d = dir; for (const x of parts) d = await d.getDirectoryHandle(x); return d; };
+  return {
+    file: async p => { try { const parts = p.split("/"), name = parts.pop(); return await (await (await sub(parts)).getFileHandle(name)).getFile(); } catch { return null; } },
+    list: async p => { try { const out = []; for await (const h of (await sub(p.split("/"))).values()) if (h.kind === "file") out.push({name: h.name, get: () => h.getFile()}); return out; } catch { return []; } },
+  };
+};
+// → {log, ghost, stats} (the ghost and stats files whose name is the player's uuid, from the log), or null with no log
+async function readWorld(w) {
+  const log = await w.file("hermes/play.log");
+  if (!log) return null;
+  let uuid = null;
+  try { const m = /"uuid":"([0-9a-f-]{32,36})"/i.exec(await log.slice(0, 200000).text()); if (m) uuid = m[1].toLowerCase(); } catch {}
+  const pick = async (dir, ext) => {
+    const xs = (await w.list(dir)).filter(x => x.name.toLowerCase().endsWith(ext));
+    const x = (uuid && xs.find(x => x.name.toLowerCase().startsWith(uuid))) || (xs.length === 1 ? xs[0] : null);
+    return x ? x.get() : null;
+  };
+  return {log, ghost: await pick("hermes/ghosts", ".ghost"), stats: await pick("stats", ".json")};
+}
+// a drop: the world folder, if a folder was dropped (taken in the event itself: its entries don't last after it)
+const droppedWorld = e => { const d = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).find(x => x && x.isDirectory); return d ? worldOfEntry(d) : null; };
+// the button: pick the folder (Chrome, Edge: the browser asks to let the page view its files), or else choose the files themselves
+async function pickWorld(filesInput) {
+  if (!CAN_PICK_FOLDER) { filesInput.click(); return null; }
+  try { return worldOfHandle(await window.showDirectoryPicker({id: "aa-world", mode: "read"})); } catch { return null; }   // (cancelled)
+}
+
 // ---------- Finding a run by id (this site's runs first, then uploaded ones) ----------
 function cmpFind(id) {
   const r = findRun(id); if (r) return {run: r, label: runTitle(r), mine: true};
@@ -76,11 +116,12 @@ const viewCard = () => `
     <section class="card viewcard" id="viewDrop">
       <div><h2>${esc(T.viewTitle)}</h2><p class="muted" style="margin:6px 0 0">${esc(T.viewHelp)}</p></div>
       <div class="viewslots">
-        ${VIEW_SLOTS.map(([k, accept, name]) => `<label class="viewslot${viewPend[k] ? " got" : ""}">
-          <span class="vk">${esc(name)}${k === "log" ? "" : ` <span class="muted">(${esc(T.viewOptional)})</span>`}</span>
-          <span class="vf">${viewPend[k] ? "✓ " + esc(viewPend[k].name) : esc(T.viewChoose)}</span>
-          <input type="file" data-vslot="${k}" accept="${accept}" hidden>
-        </label>`).join("")}
+        <div class="viewslot worldbox${viewPend.log ? " got" : ""}">
+          <span class="vk">${esc(T.worldTitle)} <span class="muted">(${esc(T.worldWhere)})</span></span>
+          ${VIEW_SLOTS.map(([k, , name]) => `<span class="vf">${viewPend[k] ? "✓ " + esc(viewPend[k].name) : `<span class="muted">${esc(name)}: ${esc(k === "log" ? T.worldNeeded : T.viewOptional)}</span>`}</span>`).join("")}
+          <button type="button" class="btn" id="viewWorldBtn">${esc(CAN_PICK_FOLDER ? T.worldUpload : T.worldChooseFiles)}</button>
+          <input type="file" id="viewFiles" multiple accept=".log,.txt,.jsonl,.ghost,.json" hidden>
+        </div>
         <label class="viewslot seedslot"><span class="vk">${esc(T.viewSeed)} <span class="muted">(${esc(T.viewSeedNote)})</span></span>
           <input class="field mono" id="viewSeed" value="${esc(viewPend.seed)}" placeholder="${esc(T.viewSeedPlaceholder)}" autocomplete="off" spellcheck="false"></label>
       </div>
@@ -195,26 +236,30 @@ function renderCompare() {
     ${withLog ? `<section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}` : ""}`;
 
   // looking at one run: a file into each slot (or dropped anywhere on the card), the seed, then open it
-  el.querySelectorAll("[data-vslot]").forEach(i => i.addEventListener("change", e => viewAdd(e.target.files, i.dataset.vslot)));
+  const viewWorld = async w => { if (!w) return; viewStatus = T.viewReading; renderCompare(); const got = await readWorld(w); if (!got) { viewStatus = T.worldNoLog; renderCompare(); return; } viewAdd([got.log, got.ghost, got.stats].filter(Boolean)); };
+  $("#viewWorldBtn").addEventListener("click", async () => viewWorld(await pickWorld($("#viewFiles"))));
+  $("#viewFiles").addEventListener("change", e => viewAdd(e.target.files));
   $("#viewSeed").addEventListener("input", e => { viewPend.seed = e.target.value; viewPend.seedTyped = true; });
   $("#viewGo").addEventListener("click", viewOpen);
   if ($("#viewAgain")) $("#viewAgain").addEventListener("click", () => { state.runId = VIEWED.id; go("run"); });
   const vd = $("#viewDrop");
   vd.addEventListener("dragover", e => { e.preventDefault(); vd.classList.add("over"); });
   vd.addEventListener("dragleave", e => { if (!vd.contains(e.relatedTarget)) vd.classList.remove("over"); });
-  vd.addEventListener("drop", e => { e.preventDefault(); vd.classList.remove("over"); viewAdd(e.dataTransfer.files); });
+  vd.addEventListener("drop", e => { e.preventDefault(); vd.classList.remove("over"); const w = droppedWorld(e); w ? viewWorld(w) : viewAdd(e.dataTransfer.files); });
 
   // controls
   let uploadSlot = 1;
   el.querySelectorAll("[data-pick]").forEach(s => s.addEventListener("change", () => { if (s.value) { cmpSet(+s.dataset.pick, s.value); cmpSave(); renderCompare(); } }));
-  el.querySelectorAll("[data-upload]").forEach(b => b.addEventListener("click", () => { uploadSlot = +b.dataset.upload; $("#cmpFile").click(); }));
+  // (a world folder: its log; or, without the folder picker, a play.log or a saved run's .json)
+  const slotWorld = async (w, k) => { if (!w) return; const got = await readWorld(w); if (!got) { cmpStatus = T.worldNoLog; renderCompare(); return; } cmpFiles([got.log], k); };
+  el.querySelectorAll("[data-upload]").forEach(b => b.addEventListener("click", async () => { uploadSlot = +b.dataset.upload; slotWorld(await pickWorld($("#cmpFile")), uploadSlot); }));
   $("#cmpFile").addEventListener("change", e => cmpFiles([...e.target.files].slice(0, 1), uploadSlot));
   el.querySelectorAll("[data-save]").forEach(b => b.addEventListener("click", () => cmpDownload(list[+b.dataset.save])));
   if ($("#cmpForget")) $("#cmpForget").addEventListener("click", () => { const up = new Set(UPLOADED.map(u => u.run.id)); UPLOADED = []; state.cmp = state.cmp.filter(id => !up.has(id)); cmpStatus = ""; cmpSave(); renderCompare(); });
   el.querySelectorAll("[data-slot]").forEach(box => {   // drop a file on a slot to read it into that slot
     box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("over"); });
     box.addEventListener("dragleave", () => box.classList.remove("over"));
-    box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("over"); cmpFiles([...e.dataTransfer.files].slice(0, 1), +box.dataset.slot); });
+    box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("over"); const w = droppedWorld(e); w ? slotWorld(w, +box.dataset.slot) : cmpFiles([...e.dataTransfer.files].slice(0, 1), +box.dataset.slot); });
   });
 
   cmpKeys = null;

@@ -141,7 +141,7 @@ const MIDGAME = [
   {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "nautilus", need: 8, activity: ["drowned"]},
   {key: "trident", name: "Trident", item: "trident", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "trident", need: 1, activity: ["drowned"]},
   {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164, activity: ["prism"]},
-  {key: "godapple", name: "God Apple", item: "enchanted_golden_apple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
+  {key: "godapple", name: "God Apple", item: "icon:s_gapple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
   // the Nether: time spent there, on visits that got something done for it (shown first there)
   // (the same as the Skulls split on a run's page: findSkullSplit in stats.js)
   {key: "skulls", name: "Skulls", item: "wither_skeleton_skull", area: NETHER, start: "enter", time: "farm", end: "done",

@@ -115,6 +115,10 @@ function findSplits(run, comp) {
   const camps = (st.campfire || []).filter(t => t > (enchDone ?? Infinity));
   let campT = honey == null ? camps[0] : camps.find(t => t <= honey && honey - t <= RULES.campfireToHoney);
   if (campT == null && honey != null && camps.some(t => t <= honey)) campT = honey;
+  // (and it starts when they got to where the campfire went, back at their base, setting up: from the ghost file, see
+  // baseArrivals; not before Enchanting's end)
+  const arrived = campT != null ? (st.campArrive || []).find(x => x[0] === campT) : null;
+  if (arrived) campT = Math.max(arrived[1], enchDone ?? -Infinity);
   const earlyEnd = campT != null && (debrisStart == null || campT < debrisStart);
   const endgameEnd = postStart ?? run.finalIgt;
 

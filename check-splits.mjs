@@ -27,7 +27,7 @@ const logs = (fs.existsSync(path.join(site, "logs")) ? fs.readdirSync(path.join(
 for (const f of logs) {
   const n = parseInt(f), r = parseLog(read(path.join(site, "logs", f)), f), gf = path.join(site, "logs", n + ".ghost");
   const g = fs.existsSync(gf) ? readGhost(fs.readFileSync(gf), r) : null;
-  if (g) Object.assign(r.st, ghostFacts(g));
+  if (g) Object.assign(r.st, ghostFacts(g, r.st));
   const d = derive(r), b = {};
   for (const s of d.splits) { const segs = s.segs.filter(x => x[1] > x[0]); if (segs.length) b[s.name] = segs[segs.length - 1][1]; }
   const deb = d.splits.find(s => s.name === "Debris");

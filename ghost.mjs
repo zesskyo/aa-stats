@@ -96,9 +96,28 @@ export function outerEndTime(path) {
   return null;
 }
 
-// What the splits use from the ghost file, for a run's st: when they were deep in the Nether, and when they got to the outer End
-export function ghostFacts(path) {
+// Getting to where each campfire was placed (the Endgame base, with the bees): from the campfire, back as long as they
+// were within BASE blocks of it (in Overworld blocks: the Nether's times 8), up to BASE_BACK before. [[campfire, arrived]]
+const BASE = 400, BASE_BACK = 15 * 60000;
+export function baseArrivals(path, times) {
+  const out = [];
+  if (!path || !path.t || !times) return out;
+  const eq = i => path.d[i] === "n" ? [path.x[i] * 8, path.z[i] * 8] : path.d[i] === "o" ? [path.x[i], path.z[i]] : null;
+  for (const t of times) {
+    let i = -1; for (let k = 0; k < path.t.length && path.t[k] * 100 <= t; k++) i = k;
+    const at = i >= 0 ? eq(i) : null; if (!at) continue;
+    let j = i;
+    while (j > 0) { const p = eq(j - 1); if (!p || Math.hypot(p[0] - at[0], p[1] - at[1]) > BASE || t - path.t[j - 1] * 100 > BASE_BACK) break; j--; }
+    out.push([t, path.t[j] * 100]);
+  }
+  return out;
+}
+
+// What the splits use from the ghost file, for a run's st: when they were deep in the Nether, when they got to the outer
+// End, and when they got to where each campfire was placed (st: the run's, for its campfires)
+export function ghostFacts(path, st) {
   const out = {deep: deepTimes(path)}, oe = outerEndTime(path);
   if (oe != null) out.outerEnd = oe;
+  if (st && st.campfire && st.campfire.length) out.campArrive = baseArrivals(path, st.campfire);
   return out;
 }

@@ -96,7 +96,7 @@ if (fs.existsSync(inSite("logs"))) for (const f of fs.readdirSync(inSite("logs")
     const biomes = g && await biomesFromPath(fs.readFileSync(inCode("wasm/cubiomes.wasm")), BIOME_IDS, g, seed, r.mc);
     if (biomes && biomes.length) { r = parseLog(read(inSite("logs/" + f)), f, {biomes}); console.log(`logs/${f} has no biomes (Hermes before 0.14): worked out ${biomes.length} biome changes from the seed and the ghost file`); }
   }
-  if (gp) Object.assign(r.st, ghostFacts(gp));
+  if (gp) Object.assign(r.st, ghostFacts(gp, r.st));
   r.id = runKey(r);
   clocks.set(n, r); logFiles.set(n, inSite("logs/" + f));
   runs.set(n, encodeRun(r));
@@ -200,7 +200,7 @@ function readWr(dir, key, former) {
   if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error(`${where}wr.json: video must start with http:// or https://`);
   if (fs.existsSync(at("wr.ghost"))) {
     const g = readGhost(fs.readFileSync(at("wr.ghost")), r);
-    if (g) { paths.set(key, g); meta.path = `paths/${key}.json`; Object.assign(r.st, ghostFacts(g)); console.log(`Read ${where}wr.ghost: ${g.t.length} points`); }
+    if (g) { paths.set(key, g); meta.path = `paths/${key}.json`; Object.assign(r.st, ghostFacts(g, r.st)); console.log(`Read ${where}wr.ghost: ${g.t.length} points`); }
     else console.warn(`${where}wr.ghost doesn't match its wr.log (another world?), so it's skipped`);
   }
   if (fs.existsSync(at("wr.stats.json"))) {

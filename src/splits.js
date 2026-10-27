@@ -329,7 +329,8 @@ function findMidgame(run, splits) {
     const progress = [...goals.map(g => g[0]), ...xs.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);
     e.last = progress.length ? progress[progress.length - 1] : null;
     // the end: everything done; or leaving once it is (Mushroom Island); or either (Snowy), leaving once all but the optional is
-    const core = goals.filter(g => !(m.optional || []).includes(g[1]));
+    // (optional: a group of goals, "Zombie Doctor", or one goal, "zombified_piglin")
+    const core = goals.filter(g => !(m.optional || []).includes(g[1]) && !(m.optional || []).includes(g[4]));
     const coreDone = core.length && core.every(g => g[0] != null) && (!m.count || reached != null) ? Math.max(...core.map(g => g[0]), reached ?? 0) : null;
     let segs;
     // (old logs have no biomes in them, only structures: nothing to time the Overworld's areas with)
@@ -372,13 +373,16 @@ function findMidgame(run, splits) {
     e.start = start;
     // (leaving after t: the end of the visit it was done in or before; t itself if it was done after the last one)
     const leaveAfter = t => { if (t == null) return null; const s = segs.find(([, b]) => b == null || b >= t); return s ? s[1] : t; };
-    e.end = m.end === "done" ? done : m.end === "leave" ? leaveAfter(done)
+    e.end = m.end === "done" ? (m.optional ? coreDone : done) : m.end === "leave" ? leaveAfter(done)
       : [done, leaveAfter(coreDone)].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
     if (e.end != null && e.end < e.start) e.end = e.start;
     // (Snowy: leaving with only Zombie Doctor left counts as finished)
-    e.complete = e.end != null && ((done != null && done <= e.end) || (m.end === "doneOrLeave" && coreDone != null && coreDone <= e.end));
+    // (and Nether Misc with only the zombified piglin left)
+    e.complete = e.end != null && ((done != null && done <= e.end) || ((m.end === "doneOrLeave" || m.optional) && coreDone != null && coreDone <= e.end));
     const to = e.end ?? now;
     e.dur = sum(segs.map(([a, b]) => [Math.max(a, e.start), b == null ? null : Math.min(b, to)]).filter(([a, b]) => b == null || b >= a), to);
+    // (what's optional, done after it ended: the time before it, added; nothing else is timed for it by then)
+    if (m.end === "done" && m.optional && m.time === "active" && e.end != null) e.dur += segs.reduce((a, [x, y]) => a + (y != null && y > e.end ? y - Math.max(x, e.end) : 0), 0);
     const open = segs.find(([, b]) => b == null);
     if (e.end == null && open) e.since = Math.max(open[0], e.start);
     return e;

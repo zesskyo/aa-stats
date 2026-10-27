@@ -93,7 +93,8 @@ const SUB_ITEMS = {
  *          "active": only the "lead" before each thing done for it (less, when the thing before was closer); "farm": the
  *          skull farming time, as the Skulls split works it out (findSkullSplit in stats.js)
  *   end    "done": everything done; "leave": leaving its area once everything's done; "doneOrLeave": either, leaving
- *          counting once all but "optional" is done
+ *          counting once all but "optional" is done. With "done" and "optional", all but those: the split ends then, and
+ *          (timed "active") the time before each of them when it's done later is added
  * Goals: ["biome", name] (Adventuring Time), ["food", [items]] (eaten, or in the inventory: any of the items), ["bred",
  * animal] (Two by Two), ["kill", mob] (Monster Hunter), ["adv", id], ["cats"] (A Complete Catalogue), and count/need
  * (a timeline in the run's stats, and how many). Under the split it's on, what's left: "Biomes 3/5", "Foods 1/2", and
@@ -161,7 +162,9 @@ const MIDGAME = [
       ["bred", "sheep"], ["bred", "cow"], ["bred", "pig"], ["bred", "chicken"], ["bred", "rabbit"], ["bred", "llama"], ["bred", "horse"], ["bred", "donkey"], ["bred", "mule"],
       ["food", ["mutton"]], ["food", ["cooked_mutton"]], ["food", ["beef"]], ["food", ["cooked_beef"]], ["food", ["porkchop"]], ["food", ["cooked_porkchop"]],
       ["food", ["chicken"]], ["food", ["cooked_chicken"]], ["food", ["rabbit"]], ["food", ["cooked_rabbit"]], ["food", ["rabbit_stew"]]]},
-  {key: "nethermisc", name: "Nether Misc", item: "warped_fungus_on_a_stick", area: NETHER, start: "first", time: "active", lead: 120000, end: "done",
+  // (done once all but a zombified piglin is: one's easy to get anywhere, so it's often left till late; the time it took is
+  // added when it's got)
+  {key: "nethermisc", name: "Nether Misc", item: "warped_fungus_on_a_stick", area: NETHER, start: "first", time: "active", lead: 120000, end: "done", optional: ["zombified_piglin"],
     goals: [["nbiome", "nether_wastes"], ["nbiome", "crimson_forest"], ["nbiome", "warped_forest"], ["nbiome", "soul_sand_valley"], ["nbiome", "basalt_deltas"],
       ["bred", "hoglin"], ["bred", "strider"],
       ["kill", "hoglin"], ["kill", "zoglin"], ["kill", "piglin"], ["kill", "zombified_piglin"], ["kill", "blaze"], ["kill", "magma_cube"]]},

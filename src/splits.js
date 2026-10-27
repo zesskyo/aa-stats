@@ -54,13 +54,16 @@ function findSplits(run, comp) {
   const deep = st.deep || [];
   const deepIn = (a, b) => deep.filter(t => t >= a && t <= b);
   const tripOf = t => { const i = run.dims.findLastIndex(x => x[0] <= t); return i >= 0 && run.dims[i][1] === "n" ? [run.dims[i][0], i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt] : null; };
-  const after = enchDone ?? -Infinity;
+  // (only after Enchanting: debris found before, digging around in Any% say, isn't the Debris split; on the timer,
+  // nothing's Debris until Enchanting's done)
+  const after = enchDone ?? Infinity;
   const bursts = (st.debris || []).length ? clusters(st.debris.filter(t => t >= after), RULES.debrisSessionGap) : [];
   const deepTrip = run.dims.map((x, i) => x[1] === "n" && x[0] >= after ? [x[0], i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt] : null)
     .find(tr => tr && deepIn(tr[0], tr[1]).length * 5000 >= RULES.debrisDeepMin);
   let debrisSession = bursts.find(b => b.length >= 3) || null;
   if (deepTrip && (!debrisSession || deepTrip[0] < debrisSession[0])) debrisSession = (st.debris || []).filter(t => t >= deepTrip[0] && t <= deepTrip[1]).concat(deepIn(deepTrip[0], deepTrip[1])).sort((a, b) => a - b);
-  if (!debrisSession && (st.debris || []).length) debrisSession = clusters(st.debris, RULES.debrisSessionGap).sort((a, b) => b.length - a.length)[0];
+  const debrisAfter = (st.debris || []).filter(t => t >= after);
+  if (!debrisSession && debrisAfter.length) debrisSession = clusters(debrisAfter, RULES.debrisSessionGap).sort((a, b) => b.length - a.length)[0];
   let debrisStart = null, debrisEnd = null;
   if (debrisSession && debrisSession.length) {
     const d0 = debrisSession[0];

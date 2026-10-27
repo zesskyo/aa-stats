@@ -155,7 +155,8 @@ const MIDGAME = [
     goals: [["biome", "warm_ocean"], ["biome", "lukewarm_ocean"], ["biome", "deep_lukewarm_ocean"], ["biome", "cold_ocean"], ["biome", "deep_cold_ocean"], ["biome", "deep_frozen_ocean"],
       ["food", ["cod"]], ["food", ["salmon"]], ["food", ["tropical_fish"]], ["food", ["pufferfish"]], ["food", ["cooked_cod"]], ["food", ["cooked_salmon"]], ["food", ["dried_kelp"]],
       ["bred", "turtle"], ["kill", "elder_guardian"], ["kill", "drowned"]]},   // (not the guardian: often killed later)
-  {key: "animals", name: "Temperate", item: "wheat", area: ["plains", "other"], start: "first", time: "active", lead: 120000, end: "done", notTimedIn: ["mushroom"],
+  // (wheat fed to animals counts as something done for it: taming horses, donkeys and llamas for the mule takes a while)
+  {key: "animals", name: "Temperate", item: "wheat", area: ["plains", "other"], start: "first", time: "active", lead: 120000, end: "done", notTimedIn: ["mushroom"], activity: ["wheat"],
     // (the bee isn't here: usually bred in Endgame)
     goals: [["biome", "forest"], ["biome", "wooded_hills"], ["biome", "birch_forest"], ["biome", "birch_forest_hills"], ["biome", "dark_forest"],
       ["biome", "mountains"], ["biome", "wooded_mountains"], ["biome", "stone_shore"],

@@ -50,9 +50,9 @@ function parseLog(text, filename, opts = {}) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
-    tears: [], ghasts: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: []};
+    tears: [], ghasts: [], wheat: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
-  const inv = {}; let inDesert = false, goldCum = 0, tntCum = 0, tntOwed = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
+  const inv = {}, wheatInv = {}, wheatDrops = []; let wheatHeld = 0, inDesert = false, goldCum = 0, tntCum = 0, tntOwed = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let biome = null, structs = [];   // where they are (for st.areas)
@@ -100,7 +100,8 @@ function parseLog(text, filename, opts = {}) {
       && !line.includes("ancient_debris") && !line.includes("netherite_scrap") && !dbHeld && !line.includes("minecraft:riptide") && !ripHeld
       && !(st.channeling === false && line.includes("minecraft:channeling"))
       && !MINERAL.test(line) && !Object.keys(minInv).some(sl => (minInv[sl] || netInv[sl]) && line.includes('"' + sl + '":'))
-      && !HELD.some(x => st.held[x] == null && line.includes("minecraft:" + x))) continue;
+      && !HELD.some(x => st.held[x] == null && line.includes("minecraft:" + x))
+      && !line.includes('"minecraft:wheat"') && !Object.keys(wheatInv).some(sl => wheatInv[sl] && line.includes('"' + sl + '":'))) continue;
     if (!["advancement","dimension","initialize","stat","inside_structures","inventory_slots","biome","status_effects"].includes(type)) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (start == null && e.time) start = e.time;
@@ -161,6 +162,7 @@ function parseLog(text, filename, opts = {}) {
       // debris from TNT: TNT used in the 5 minutes before, and no more than a few netherrack mined in the 15 seconds before
       // (checking around the blast); debris hit while mining netherrack non-stop (strip mining, digging the TNT tunnel) isn't
       if (k === "minecraft.used:minecraft.tnt") lastTnt = igt;
+      if (k === "minecraft.dropped:minecraft.wheat") for (let i = 0; i < diff; i++) wheatDrops.push(igt);
       if (k === "minecraft.mined:minecraft.netherrack") { rackNow = d.value; rackRecent.push([igt, rackNow]); while (rackRecent.length && rackRecent[0][0] < igt - 60000) rackRecent.shift(); }
       if (k === "minecraft.mined:minecraft.ancient_debris" && lastTnt != null && igt - lastTnt <= 300000) {
         const b = rackRecent.filter(p => p[0] <= igt - 15000).pop(), first = rackRecent.find(p => p[0] > igt - 15000);
@@ -204,7 +206,13 @@ function parseLog(text, filename, opts = {}) {
         netInv[slot] = worth(NETHERITE, v) + inside.reduce((a, x) => a + worth(NETHERITE, x), 0);
         const id = v && String(v.id).replace("minecraft:", "");
         if (id && HELD.includes(id) && st.held[id] == null) st.held[id] = igt;
+        wheatInv[slot] = id === "wheat" ? v.Count || 1 : 0;
       }
+      // (wheat fed to an animal: one gone at a time, not dropped; feeding isn't a stat. Crafting takes 3 or 9 at once,
+      // and putting it away moves a stack: st.wheat, for Temperate's time, with taming horses, donkeys and llamas)
+      const wh = Object.values(wheatInv).reduce((a, b) => a + b, 0);
+      if (wh === wheatHeld - 1) st.wheat.push(igt);
+      wheatHeld = wh;
       // (st.beacon: [time, blocks] each time there are more than ever before: they end up in the beacon)
       const mh = Math.floor(Object.values(minInv).reduce((a, b) => a + b, 0) + 1e-9);
       if (mh > minHeld) { minHeld = mh; const lb = st.beacon[st.beacon.length - 1]; if (lb && lb[0] === igt) lb[1] = mh; else st.beacon.push([igt, mh]); }
@@ -252,6 +260,8 @@ function parseLog(text, filename, opts = {}) {
   if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
   const comp = events.filter(e => e[4]);
   const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
+  // (wheat dropped isn't fed: one feed taken off for each, within a second and a half)
+  for (const t of wheatDrops) { const k = st.wheat.findIndex(x => Math.abs(x - t) <= 1500); if (k >= 0) st.wheat.splice(k, 1); }
   return {start: start || Date.now(), player: player || "Unknown", uuid, seed, mc: mc || "", finalIgt: last[0], finalRta: last[1],
     critCount: seen.size, events, dims, deaths, st, tot, meta: {}, addedAt: Date.now(), clock};
 }

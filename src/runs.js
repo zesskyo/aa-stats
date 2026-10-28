@@ -86,9 +86,10 @@ const runDay = r => {
 };
 const dayNumber = r => { const m = r.meta && r.meta.date; if (!m && r.manual) return 0; const d = m ? new Date(m + "T12:00") : new Date(doneAt(r)); return d.getFullYear() * 1e4 + (d.getMonth() + 1) * 100 + d.getDate(); };
 
-// Thunderful / Thunderless / Invalid label ("" when a run without a log doesn't say)
-const catPill = (d, style = "", run = null) => d.category === "Unknown" ? "" : `<span class="cat ${d.category.toLowerCase()}"${style ? ` style="${style}"` : ""}>${esc(d.category)}</span>`
-  + (run && run.meta && run.meta.countAnyway && noChannelingOnly(run) ? ` <span class="muted" style="font-size:13px">(${esc(T.countedAnyway)})</span>` : "");
+// Thunderful / Thunderless / Invalid label ("" when a run without a log doesn't say), and for a Thunderless run where
+// the runner then waited for thunder, when it went Thunderful
+const catPill = (d, style = "") => d.category === "Unknown" ? "" : `<span class="cat ${d.category.toLowerCase()}"${style ? ` style="${style}"` : ""}>${esc(d.category)}</span>`
+  + (d.thunderfulAt != null ? ` <span class="cat waited" title="${esc(T.thenThunderfulNote)}">${esc(T.thenThunderful(fmt(d.thunderfulAt, 0)))}</span>` : "");
 
 const okUrl = u => typeof u === "string" && /^https?:\/\/[^\s"'<>]+$/i.test(u);
 // Screenshot: a link, or an image build.mjs copied next to the page

@@ -302,9 +302,27 @@ const runKey = r => "run-" + r.start + "-" + String(r.player).replace(/[^A-Za-z0
 
 // Runs are stored with each event squashed into one "igt|rta|id|criterion|done" string to keep files small.
 const encodeRun = r => { const {_d, clock, ...x} = r; return {...x, events: r.events.map(e => e.join("|"))}; };
-const decodeRun = x => ({meta: {}, st: {}, tot: {}, deaths: [], ...x,
+const decodeRun = x => thunderlessFirst({meta: {}, st: {}, tot: {}, deaths: [], ...x,
   events: (x.events || []).map(s => { if (Array.isArray(s)) return s; const p = String(s).split("|"); return [+p[0], +p[1], p[2], p.slice(3, -1).join("|"), +p[p.length - 1]]; }),
   dims: (x.dims || []).map(s => Array.isArray(s) ? s : [+String(s).split("|")[0], String(s).split("|")[1]])});
+
+// A run done Thunderless first (every advancement but Very Very Frightening, with a channeling trident by then), where
+// the runner then waited for thunder to get that one too: it counts as the Thunderless run, the faster one, ending at
+// its 79th advancement (what came after, the wait, is left out). When it went Thunderful is kept: run.thunderful
+// {igt, rta}. (In the page and the timer, which have the advancements, config.js' ADV.)
+function thunderlessFirst(r) {
+  if (r.manual || r.thunderful || typeof ADV === "undefined") return r;
+  const comp = r.events.filter(e => e[4]), last = comp[comp.length - 1], before = comp[comp.length - 2];
+  if (!last || !before || last[2] !== "adventure/very_very_frightening" || before[0] >= last[0]) return r;
+  const done = new Set(comp.map(e => e[2]));
+  if (!Object.keys(ADV).every(k => done.has(k))) return r;
+  const ch = (r.st || {}).channeling;
+  if (ch === false || (typeof ch === "number" && ch > before[0])) return r;
+  const end = before[0];
+  return {...r, thunderful: {igt: r.finalIgt, rta: r.finalRta}, finalIgt: end, finalRta: before[1],
+    events: r.events.filter(e => e[0] <= end), deaths: (r.deaths || []).filter(d => d[0] <= end),
+    dims: r.dims.filter((d, i) => i === 0 || d[0] <= end)};
+}
 
 /*
  * The kind of place the runner is in, for the Midgame checklist (MIDGAME in config.js): in the Nether "fortress",

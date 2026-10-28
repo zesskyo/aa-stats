@@ -73,6 +73,7 @@ function derive(run) {
     skullSplit: findSkullSplit(run, ws, obtains("skulls")),
     rare: findRareBiomes(run),
     thunder: (comp.find(e => e[2] === VVF) || [null])[0],
+    thunderfulAt: run.thunderful ? run.thunderful.igt : null,   // (done Thunderless, then waited for thunder: see thunderlessFirst)
     riptide: findRiptide(run),
   };
 }
@@ -162,8 +163,7 @@ const pbRun = () => validRuns().sort((a, b) => a.finalIgt - b.finalIgt)[0] || nu
 // "Missing A, B, C and 4 more": the advancements an Invalid run didn't get
 const missingText = (d, max = 5) => {
   const names = d.missing.map(advName);
-  return T.invalidRunMissing + " " + names.slice(0, max).join(", ") + (names.length > max ? " " + T.andMore(names.length - max) : "")
-    + (d.category === "Invalid" && d.missing.length === 1 && d.missing[0] === VVF ? " " + T.noChanneling : "");
+  return T.invalidRunMissing + " " + names.slice(0, max).join(", ") + (names.length > max ? " " + T.andMore(names.length - max) : "");
 };
 const nonIntentionalDeaths = r => derive(r).deaths.filter(d => !d.intentional).length;
 const average = xs => { xs = xs.filter(x => x != null && !isNaN(x)); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };

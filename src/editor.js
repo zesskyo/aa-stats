@@ -199,16 +199,18 @@ function renderEditor() {
         <button type="button" role="tab" data-mode="manual" aria-pressed="${ED.mode === "manual"}">${esc(T.edModeManual)}</button>
       </div>` : ""}
       ${ED.mode === "files" ? `
-      <div class="edfiles">
-        <div class="edfilecard edworld" data-drop="world">
-          <b>${esc(T.worldTitle)} <span class="note">(${esc(T.worldWhere)})</span></b>
-          <span class="note">${esc(T.worldNote)}</span>
-          <span class="note edstatus">${esc(T.edLog)}: ${ED.log ? "✓ " + esc(T.edLogRead(fmt(lr.finalIgt), ld.category, lr.deaths.length)) : ED.hasLog ? esc(T.edOnSite) : esc(T.edNeeded)}</span>
-          <span class="note edstatus">${esc(T.edGhost)}: ${ED.ghost ? "✓ " + esc(ED.ghost.name) : run && meta.path ? esc(T.edOnSite) : esc(T.edRecommended)}</span>
-          <span class="note edstatus">${esc(T.edStats)}: ${ED.stats ? "✓ " + esc(T.edStatsRead(ED.stats.km)) : ED.elytraStart != null ? esc(T.edStatsRead(ED.elytraStart.toFixed(1))) : esc(T.edOptional)}</span>
-          <button type="button" class="btn" id="edWorldBtn">${esc(CAN_PICK_FOLDER ? T.worldUpload : T.worldChooseFiles)}</button>
-          <input type="file" id="edWorldFiles" multiple accept=".log,.txt,.jsonl,.ghost,.json" hidden>
-        </div>
+      ${ED.log || ED.hasLog ? `
+      <div class="edfiles"><div class="edworld edgot" data-drop="world">
+        <span class="note edstatus">${esc(T.edLog)}: ${ED.log ? "✓ " + esc(T.edLogRead(fmt(lr.finalIgt), ld.category, lr.deaths.length)) : esc(T.edOnSite)}</span>
+        <span class="note edstatus">${esc(T.edGhost)}: ${ED.ghost ? "✓" : run && meta.path ? esc(T.edOnSite) : "—"} · ${esc(T.edStats)}: ${ED.stats ? "✓ " + esc(T.edStatsRead(ED.stats.km)) : ED.elytraStart != null ? esc(T.edStatsRead(ED.elytraStart.toFixed(1))) : "—"}</span>
+        <button type="button" class="btn" id="edWorldBtn">${esc(T.viewOther)}</button>
+        <input type="file" id="edWorldFiles" multiple accept=".log,.txt,.jsonl,.ghost,.json" hidden>
+      </div></div>` : `
+      <div class="bigdrop edworld" data-drop="world" id="edWorldBtn" role="button" tabindex="0">
+        <strong>${esc(T.bigDrop)}</strong>
+        <span class="muted">${esc(T.bigDropNote(CAN_PICK_FOLDER))}</span>
+        <input type="file" id="edWorldFiles" multiple accept=".log,.txt,.jsonl,.ghost,.json" hidden>
+      </div>`}
       </div>
       ${edSameRun(lr) ? `<p class="note bad" style="margin:0">${esc(T.edSameRun(runNum(edSameRun(lr))))}</p>` : ""}
       ${ld && ld.category === "Invalid" && !(noChanneling && ED.countAnyway) ? `<p class="note bad" style="margin:0">${esc(T.invalidRun)} ${esc(missingText(ld, 10))}. ${esc(T.invalidRunNote)}</p>` : ""}
@@ -216,6 +218,7 @@ function renderEditor() {
       ${lr && lr.st.noBiomes ? `<p class="note" style="margin:0">${esc(T.edOldHermes(lr.st.hermes || "?"))}</p>` : ""}
       ${noChanneling ? `<label class="check"><input type="checkbox" id="edCountAnyway"${ED.countAnyway ? " checked" : ""}> ${esc(T.edCountAnyway)}</label>` : ""}` : ""}
 
+      ${ED.log && !lr.seed && !meta.seed ? `<p class="note seedasknote" style="margin:0">${esc(T.edSeedAsk)}</p>` : ""}
       <div class="edgrid">
         <label class="fld"><span class="label">${esc(T.edRunNumber)}</span>
           <input class="field mono" type="number" min="1" step="1" id="edNum" value="${esc(ED.num)}"${ED.isNew ? "" : " disabled"}></label>
@@ -226,7 +229,7 @@ function renderEditor() {
         <label class="fld"><span class="label">${esc(T.edDate)}</span>
           <input class="field" type="date" id="edDate" value="${esc(meta.date || logDate)}"></label>
         <label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span>
-          <input class="field mono" type="text" id="edSeed" value="${esc(meta.seed || (lr && lr.seed) || "")}" autocomplete="off"></label>
+          <input class="field mono${ED.log && !lr.seed && !meta.seed ? " ask" : ""}" type="text" id="edSeed" value="${esc(meta.seed || (lr && lr.seed) || "")}" autocomplete="off"></label>
       </div>
 
       ${ED.mode === "files" && deaths.length ? `<fieldset class="edsec"><legend>${esc(T.edDeaths)}</legend>
@@ -273,7 +276,9 @@ function renderEditor() {
     $(input).addEventListener("change", e => { const f = e.target.files[0]; if (f) onFile(f); });
   };
   if ($("#edWorldBtn")) {
-    $("#edWorldBtn").addEventListener("click", async () => { const w = await pickWorld($("#edWorldFiles")); if (w) edPickWorld(w); });
+    const pickIt = async () => { const w = await pickWorld($("#edWorldFiles")); if (w) edPickWorld(w); };
+    $("#edWorldBtn").addEventListener("click", e => { if (e.target.id !== "edWorldFiles") pickIt(); });
+    $("#edWorldBtn").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickIt(); } });
     $("#edWorldFiles").addEventListener("change", e => edPickFiles([...e.target.files]));
   }
   if ($("#edModes")) $("#edModes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (!b || b.dataset.mode === ED.mode) return; keep(); ED.mode = b.dataset.mode; renderEditor(); edRestore(); });

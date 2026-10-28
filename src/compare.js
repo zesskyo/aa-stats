@@ -88,7 +88,10 @@ async function viewAdd(files, only) {
       try { const t = await f.text(), m = /"entered_seed":"?(-?[^",}]+)/.exec(t.slice(0, 20000)) || /"type":"seed","data":\{"seed":"?(-?\d+)/.exec(t); viewPend.seed = m ? m[1] : ""; } catch {}
     }
   }
-  viewStatus = ""; renderCompare();
+  viewStatus = "";
+  // (one drop: opened straight away when the log has its seed; if not, asked for it, or opened without)
+  if (viewPend.log && !only) { viewPend.ask = !viewPend.seed; if (!viewPend.ask) return viewOpen(); }
+  renderCompare();
 }
 async function viewOpen() {
   const logF = viewPend.log;
@@ -115,18 +118,19 @@ async function viewOpen() {
 const viewCard = () => `
     <section class="card viewcard" id="viewDrop">
       <div><h2>${esc(T.viewTitle)}</h2><p class="muted" style="margin:6px 0 0">${esc(T.viewHelp)}</p></div>
-      <div class="viewslots">
-        <div class="viewslot worldbox${viewPend.log ? " got" : ""}">
-          <span class="vk">${esc(T.worldTitle)} <span class="muted">(${esc(T.worldWhere)})</span></span>
-          ${VIEW_SLOTS.map(([k, , name]) => `<span class="vf">${viewPend[k] ? "✓ " + esc(viewPend[k].name) : `<span class="muted">${esc(name)}: ${esc(k === "log" ? T.worldNeeded : T.viewOptional)}</span>`}</span>`).join("")}
-          <button type="button" class="btn" id="viewWorldBtn">${esc(CAN_PICK_FOLDER ? T.worldUpload : T.worldChooseFiles)}</button>
-          <input type="file" id="viewFiles" multiple accept=".log,.txt,.jsonl,.ghost,.json" hidden>
-        </div>
-        <label class="viewslot seedslot"><span class="vk">${esc(T.viewSeed)} <span class="muted">(${esc(T.viewSeedNote)})</span></span>
+      ${viewPend.log && viewPend.ask ? `
+      <div class="seedask">
+        <span>${esc(T.viewGotWorld(viewPend.log.name, [viewPend.ghost, viewPend.stats].filter(Boolean).length))}</span>
+        <label class="fld"><span class="label">${esc(T.viewNoSeed)}</span>
           <input class="field mono" id="viewSeed" value="${esc(viewPend.seed)}" placeholder="${esc(T.viewSeedPlaceholder)}" autocomplete="off" spellcheck="false"></label>
+        <span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary" id="viewGo">${esc(T.viewGo)}</button><button type="button" class="btn ghost" id="viewReset">${esc(T.viewOther)}</button></span>
+      </div>` : `
+      <div class="bigdrop" id="viewWorldBtn" role="button" tabindex="0">
+        <strong>${esc(T.bigDrop)}</strong>
+        <span class="muted">${esc(T.bigDropNote(CAN_PICK_FOLDER))}</span>
       </div>
-      <div class="viewfoot">${viewStatus ? `<span class="cmp-status" role="status">${esc(viewStatus)}</span>` : "<span></span>"}
-        <span style="display:flex;gap:8px">${VIEWED ? `<button type="button" class="btn" id="viewAgain">${esc(T.viewOpen)}</button>` : ""}<button type="button" class="btn primary" id="viewGo"${viewPend.log ? "" : " disabled"}>${esc(T.viewGo)}</button></span></div>
+      <input type="file" id="viewFiles" multiple accept=".log,.txt,.jsonl,.ghost,.json" hidden>`}
+      ${viewStatus || VIEWED ? `<div class="viewfoot">${viewStatus ? `<span class="cmp-status" role="status">${esc(viewStatus)}</span>` : "<span></span>"}${VIEWED ? `<button type="button" class="btn" id="viewAgain">${esc(T.viewOpen)}</button>` : ""}</div>` : ""}
     </section>`;
 
 // ---------- Reading files ----------
@@ -237,10 +241,16 @@ function renderCompare() {
 
   // looking at one run: a file into each slot (or dropped anywhere on the card), the seed, then open it
   const viewWorld = async w => { if (!w) return; viewStatus = T.viewReading; renderCompare(); const got = await readWorld(w); if (!got) { viewStatus = T.worldNoLog; renderCompare(); return; } viewAdd([got.log, got.ghost, got.stats].filter(Boolean)); };
-  $("#viewWorldBtn").addEventListener("click", async () => viewWorld(await pickWorld($("#viewFiles"))));
-  $("#viewFiles").addEventListener("change", e => viewAdd(e.target.files));
-  $("#viewSeed").addEventListener("input", e => { viewPend.seed = e.target.value; viewPend.seedTyped = true; });
-  $("#viewGo").addEventListener("click", viewOpen);
+  if ($("#viewWorldBtn")) {
+    const pickIt = async () => viewWorld(await pickWorld($("#viewFiles")));
+    $("#viewWorldBtn").addEventListener("click", pickIt);
+    $("#viewWorldBtn").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickIt(); } });
+    $("#viewFiles").addEventListener("change", e => viewAdd(e.target.files));
+  }
+  if ($("#viewReset")) $("#viewReset").addEventListener("click", () => { Object.assign(viewPend, {log: null, ghost: null, stats: null, seed: "", seedTyped: false, ask: false}); renderCompare(); });
+  if ($("#viewSeed")) { $("#viewSeed").focus(); $("#viewSeed").addEventListener("keydown", e => { if (e.key === "Enter") viewOpen(); }); }
+  if ($("#viewSeed")) $("#viewSeed").addEventListener("input", e => { viewPend.seed = e.target.value; viewPend.seedTyped = true; });
+  if ($("#viewGo")) $("#viewGo").addEventListener("click", viewOpen);
   if ($("#viewAgain")) $("#viewAgain").addEventListener("click", () => { state.runId = VIEWED.id; go("run"); });
   const vd = $("#viewDrop");
   vd.addEventListener("dragover", e => { e.preventDefault(); vd.classList.add("over"); });

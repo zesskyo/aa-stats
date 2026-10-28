@@ -627,3 +627,13 @@ header.top{border-bottom-width:1px}
 @media (prefers-color-scheme:dark){:root[data-palette="amethyst"]:not([data-theme="light"]){--bg:#111014;--surface:#18171C;--surface2:#232129;--line:#302D38;--text:#ECEAF0;--muted:#A19BAD;--accent:#B48CF2;--on-accent:#1C1030;--s0:#B48CF2;--split0:#B48CF2;--split1:#E07A55}}
 :root[data-palette="amethyst"][data-theme="dark"]{--bg:#111014;--surface:#18171C;--surface2:#232129;--line:#302D38;--text:#ECEAF0;--muted:#A19BAD;--accent:#B48CF2;--on-accent:#1C1030;--s0:#B48CF2;--split0:#B48CF2;--split1:#E07A55}
 .modal-card{border-radius:4px;box-shadow:none;border:2px solid var(--rule)}
+/* one big drop for a world folder (Compare's Look at a run, adding a run) */
+.bigdrop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:180px;padding:32px 20px;border:2px dashed var(--line);text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.bigdrop:hover,.bigdrop:focus-visible,.bigdrop.over,.viewcard.over .bigdrop{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.bigdrop strong{font-family:var(--display);font-size:22px}
+.viewcard{border-style:solid}.viewcard.over{background:transparent}
+.seedask{display:flex;flex-direction:column;gap:12px;max-width:560px}
+.edgot{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;border-left:2px solid var(--accent);padding:4px 14px}
+.field.ask{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+.seedasknote{color:var(--text)}
+.edsec{border:0;border-top:1px solid var(--line);border-radius:0;padding:12px 0 0;margin:0}.edsec legend{padding:0 8px 0 0}

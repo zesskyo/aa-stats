@@ -260,6 +260,15 @@ function findMidgame(run, splits) {
     kill: x => [crit["adventure/kill_all_mobs|" + x], "Kills", goalIcon("kill", x)],
     adv: x => [advTime(run, x), SHORT_ADV[x] || ADV[x] || x, goalIcon("adv", x)],
     nbiome: x => [crit["nether/explore_nether|" + x], "Biomes", goalIcon("nbiome", x)],
+    // the mushrooms the stews need (Balanced Diet's mushroom and suspicious stews, a red and a brown one each), so it's
+    // done once they have them, made into stews there or not: one held for each stew not made (or eaten) yet
+    mush: x => {
+      const got = st[x === "red_mushroom" ? "redMush" : "brownMush"] || [], n = STEWS.length;
+      const made = STEWS.map(s => first([crit["husbandry/balanced_diet|" + s], held[s]])).filter(t => t != null).sort((a, b) => a - b);
+      const ts = [];
+      for (let k = 0; k <= made.length; k++) { const a = k === n ? 0 : got[n - k - 1], b = k === 0 ? 0 : made[k - 1]; if (a != null) ts.push(Math.max(a, b)); }
+      return [first(ts), "Mushrooms", goalIcon("mush", x)];
+    },
   };
   // counters: [time, how many] as it changes (beacon blocks and netherite: the most held so far, as they get used up)
   const series = k => {
@@ -308,7 +317,7 @@ function findMidgame(run, splits) {
     const cl = goals.filter(g => g[1] === "Cats"), cHave = cl.filter(g => g[0] != null).length;
     if (m.count && v < target) e.left.push(`${m.countName || m.name} ${v}/${target}`);
     if (cl.length && cHave < cl.length) e.left.push(`Cats ${cHave}/${cl.length}`);
-    for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? SHORT_ADV[x] || ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
+    for (const [t, , , kind, x] of goals) if (t == null && kind) e.left.push(kind === "adv" ? SHORT_ADV[x] || ADV[x] || x : kind === "food" ? nameOf(x[0]) : kind === "mush" ? nameOf(x) + "s" : kind === "bred" ? "Breed " + nameOf(x) : kind === "kill" ? "Kill " + nameOf(x) : nameOf(x));
     // (more to do alongside it, not timed: [name, have, need, icons of what's left], until its advancement is done)
     if (m.extra && advTime(run, m.extra.until) == null) {
       const xg = m.extra.goals.map(([kind, x]) => GOAL[kind](x));
@@ -376,7 +385,9 @@ function findMidgame(run, splits) {
     }
     const start = m.start === "mid" ? midStart : segs[0][0];
     // (part of it done before it started, like stews made beforehand: no split)
-    if (m.notBefore && goals.some(g => g[3] === m.notBefore && g[0] != null && g[0] < start)) { e.why = "early"; return e; }
+    // (all of that kind already done when it started: e.g. every mushroom the stews need got beforehand)
+    const before = m.notBefore ? goals.filter(g => g[3] === m.notBefore) : [];
+    if (before.length && before.every(g => g[0] != null && g[0] < start)) { e.why = "early"; return e; }
     e.start = start;
     // (leaving after t: the end of the visit it was done in or before; t itself if it was done after the last one)
     const leaveAfter = t => { if (t == null) return null; const s = segs.find(([, b]) => b == null || b >= t); return s ? s[1] : t; };
@@ -418,5 +429,6 @@ const SHORT_ADV = {"nether/return_to_sender": "Sender"};
 const ADV_ITEMS = {"adventure/bullseye": "target", "story/upgrade_tools": "stone_pickaxe", "husbandry/fishy_business": "fishing_rod", "adventure/trade": "emerald",
   "adventure/sniper_duel": "arrow", "adventure/arbalistic": "crossbow", "adventure/summon_iron_golem": "carved_pumpkin","nether/explore_nether|nether_wastes": "netherrack", "nether/explore_nether|crimson_forest": "crimson_nylium", "nether/explore_nether|warped_forest": "warped_nylium",
   "nether/explore_nether|soul_sand_valley": "soul_sand", "nether/explore_nether|basalt_deltas": "basalt","story/cure_zombie_villager": "golden_apple", "nether/return_to_sender": "fire_charge", "nether/uneasy_alliance": "ghast_tear", "nether/ride_strider": "warped_fungus_on_a_stick"};
-const goalIcon = (kind, x) => kind === "biome" ? "at:" + x : kind === "kill" ? "mh:" + x : kind === "bred" ? "2x2:" + x
+const STEWS = ["mushroom_stew", "suspicious_stew"];
+const goalIcon = (kind, x) => kind === "biome" ? "at:" + x : kind === "kill" ? "mh:" + x : kind === "bred" ? "2x2:" + x : kind === "mush" ? "item:" + x
   : kind === "food" ? "item:" + x[0] : kind === "nbiome" ? "item:" + ADV_ITEMS["nether/explore_nether|" + x] : "item:" + (ADV_ITEMS[x] || "book");

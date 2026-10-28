@@ -50,7 +50,7 @@ function parseLog(text, filename, opts = {}) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
-    tears: [], ghasts: [], wheat: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: []};
+    tears: [], ghasts: [], wheat: [], redMush: [], brownMush: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: []};
   const tot = {}, clock = [];
   const inv = {}, wheatInv = {}, wheatDrops = [], gaInv = {}, gaGone = [], gaNot = [], splashes = []; let wheatHeld = 0, gaHeld = 0, inDesert = false, goldCum = 0, tntCum = 0, tntOwed = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
@@ -360,7 +360,8 @@ const worth = (table, v) => v && v.id ? (table[String(v.id).replace("minecraft:"
 // items whose first time in the inventory is kept (st.held): foods for A Balanced Diet that are got in one place
 // Items counted from the inventory (see "inventory_slots" above): item → its timeline in st
 // (not ghast tears: they're used up along the way, for end crystals or potions, so they're counted as picked up)
-const KEPT = {wither_skeleton_skull: "skulls", nautilus_shell: "nautilus", trident: "trident", bee_nest: "hives", beehive: "hives", wither_rose: "rose"};
+const KEPT = {wither_skeleton_skull: "skulls", nautilus_shell: "nautilus", trident: "trident", bee_nest: "hives", beehive: "hives", wither_rose: "rose",
+  red_mushroom: "redMush", brown_mushroom: "brownMush"};
 const KEPT_RE = new RegExp(Object.keys(KEPT).map(k => "minecraft:" + k + '"').join("|"));
 const HELD = ["melon_slice", "cocoa_beans", "cookie", "sweet_berries", "mushroom_stew", "suspicious_stew",
   "cod", "salmon", "tropical_fish", "pufferfish", "cooked_cod", "cooked_salmon", "dried_kelp", "rabbit_stew", "beetroot", "beetroot_soup",

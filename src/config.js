@@ -95,7 +95,8 @@ const SUB_ITEMS = {
  *   end    "done": everything done; "leave": leaving its area once everything's done; "doneOrLeave": either, leaving
  *          counting once all but "optional" is done. With "done" and "optional", all but those: the split ends then, and
  *          (timed "active") the time before each of them when it's done later is added
- * Goals: ["biome", name] (Adventuring Time), ["food", [items]] (eaten, or in the inventory: any of the items), ["bred",
+ * Goals: ["biome", name] (Adventuring Time), ["food", [items]] (eaten, or in the inventory: any of the items), ["mush",
+ * "red_mushroom" or "brown_mushroom"] (enough of them held for the mushroom and suspicious stews not made yet), ["bred",
  * animal] (Two by Two), ["kill", mob] (Monster Hunter), ["adv", id], ["cats"] (A Complete Catalogue), and count/need
  * (a timeline in the run's stats, and how many). Under the split it's on, what's left: "Biomes 3/5", "Foods 1/2", and
  * the rest by name. Without a start, it isn't timed: just what's left of it. activity: more of the run's stats that count
@@ -107,8 +108,8 @@ const SUB_ITEMS = {
  * of the rare biomes' splits have started (hidden until then); pin: on the timer, shown wherever they are, under the
  * rest; pinLeft: pinned once only that many are left. finishOutside: done out of its area (a ghast
  * brought to the Overworld), the time from leaving it until then counts too, up to that long. notTimedIn: areas where what's done
- * for it counts but adds no time (it's in another split's time there). notBefore: a kind of goal ("food") that, done before the split started (stews made
- * beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
+ * for it counts but adds no time (it's in another split's time there). notBefore: a kind of goal ("mush") that, all done before the split started (all the
+ * mushrooms the stews need, or the stews, got beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
  */
@@ -116,7 +117,7 @@ const NETHER = ["nether", "crimson", "warped", "fortress", "bastion"];
 const MIDGAME = [
   // the rare biomes: time spent there
   {key: "mushroom", name: "Mushroom Island", item: "red_mushroom_block", area: ["mushroom"], start: "enter", time: "area", end: "leave",
-    goals: [["biome", "mushroom_fields"], ["biome", "mushroom_field_shore"], ["food", ["mushroom_stew"]], ["food", ["suspicious_stew"]], ["bred", "mooshroom"]], notBefore: "food"},
+    goals: [["biome", "mushroom_fields"], ["biome", "mushroom_field_shore"], ["mush", "red_mushroom"], ["mush", "brown_mushroom"], ["bred", "mooshroom"]], notBefore: "mush"},
   {key: "badlands", name: "Badlands", item: "terracotta", area: ["badlands"], start: "enter", time: "area", end: "done",
     goals: [["biome", "badlands"], ["biome", "badlands_plateau"], ["biome", "wooded_badlands_plateau"], ["kill", "cave_spider"]]},
   {key: "jungle", name: "Jungle", item: "jungle_log", area: ["jungle"], start: "enter", time: "area", end: "done",

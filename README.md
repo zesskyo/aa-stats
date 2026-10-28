@@ -1,53 +1,35 @@
 # aa-stats
 
-The code behind 1.16 All Advancements Stats websites, such as
-[Zesskyo's AA No Reset Log](https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/).
+Code for Minecraft 1.16 All Advancements stats websites, e.g. [Zesskyo's AA No Reset Log](https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/).
 
-**Want your own website?** Go to [aa-stats-template](https://github.com/zesskyo/aa-stats-template)
-and follow the steps there. You never need to touch this repository.
+- Your own website: use [aa-stats-template](https://github.com/zesskyo/aa-stats-template). You don't need to touch this repository.
+- Changes: [CHANGELOG.md](CHANGELOG.md)
 
 ## How it fits together
 
-- **This repository** holds the code: `src/` (the website), `icons/` and `build.mjs`. It has no runs in it.
-- **Each website is its own repository** (made from the template) and holds only that person's runs:
-  `logs/`, `runs.json`, `site.json` and optional `icons/`.
-- Every time a website builds, it takes the **latest code from here** and its own runs.
-  Websites rebuild when their owner changes something and once a day, so a change pushed here reaches
-  every website within a day. Nobody's runs ever go anywhere else.
+- This repository: the code (`src/`, `icons/`, `build.mjs`). No runs.
+- Each website: its own repository (from the template) with only its runs: `logs/`, `runs.json`, `site.json`, optional `icons/`.
+- Websites build from this repository's `main` whenever their owner saves something, and daily at 05:23 UTC.
+- *Check the build* builds an empty site and `example/` on every push: check it's green after pushing.
 
-The **Check the build** workflow builds an empty site and `example/` on every push, so a mistake shows up
-here first. Websites use the `main` branch, so check that it's green after pushing.
+## Development
 
-## Working on the code
+- Build a site (Node 20, nothing to install): `node build.mjs <site folder>` → `<site folder>/dist/index.html`
+- Example site: `node build.mjs example`
+- Split rule changes (`src/splits.js`, `RULES` in `src/config.js`):
+  - `node check-splits.mjs <site folder> --save before.json`, change, then `--diff before.json`: the runs whose splits moved
+  - `truth.json` in the site folder (`{"29": {"Midgame": "3:25:28", "Debris start": "3:25:28"}}`, IGT): how far off each split is
 
-Run the build against any site folder (Node 20, nothing to install):
-
-```
-node build.mjs ../aa-stats-no-reset-zesskyo-log    # writes ../aa-stats-no-reset-zesskyo-log/dist/index.html
-node build.mjs example                       # the small example site in this repository
-```
-
-Then open `dist/index.html` in a browser.
-
-To see how a change to the split rules (`src/splits.js`, `RULES` in `src/config.js`) moves the splits on a site's runs:
-
-```
-node check-splits.mjs ../aa-stats-no-reset-zesskyo-log --save before.json   # every run's split times, kept
-node check-splits.mjs ../aa-stats-no-reset-zesskyo-log --diff before.json   # after the change: what moved
-```
-
-With a `truth.json` in the site folder (the right times, from the runs' videos: `{"29": {"Midgame": "3:25:28", "Debris start": "3:25:28"}}`,
-each split's end time in IGT), it also says how far off each split is.
-
-| File | What it does |
+| File | |
 | --- | --- |
-| `src/text.js` | Every word on the site. These are the defaults; a site changes its own in `site.json`. |
-| `src/config.js` | Advancements, splits, which stats are shown, rules of thumb |
-| `src/parse-log.js` | Reads a Hermes `play.log` (the build and the Compare page both use it) |
+| `src/text.js` | All the site's words (defaults; a site overrides them in `site.json`) |
+| `src/config.js` | Advancements, splits, stats shown, rules |
+| `src/parse-log.js` | Reads a Hermes `play.log` (build and Compare page) |
+| `src/run-meta.js` | A run's details from `runs.json` (build and editor) |
 | `src/stats.js`, `src/splits.js` | Everything worked out about a run |
-| `src/overview.js`, `src/run-page.js`, `src/compare.js` | The three tabs |
-| `ghost.mjs`, `src/travel-map.js` | The travel map: reads Hermes' ghost file at build time, draws it on the run page |
-| `src/seed-map.js`, `src/biomes.js`, `wasm/` | The travel map's biomes and structures from the run's seed: [cubiomes](https://github.com/Cubitect/cubiomes) (MIT) compiled to `wasm/cubiomes.wasm` by `wasm/build.sh` |
-| `src/editor.js` | The owner adding, editing and deleting runs from the website (saves to the site's repository through GitHub's API) |
-| `src/charts.js`, `src/progress-graph.js` | The graphs |
-| `icons/` | Built-in icons; a site's own `icons/` folder can add or replace them |
+| `src/overview.js`, `src/run-page.js`, `src/compare.js`, `src/split-page.js` | The pages |
+| `ghost.mjs`, `src/travel-map.js` | Travel map: reads the ghost file at build time, draws it on the run page |
+| `src/seed-map.js`, `src/biomes.js`, `wasm/` | The map's biomes and structures from the seed: [cubiomes](https://github.com/Cubitect/cubiomes) (MIT), built by `wasm/build.sh` |
+| `src/editor.js` | Adding, editing and deleting runs from the website (GitHub API) |
+| `src/charts.js`, `src/progress-graph.js` | Graphs |
+| `icons/` | Built-in icons; a site's `icons/` adds or replaces them |

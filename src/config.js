@@ -126,6 +126,8 @@ const MIDGAME = [
     goals: [["biome", "snowy_tundra"], ["biome", "snowy_mountains"], ["biome", "snowy_taiga"], ["biome", "snowy_taiga_hills"], ["biome", "snowy_beach"], ["biome", "frozen_river"],
       ["kill", "stray"], ["adv", "story/cure_zombie_villager"]],
     optional: ["Zombie Doctor"],   // (Snowy can end on leaving with only this missing: it's sometimes done somewhere else)
+    // (but not while a zombie villager's being cured, started before leaving: it ends with the cure, up to this long after)
+    waitOnLeave: {start: "cureStart", max: 10 * 60000},
     // (not timed, as runners do different things: what's often done while waiting for the zombie villager to be cured,
     // on the timer under Snowy while Zombie Doctor isn't done)
     extra: {name: "Zombie Doctor", until: "story/cure_zombie_villager", goals: [["food", ["beetroot"]], ["food", ["beetroot_soup"]], ["food", ["rabbit_stew"]],

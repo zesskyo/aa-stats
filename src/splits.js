@@ -380,8 +380,13 @@ function findMidgame(run, splits) {
     e.start = start;
     // (leaving after t: the end of the visit it was done in or before; t itself if it was done after the last one)
     const leaveAfter = t => { if (t == null) return null; const s = segs.find(([, b]) => b == null || b >= t); return s ? s[1] : t; };
+    // (leaving with only the optional left, while it's under way (Snowy: a cure started before leaving, see waitOnLeave):
+    // not the end; the optional's done, or, if it isn't within waitOnLeave.max, leaving)
+    const left = leaveAfter(coreDone), w = m.waitOnLeave;
+    const begun = w && left != null ? (st[w.start] || []).filter(t => t >= start && t <= left).pop() : null;
+    const waiting = begun != null && (done != null ? done >= left && done - begun <= w.max : now - begun <= w.max);
     e.end = m.end === "done" ? (m.optional ? coreDone : done) : m.end === "leave" ? leaveAfter(done)
-      : [done, leaveAfter(coreDone)].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
+      : waiting ? done : [done, left].filter(t => t != null).reduce((a, t) => a == null ? t : Math.min(a, t), null);
     if (e.end != null && e.end < e.start) e.end = e.start;
     // (Snowy: leaving with only Zombie Doctor left counts as finished)
     // (and Nether Misc with only the zombified piglin left)

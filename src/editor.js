@@ -184,10 +184,15 @@ function renderEditor() {
   const shotLocal = !ED.removeShot && run && !okUrl(meta.screenshot) && shotUrl(run);
   const dimName = {o: T.overworld, n: T.nether, e: T.theEnd};
   const logDate = lr ? new Date(lr.start).toLocaleDateString("en-CA") : "";
+  // (with the world's files, the run number, date and seed are filled in by themselves: the date or seed is only asked
+  // for when the files don't have it)
+  const manual = ED.mode === "manual", seedNow = meta.seed || (lr && lr.seed) || "";
+  const askSeed = !!ED.log && !seedNow, showSeed = manual || (!seedNow && (!!ED.log || ED.hasLog));
+  const showDate = manual || ((!!ED.log || ED.hasLog) && !(meta.date || logDate));
 
   el.innerHTML = `
     <div class="head-row" style="align-items:center">
-      <h1>${esc(ED.isNew ? T.edAddRun : T.edEditRun(ED.num))}</h1>
+      <h1>${esc(ED.isNew ? T.edAddRun + (manual ? "" : " " + ED.num) : T.edEditRun(ED.num))}</h1>
       <label class="fld edpick"><span class="label">${esc(T.edPickRun)}</span><select class="field" id="edPick">
         <option value=""${ED.isNew ? " selected" : ""}>${esc(T.edNewRun)}</option>
         ${byNumber().slice().reverse().map(r => `<option value="${esc(r.id)}"${run === r ? " selected" : ""}>${esc(runTitle(r))} · ${r.finalIgt != null ? fmt(r.finalIgt, 0) : "—"}</option>`).join("")}
@@ -218,19 +223,22 @@ function renderEditor() {
       ${lr && lr.st.noBiomes ? `<p class="note" style="margin:0">${esc(T.edOldHermes(lr.st.hermes || "?"))}</p>` : ""}
       ${noChanneling ? `<label class="check"><input type="checkbox" id="edCountAnyway"${ED.countAnyway ? " checked" : ""}> ${esc(T.edCountAnyway)}</label>` : ""}` : ""}
 
-      ${ED.log && !lr.seed && !meta.seed ? `<p class="note seedasknote" style="margin:0">${esc(T.edSeedAsk)}</p>` : ""}
-      <div class="edgrid">
-        <label class="fld"><span class="label">${esc(T.edRunNumber)}</span>
+      ${askSeed ? `<p class="note seedasknote" style="margin:0">${esc(T.edSeedAsk)}</p>` : ""}
+      ${manual || showDate || showSeed ? `<div class="edgrid">
+        ${manual ? `<label class="fld"><span class="label">${esc(T.edRunNumber)}</span>
           <input class="field mono" type="number" min="1" step="1" id="edNum" value="${esc(ED.num)}"${ED.isNew ? "" : " disabled"}></label>
-        ${ED.mode === "manual" ? `<label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run && run.manual ? tIn(run.finalIgt) : "")}"></label>
+        <label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run && run.manual ? tIn(run.finalIgt) : "")}"></label>
         <label class="fld"><span class="label">${esc(T.colHundred)}</span><select class="field" id="edHundred">
           <option value="yes"${meta.hundred === true ? " selected" : ""}>${esc(T.hundredYes)}</option>
           <option value="no"${meta.hundred !== true ? " selected" : ""}>${esc(T.hundredNo)}</option></select></label>` : ""}
-        <label class="fld"><span class="label">${esc(T.edDate)}</span>
-          <input class="field" type="date" id="edDate" value="${esc(meta.date || logDate)}"></label>
-        <label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span>
-          <input class="field mono${ED.log && !lr.seed && !meta.seed ? " ask" : ""}" type="text" id="edSeed" value="${esc(meta.seed || (lr && lr.seed) || "")}" autocomplete="off"></label>
-      </div>
+        ${showDate ? `<label class="fld"><span class="label">${esc(T.edDate)}</span>
+          <input class="field" type="date" id="edDate" value="${esc(meta.date || logDate)}"></label>` : ""}
+        ${showSeed ? `<label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span>
+          <input class="field mono${askSeed ? " ask" : ""}" type="text" id="edSeed" value="${esc(seedNow)}" autocomplete="off"></label>` : ""}
+      </div>` : ""}
+      ${manual ? "" : `<input type="hidden" id="edNum" value="${esc(ED.num)}">`}
+      ${showDate ? "" : `<input type="hidden" id="edDate" value="${esc(meta.date || logDate)}">`}
+      ${showSeed ? "" : `<input type="hidden" id="edSeed" value="${esc(seedNow)}">`}
 
       ${ED.mode === "files" && deaths.length ? `<fieldset class="edsec"><legend>${esc(T.edDeaths)}</legend>
         <p class="note" style="margin:0 0 6px">${esc(T.edDeathsNote)}</p>
@@ -311,7 +319,7 @@ function edRead() {
 function edRestore() {
   const d = ED.draft; if (!d) return;
   const set = (id, val) => { const x = $(id); if (x && val != null) x.value = val; };
-  set("#edNum", d.num); set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink);
+  set("#edNum", d.num); if (d.seed) set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink);
   if (d.date || !ED.log) set("#edDate", d.date);
 }
 const edMsg = (html, bad) => { ED.msg = html; ED.msgBad = !!bad; const m = $("#edMsg"); if (m) { m.innerHTML = html; m.classList.toggle("bad", !!bad); } };

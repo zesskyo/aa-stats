@@ -213,7 +213,7 @@ function invPlayerRenderer(A, skinUrl) {
 async function invMount(host, run, opts = {}) {
   let A, D = invData[run.id];
   try {
-    A = await invAssets(isViewed(run));
+    A = await invAssets(isViewed(run) || !!run.meta.local);
     if (!D) { const r = await fetch(run.meta.inv); if (!r.ok) throw 0; D = invData[run.id] = invPrep(await r.json()); }
   } catch { host.innerHTML = `<p class="muted" style="margin:0">${esc(T.invFailed)}</p>`; return null; }
   if (!host.isConnected) return null;
@@ -379,7 +379,7 @@ const CRIT_DIR = {"adventure/adventuring_time": "adventuring time", "nether/expl
 const CRIT_FILE = {acc: {black: "tuxedo", all_black: "black", british_shorthair: "british"}, "monsters hunted": {vex: "vex_old"}, "adventuring time": {snowy_tundra: "snowy_plains"}};
 const CRIT_NAME = {"husbandry/complete_catalogue": {black: "Tuxedo", all_black: "Black", british_shorthair: "British"}};
 async function invToasts(host, run) {
-  let A; try { A = await invAssets(isViewed(run)); } catch { return null; }
+  let A; try { A = await invAssets(isViewed(run) || !!run.meta.local); } catch { return null; }
   const {db, atlas, toasts, font} = A;
   const adv = [], seen = {}, total = id => REQ[id] || run.events.filter(e => e[2] === id).length;
   for (const e of run.events) {
@@ -460,7 +460,7 @@ async function invToasts(host, run) {
 // Here), each done at a time in the run, so what's shown depends only on where the timeline is: forwards or backwards.
 // A goal that's done turns gold and fades away after a few seconds (if the timeline moved through it; jumping past hides it).
 async function invGoals(host, run, d) {
-  let A; try { A = await invAssets(isViewed(run)); } catch { return null; }
+  let A; try { A = await invAssets(isViewed(run) || !!run.meta.local); } catch { return null; }
   const {db, atlas, font, widgets} = A, st = run.st || {};
   const count = (a, t) => { let n = 0; for (const x of a || []) if ((Array.isArray(x) ? x[0] : x) <= t) n++; return n; };
   const held = (a, t) => { let v = 0; for (const x of a || []) { if (x[0] > t) break; v = x[1]; } return Math.max(0, v); };

@@ -28,8 +28,10 @@ const signedIn = () => !!ghToken();
 
 // ---------- GitHub API ----------
 async function gh(path, opts = {}, token = ghToken()) {
+  // (never from the browser's cache: GitHub lets it keep answers for a minute, and a second save right after the
+  // first would then build on the repository as it was before it)
   const res = await fetch("https://api.github.com/repos/" + GH.full + path, {
-    method: opts.method || "GET",
+    method: opts.method || "GET", cache: "no-store",
     headers: {"Accept": "application/vnd.github+json", "Authorization": "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28", ...(opts.body ? {"Content-Type": "application/json"} : {})},
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
@@ -53,24 +55,29 @@ const readRunsJson = () => readJsonFile("runs.json");
 
 // One commit with all the changes. files: [{path, text} | {path, b64} | {remove: path or RegExp}]
 async function ghCommit(message, files) {
-  const head = (await gh(`/git/ref/heads/${GH.branch}`)).object.sha;
-  const base = (await gh(`/git/commits/${head}`)).tree.sha;
-  const existing = (await gh(`/git/trees/${base}?recursive=1`)).tree.filter(x => x.type === "blob").map(x => x.path);
-  const tree = [], seen = new Set();
-  for (const f of files) {
-    if (f.remove) {
-      existing.filter(p => f.remove instanceof RegExp ? f.remove.test(p) : p === f.remove)
-        .filter(p => !files.some(g => g.path === p) && !seen.has(p))
-        .forEach(p => { seen.add(p); tree.push({path: p, mode: "100644", type: "blob", sha: null}); });
-    } else if (f.b64 != null) {
-      const blob = await gh("/git/blobs", {method: "POST", body: {content: f.b64, encoding: "base64"}});
-      tree.push({path: f.path, mode: "100644", type: "blob", sha: blob.sha});
-    } else tree.push({path: f.path, mode: "100644", type: "blob", content: f.text});
+  // the files' contents first (all at once), then the commit: made again on top, if something else was committed in
+  // the meantime (the contents aren't sent again)
+  const blobs = await Promise.all(files.map(f => f.b64 != null ? gh("/git/blobs", {method: "POST", body: {content: f.b64, encoding: "base64"}}).then(x => x.sha) : null));
+  for (let i = 0; ; i++) {
+    try {
+      const head = (await gh(`/git/ref/heads/${GH.branch}`)).object.sha;
+      const base = (await gh(`/git/commits/${head}`)).tree.sha;
+      const existing = (await gh(`/git/trees/${base}?recursive=1`)).tree.filter(x => x.type === "blob").map(x => x.path);
+      const tree = [], seen = new Set();
+      files.forEach((f, k) => {
+        if (f.remove) {
+          existing.filter(p => f.remove instanceof RegExp ? f.remove.test(p) : p === f.remove)
+            .filter(p => !files.some(g => g.path === p) && !seen.has(p))
+            .forEach(p => { seen.add(p); tree.push({path: p, mode: "100644", type: "blob", sha: null}); });
+        } else if (blobs[k]) tree.push({path: f.path, mode: "100644", type: "blob", sha: blobs[k]});
+        else tree.push({path: f.path, mode: "100644", type: "blob", content: f.text});
+      });
+      const t = await gh("/git/trees", {method: "POST", body: {base_tree: base, tree}});
+      const c = await gh("/git/commits", {method: "POST", body: {message, tree: t.sha, parents: [head]}});
+      await gh(`/git/refs/heads/${GH.branch}`, {method: "PATCH", body: {sha: c.sha}});
+      return c.sha;
+    } catch (e) { if (e.status !== 422 || i >= 2) throw e; }
   }
-  const t = await gh("/git/trees", {method: "POST", body: {base_tree: base, tree}});
-  const c = await gh("/git/commits", {method: "POST", body: {message, tree: t.sha, parents: [head]}});
-  await gh(`/git/refs/heads/${GH.branch}`, {method: "PATCH", body: {sha: c.sha}});
-  return c.sha;
 }
 
 // ---------- Owner controls in the header and footer ----------
@@ -452,7 +459,9 @@ async function edSave() {
     files.push({path: "runs.json", text: JSON.stringify(sortRuns(details), null, 2) + "\n"});
 
     const sha = await ghCommit(ED.isNew ? T.edCommitAdd(num) : T.edCommitEdit(num), files);
-    edDone(sha);
+    let shown = null;
+    try { shown = savePending({num, sha, run: await edLocalRun(num, details[key])}); } catch (x) { console.warn("Couldn't show the saved run here:", x); }
+    edDone(sha, shown);
   } catch (x) { ED.busy = false; $("#edSave").disabled = false; edMsg(esc(x.message || String(x)), true); }
 }
 const sortRuns = d => Object.fromEntries(Object.entries(d).sort((a, b) => Number(a[0]) - Number(b[0])));
@@ -468,19 +477,62 @@ async function edDelete() {
     const files = [{remove: `logs/${num}.log`}, {remove: `logs/${num}.stats.json`}, {remove: `logs/${num}.ghost`}, {remove: `runs/${num}.json`},
       {remove: new RegExp(`^screenshots/${num}\\.(png|jpe?g|webp|gif)$`, "i")}, ...(shot ? [{remove: shot}] : []),
       {path: "runs.json", text: JSON.stringify(sortRuns(details), null, 2) + "\n"}];
-    edDone(await ghCommit(T.edCommitDelete(num), files));
+    const sha = await ghCommit(T.edCommitDelete(num), files);
+    savePending({num, sha, run: null});
+    edDone(sha, null);
   } catch (x) { ED.busy = false; edMsg(esc(x.message || String(x)), true); }
 }
 
-// ---------- After saving: follow the site's build ----------
-function edDone(sha) {
-  const form = $("#edForm"); if (form) form.querySelectorAll("input, textarea, select, button").forEach(x => { if (x.id !== "edCancel") x.disabled = true; });
-  if ($("#edCancel")) $("#edCancel").textContent = T.edClose;
-  watchBuild(sha, edMsg, () => !!ED);
+// The run as it now is, from what was just saved, made here as build.mjs makes it (for savePending): its log's run
+// (with the ghost file's facts, map and inventory, kept in this tab), or the run it was with its new details
+async function edLocalRun(num, d) {
+  const old = ED.run && !isViewed(ED.run) ? ED.run : null, local = {};
+  let base;
+  if (ED.log) {
+    const r = ED.log.run, text = await ED.log.file.text();
+    if (ED.ghost) try { const g = readGhost(new Uint8Array(await ED.ghost.arrayBuffer()), r); if (g) { Object.assign(r.st, ghostFacts(g, r.st)); delete r._d; travelCache[r.id] = travelPrep(g); local.path = "-"; } } catch {}
+    try { const items = await (await fetch("items/all.json")).json(), inv = readInventory(text, items, r.finalIgt); if (inv) { invData[r.id] = invPrep(inv); local.inv = "-"; } } catch {}
+    base = encodeRun(r);
+  } else if (old && !old.manual) base = RUN_DATA.get(old) || encodeRun(old);
+  else base = {...manualRun(num, d), ...(old && old.manual && !(d && d.time != null) ? {finalIgt: old.finalIgt} : {})};
+  const meta = {...runMeta(num, d, base), ...local, local: true};
+  // (its files already on the site, where nothing new replaced them: the map and inventory go with its log)
+  if (old) {
+    if (!ED.log) for (const k of ["path", "inv"]) if (old.meta[k]) meta[k] = old.meta[k];
+    if (!ED.stats && old.meta.stats) { meta.stats = old.meta.stats; if (meta.elytraCm == null && old.meta.elytraCm != null) meta.elytraCm = old.meta.elytraCm; }
+    if (old.manual && old.meta.splits) meta.splits = old.meta.splits;
+  }
+  if (ED.stats) { const st = JSON.parse(await ED.stats.file.text()).stats || {}, v = (st["minecraft:custom"] || {})["minecraft:aviate_one_cm"]; meta.statsData = st; if (v != null) meta.elytraCm = v; }
+  if (ED.shot && meta.screenshot && !okUrl(meta.screenshot)) meta.shotBlob = URL.createObjectURL(ED.shot.file);
+  return {...base, meta};
 }
 
-// Follows the site's build for commit `sha`, telling say(html, bad) how it's going, while alive() is true
-function watchBuild(sha, say, alive) {
+// ---------- After saving: the run's page (or the overview), and the site's build followed in a corner ----------
+function edDone(sha, run) {
+  ED = null;
+  run ? go("run", run.id) : go("runs");
+  buildToast(sha);
+}
+// The note in the corner: how the site's build of commit sha is going (a later save's takes its place)
+function buildToast(sha) {
+  let t = $("#buildToast");
+  if (!t) {
+    t = document.createElement("div"); t.id = "buildToast"; t.className = "buildtoast"; t.setAttribute("role", "status");
+    t.addEventListener("click", e => { if (e.target.closest("[data-toast-x]")) t.hidden = true; });
+    document.body.appendChild(t);
+  }
+  t.dataset.sha = sha; t.hidden = false;
+  const alive = () => t.dataset.sha === sha && !t.hidden;
+  watchBuild(sha, (html, bad) => {
+    if (!alive()) return;
+    t.innerHTML = `<span>${html}</span><button type="button" class="linkbtn" data-toast-x aria-label="${esc(T.edClose)}">×</button>`;
+    t.classList.toggle("bad", !!bad);
+  }, alive, () => setTimeout(() => { if (alive()) t.hidden = true; }, 6000));
+}
+
+// Follows the site's build for commit `sha`, telling say(html, bad) how it's going, while alive() is true (and then
+// done(), once it's built)
+function watchBuild(sha, say, alive, done = () => {}) {
   const actions = `https://github.com/${GH.full}/actions`;
   const link = url => ` <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(T.edSeeBuild)}</a>`;
   say(esc(T.edSaved) + link(actions));
@@ -490,7 +542,8 @@ function watchBuild(sha, say, alive) {
     try {
       const r = ((await gh(`/actions/runs?head_sha=${sha}&per_page=5`)).workflow_runs || [])[0];
       if (r && r.status === "completed") {
-        if (r.conclusion === "success") return say(`${esc(T.edLive)} <button type="button" class="linkbtn" data-reload>${esc(T.edReload)}</button>`);
+        if (r.conclusion === "success") { say(esc(T.edLive)); return done(); }
+        if (r.conclusion === "cancelled") return say(esc(T.edBuildNewer));   // (a later save's build took its place)
         return say(esc(T.edBuildFailed) + link(r.html_url), true);
       }
       if (r) say(esc(T.edBuilding) + link(r.html_url));
@@ -499,7 +552,6 @@ function watchBuild(sha, say, alive) {
   };
   setTimeout(poll, 4000);
 }
-document.addEventListener("click", e => { if (e.target.closest && e.target.closest("[data-reload]")) location.reload(); });
 
 // ---------- Site settings: the title and subtitle (saved in site.json) ----------
 function openSiteSettings() {
@@ -536,8 +588,11 @@ function openSiteSettings() {
       const site = await readJsonFile("site.json");
       site.siteTitle = title; site.siteSubtitle = sub; site.palette = m.querySelector("#sitePalIn").value; saved = true;
       const sha = await ghCommit(T.edCommitName, [{path: "site.json", text: JSON.stringify(site, null, 2) + "\n"}]);
-      m.querySelector("#siteSetClose").textContent = T.edClose;
-      watchBuild(sha, say, () => m.isConnected);
+      savePending({sha, site: {siteTitle: title, siteSubtitle: sub, palette: site.palette}});
+      showSiteName(); m.remove(); buildToast(sha);
     } catch (x) { saved = false; m.querySelectorAll("input, select, #siteSetSave").forEach(y => { y.disabled = false; }); say(esc(x.message || String(x)), true); }
   });
 }
+
+// (a build still going for something saved before the page was opened again: followed too)
+if (GH && signedIn() && PENDING.length) buildToast(PENDING[PENDING.length - 1].sha);

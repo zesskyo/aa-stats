@@ -6,7 +6,50 @@ let DATA = {runs: [], icons: {}};
 try { DATA = JSON.parse(document.getElementById("aa-data").textContent) || DATA; } catch {}
 // The site's own words from its site.json (build.mjs only lets through text that exists in text.js)
 if (DATA.text && typeof DATA.text === "object") for (const [k, v] of Object.entries(DATA.text)) if (typeof T[k] === "string" && typeof v === "string") T[k] = v;
-const RUNS = (DATA.runs || []).map(decodeRun);
+// (and each one's form in the page's data, to keep a changed copy of it: see savePending)
+const RUN_DATA = new WeakMap();
+const RUNS = (DATA.runs || []).map(x => { const r = decodeRun(x); RUN_DATA.set(r, x); return r; });
+
+// ---------- What the owner saved from this page that the site isn't built with yet ----------
+// Saving (editor.js) commits to GitHub, and GitHub builds the site again: a minute or two. Until then, this browser
+// keeps what was saved (each run as it now is, or that it's gone, and the site's name) and shows it in place of the
+// built site's, so it can be looked at, and changed again, straight away. Kept until the site is built from that
+// commit (DATA.commit, or a later one of these), or for 20 minutes.
+const PENDING_KEY = DATA.repo && DATA.repo.full ? "aa-pending:" + DATA.repo.full : null;
+const readPending = () => { try { const x = JSON.parse(localStorage.getItem(PENDING_KEY) || "[]"); return Array.isArray(x) ? x : []; } catch { return []; } };
+const writePending = list => { try { if (list.length) localStorage.setItem(PENDING_KEY, JSON.stringify(list)); else localStorage.removeItem(PENDING_KEY); } catch {} };
+let PENDING = [];
+if (PENDING_KEY) {
+  const list = readPending(), built = list.findIndex(p => p.sha === DATA.commit);
+  PENDING = list.slice(built + 1).filter(p => Date.now() - p.at < 20 * 60000);
+  writePending(PENDING);
+}
+// it, in the page: a run in place of the one with its number (or added), or taken out; the site's name
+function applyPending(p) {
+  if (p.site) {
+    for (const k of ["siteTitle", "siteSubtitle"]) if (typeof p.site[k] === "string") T[k] = p.site[k];
+    if (p.site.palette) document.documentElement.dataset.palette = p.site.palette;
+    return null;
+  }
+  const i = RUNS.findIndex(r => r.meta && r.meta.num === p.num);
+  if (!p.run) { if (i >= 0) RUNS.splice(i, 1); return null; }
+  const r = decodeRun(p.run); RUN_DATA.set(r, p.run);
+  if (i >= 0) RUNS[i] = r; else RUNS.push(r);
+  return r;
+}
+PENDING.forEach(p => { try { applyPending(p); } catch {} });
+// Something just saved (commit sha): shown now, and kept for when the page is opened again. A run's own files that
+// aren't on the site yet (its map, inventory, a screenshot just uploaded) are only kept in this tab.
+function savePending(p) {
+  p = {...p, at: Date.now()};
+  const shown = applyPending(p);
+  if (PENDING_KEY) {
+    const keep = x => p.site ? !x.site : x.num !== p.num;
+    const clean = p.run ? {...p, run: {...p.run, meta: Object.fromEntries(Object.entries(p.run.meta).filter(([k, v]) => v !== "-" && k !== "shotBlob"))}} : p;
+    PENDING = [...PENDING.filter(keep), clean]; writePending(PENDING);
+  }
+  return shown;
+}
 // The world record (someone else's run, from the site's wr/ folder): shown next to the PB, never counted in this site's stats
 const WR = DATA.wr && typeof DATA.wr === "object" ? decodeRun(DATA.wr) : null;
 // the records it beat (wr/archive/), each with a page of its own; and every record so far, fastest (the current one) first
@@ -49,7 +92,7 @@ const catPill = (d, style = "", run = null) => d.category === "Unknown" ? "" : `
 
 const okUrl = u => typeof u === "string" && /^https?:\/\/[^\s"'<>]+$/i.test(u);
 // Screenshot: a link, or an image build.mjs copied next to the page
-const shotUrl = r => { const s = r.meta && r.meta.screenshot; if (okUrl(s)) return s; return typeof s === "string" && /^[A-Za-z0-9_\-./ ]+\.(png|jpe?g|webp|gif)$/i.test(s) && !s.split("/").includes("..") ? encodeURI(s) : null; };
+const shotUrl = r => { const s = r.meta && r.meta.screenshot; if (r.meta && r.meta.shotBlob) return r.meta.shotBlob; if (okUrl(s)) return s; return typeof s === "string" && /^[A-Za-z0-9_\-./ ]+\.(png|jpe?g|webp|gif)$/i.test(s) && !s.split("/").includes("..") ? encodeURI(s) : null; };
 const shotLink = (r, big) => shotUrl(r)
   ? `<a class="vlink${big ? " big" : ""}" href="${esc(shotUrl(r))}" target="_blank" rel="noopener noreferrer" aria-label="${esc(T.screenshot)}" title="${esc(T.screenshot)}"><svg width="${big ? 18 : 14}" height="${big ? 18 : 14}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>${big ? esc(T.screenshot) : ""}</a>`
   : "";

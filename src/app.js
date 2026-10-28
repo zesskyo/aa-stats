@@ -3,10 +3,9 @@
  */
 const state = {view: "runs", runId: null, sort: {key: "num", dir: 1}, zoom: null, zoomRun: null, cmp: null, cmpZoom: null};
 
-document.title = (T.siteTitle + " " + T.siteSubtitle).trim();
 document.getElementById("app").innerHTML = `
 <header class="top">
-  <div class="brand"><b>${esc(T.siteTitle)}${T.siteSubtitle ? ` <span class="muted" style="font-weight:500">${esc(T.siteSubtitle)}</span>` : ""}</b></div>
+  <div class="brand" id="brand"></div>
   <nav class="tabs" aria-label="Pages">
     <button data-view="runs" aria-current="page">${esc(T.tabOverview)}</button>
     <button data-view="run">${esc(T.tabStats)}</button>
@@ -33,6 +32,13 @@ document.getElementById("app").innerHTML = `
 <main id="view-edit" class="hidden"></main>
 <main id="view-split" class="hidden"></main>
 <footer class="foot" id="siteFoot"></footer>`;
+
+// The site's name (again when it's changed in the site settings)
+function showSiteName() {
+  document.title = (T.siteTitle + " " + T.siteSubtitle).trim();
+  $("#brand").innerHTML = `<b>${esc(T.siteTitle)}${T.siteSubtitle ? ` <span class="muted" style="font-weight:500">${esc(T.siteSubtitle)}</span>` : ""}</b>`;
+}
+showSiteName();
 
 // Switch tab ("runs" = Overview, "run" = Stats, "compare" = Compare, "edit" = adding/editing a run, "split" = one split's
 // page, state.split), optionally opening a particular run

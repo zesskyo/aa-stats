@@ -637,3 +637,11 @@ header.top{border-bottom-width:1px}
 .field.ask{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
 .seedasknote{color:var(--text)}
 .edsec{border:0;border-top:1px solid var(--line);border-radius:0;padding:12px 0 0;margin:0}.edsec legend{padding:0 8px 0 0}
+
+/* After saving: how the site's build is going, in a corner (editor.js, buildToast) */
+.buildtoast{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;max-width:min(420px,calc(100vw - 32px));display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--surface);color:var(--text);border:2px solid var(--line);border-left:4px solid var(--accent);font-size:14px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+.buildtoast.bad{border-left-color:var(--bad)}
+.buildtoast[hidden]{display:none}
+.buildtoast span{flex:1}
+.buildtoast a{color:inherit}
+.buildtoast .linkbtn{font-size:18px;line-height:1;padding:0 2px}

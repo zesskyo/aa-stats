@@ -43,7 +43,13 @@ function fixTimerResets(text) {
   return changed ? lines.filter((l, i) => !drop.has(i)).join("\n") : text;
 }
 function parseLog(text, filename, opts = {}) {
-  text = fixTimerResets(text);
+  const reader = logReader(filename, opts);
+  reader.feed(fixTimerResets(text));
+  return reader.result();
+}
+// The same, a piece at a time: feed(lines) as they come (whole lines), result() the run so far. The timer (AA Live) reads
+// only what's new each time this way. (A world opened again can need fixTimerResets: the timer reads it all again then.)
+function logReader(filename, opts = {}) {
   // opts.biomes: [[igt, biome name], …] to use as if Hermes had logged them (old logs without biomes: build.mjs works
   // them out from the seed and the ghost file, see biome-path.mjs)
   const given = opts.biomes || null; let bi = 0, biomeLines = 0;
@@ -83,7 +89,7 @@ function parseLog(text, filename, opts = {}) {
     "minecraft.picked_up:minecraft.wither_skeleton_skull": "skulls", "minecraft.killed:minecraft.wither_skeleton": "ws",
     "minecraft.custom:minecraft.deaths": "deaths", "minecraft.custom:minecraft.jump": "jumps"
   };
-  for (const line of text.split("\n")) {
+  const feed = text => { for (const line of text.split("\n")) {
     if (!line) continue;
     // clock: real time and IGT from any kind of line (cheap: no JSON parsing), a few times a second
     if (line.startsWith('{"time":')) {
@@ -262,19 +268,25 @@ function parseLog(text, filename, opts = {}) {
       if (n > 0 && st.gapple == null) st.gapple = igt;
       st.gappleMax = Math.max(st.gappleMax, n);
     }
-  }
-  if (!biomeLines) st.noBiomes = given ? "ghost" : true;   // (no biome lines: none known, or worked out from the ghost)
-  tot.skulls = st.skulls.length; tot.debris = st.debris.length;   // (not the picked-up stat, which counts skulls picked up again after dying)
-  if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
-  const comp = events.filter(e => e[4]);
-  const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
-  // (wheat dropped isn't fed: one feed taken off for each, within a second and a half)
-  for (const t of wheatDrops) { const k = st.wheat.findIndex(x => Math.abs(x - t) <= 1500); if (k >= 0) st.wheat.splice(k, 1); }
-  // a zombie villager being cured: a splash potion thrown (weakness), then within a minute a golden apple gone that
-  // wasn't eaten or dropped (it's given to the zombie villager). The cure takes a few minutes after that.
-  st.cureStart = gaGone.filter(t => !gaNot.some(x => Math.abs(x - t) <= 1500) && splashes.some(x => x <= t && t - x <= 60000));
-  return {start: start || Date.now(), player: player || "Unknown", uuid, seed, mc: mc || "", finalIgt: last[0], finalRta: last[1],
-    critCount: seen.size, events, dims, deaths, st, tot, meta: {}, addedAt: Date.now(), clock};
+  } };
+  // the run so far: copies, so what's done with it (the timer adds to it) doesn't change what's read next
+  const result = () => {
+    const S = {};
+    for (const [k, v] of Object.entries(st)) S[k] = Array.isArray(v) ? v.slice() : v && typeof v === "object" ? {...v} : v;
+    if (!biomeLines) S.noBiomes = given ? "ghost" : true;   // (no biome lines: none known, or worked out from the ghost)
+    const T2 = {...tot, skulls: st.skulls.length, debris: st.debris.length};   // (not the picked-up stat, which counts skulls picked up again after dying)
+    if (!events.length) throw new Error(filename + " has no advancement events. Use the play.log from Hermes.");
+    const comp = events.filter(e => e[4]);
+    const last = comp.length ? comp[comp.length - 1] : events[events.length - 1];
+    // (wheat dropped isn't fed: one feed taken off for each, within a second and a half)
+    for (const t of wheatDrops) { const k = S.wheat.findIndex(x => Math.abs(x - t) <= 1500); if (k >= 0) S.wheat.splice(k, 1); }
+    // a zombie villager being cured: a splash potion thrown (weakness), then within a minute a golden apple gone that
+    // wasn't eaten or dropped (it's given to the zombie villager). The cure takes a few minutes after that.
+    S.cureStart = gaGone.filter(t => !gaNot.some(x => Math.abs(x - t) <= 1500) && splashes.some(x => x <= t && t - x <= 60000));
+    return {start: start || Date.now(), player: player || "Unknown", uuid, seed, mc: mc || "", finalIgt: last[0], finalRta: last[1],
+      critCount: seen.size, events: events.slice(), dims: dims.slice(), deaths: deaths.slice(), st: S, tot: T2, meta: {}, addedAt: Date.now(), clock: clock.slice()};
+  };
+  return {feed, result};
 }
 
 /*

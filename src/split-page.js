@@ -40,7 +40,7 @@ function renderSplitPage() {
   const best = vals.map(v => { const xs = v.filter(x => x != null); return xs.length ? Math.min(...xs) : null; });
   const worst = vals.map(v => { const xs = v.filter(x => x != null); return xs.length > 1 ? Math.max(...xs) : null; });
   const avg = vals.map(v => average(v));
-  const sp = SPLITS[i], icon = sp.icon || FALLBACK_LAST_ICON;
+  const sp = SPLITS[i];
   // how a time compares: the best in gold, faster than average in green, the worst in red
   const cell = (v, k, n) => {
     if (v == null) return `<td class="mono muted">—</td>`;
@@ -68,9 +68,9 @@ function renderSplitPage() {
 
   el.innerHTML = `
     <div class="pagerwrap"><button type="button" class="linkbtn" id="splitBack">${esc(T.backToOverview)}</button>
-      <span class="splitpick">${SPLITS.map((x, k) => `<button type="button" class="chip${k === i ? " on" : ""}" data-split="${k}" aria-label="${esc(x.name)}">${ic(x.icon || FALLBACK_LAST_ICON, 18)} ${esc(x.name)}</button>`).join("")}</span></div>
+      <span class="splitpick">${SPLITS.map((x, k) => `<button type="button" class="chip${k === i ? " on" : ""}" data-split="${k}" aria-label="${esc(x.name)}">${splitIcon(k, 18)} ${esc(x.name)}</button>`).join("")}</span></div>
     <section class="card" style="display:flex;flex-direction:column;gap:16px">
-      <div style="display:flex;align-items:center;gap:10px">${ic(icon, 28)}<h2>${esc(sp.name)}</h2></div>
+      <div style="display:flex;align-items:center;gap:10px">${splitIcon(i, 28)}<h2>${esc(sp.name)}</h2></div>
       <div class="sptiles">${tiles.map(([k, v, s]) => `<div class="sptile"><span class="label">${esc(k)}</span><span class="mono t">${v}</span>${s ? `<span class="muted">${esc(s)}</span>` : ""}</div>`).join("")}</div>
       ${chart}
     </section>

@@ -61,6 +61,20 @@ const ICONS = (DATA.icons && typeof DATA.icons === "object") ? DATA.icons : {};
 const okIcon = v => typeof v === "string" && (/^data:image\/(png|webp|gif|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(v) || /^icons\/[a-z0-9_]+\.(png|webp|gif|jpe?g)$/i.test(v));
 // Icon as an <img> (size in pixels), or "" if there's no icon for that name
 const ic = (key, size = 20) => okIcon(ICONS[key]) ? `<img class="ico" src="${ICONS[key]}" width="${size}" height="${size}" alt="">` : "";
+// Icons taking turns, one every 1.5 seconds (or the one, if there's only one)
+const icCycle = (keys, size = 20) => {
+  keys = [...new Set(keys)].filter(k => okIcon(ICONS[k]));
+  if (keys.length < 2) return ic(keys[0] || FALLBACK_LAST_ICON, size);
+  return `<img class="ico" data-cycle="${esc(keys.join(" "))}" src="${ICONS[keys[0]]}" width="${size}" height="${size}" alt="">`;
+};
+// (only in a page: the timer, AA Live, runs this file too, without one)
+if (typeof document.querySelectorAll === "function") setInterval(() => document.querySelectorAll("img[data-cycle]").forEach(im => {
+  const ks = im.dataset.cycle.split(" "), k = (+(im.dataset.k || 0) + 1) % ks.length; im.dataset.k = k; im.src = ICONS[ks[k]];
+}), 1500);
+// A split's icon; Post-endgame's, which is each run's last advancement's, going through those of the runs (all of them,
+// or those given) that had one
+const splitIcon = (i, size = 20, runs = RUNS) => SPLITS[i].icon ? ic(SPLITS[i].icon, size)
+  : icCycle(runs.map(r => derive(r).splits[i]).filter(s => s && s.segs.length).map(s => s.icon), size);
 // Icon inside a graph (SVG), or ""
 const icAt = (key, x, y, size) => okIcon(ICONS[key]) ? `<image href="${ICONS[key]}" x="${x}" y="${y}" width="${size}" height="${size}" style="image-rendering:pixelated"/>` : "";
 

@@ -378,11 +378,11 @@ const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>$
 // and how far ahead or behind the other run
 function cmpSplitsTable(list) {
   const rowsDef = [
-    ...SPLIT_CARDS.map(i => ({name: SPLITS[i].name, icon: SPLITS[i].icon, at: c => splitMark(c.d.splits[i], i)})),
+    ...SPLIT_CARDS.map(i => ({name: SPLITS[i].name, icHtml: splitIcon(i, 20, list.map(c => c.run)), at: c => splitMark(c.d.splits[i], i)})),
     {name: T.timeLabel, total: true, at: c => c.run.finalIgt},
   ];
   const prev = list.map(() => null);   // last difference for each run, to tell if a split gained or lost time
-  const rows = rowsDef.map(r => `<tr${r.total ? ` class="cmp-total"` : ""}><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${r.icon ? ic(r.icon) : ""}${esc(r.name)}</span></th>${list.map((c, k) => {
+  const rows = rowsDef.map(r => `<tr${r.total ? ` class="cmp-total"` : ""}><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${r.icHtml || (r.icon ? ic(r.icon) : "")}${esc(r.name)}</span></th>${list.map((c, k) => {
     const v = r.at(c), ref = list.length > 1 ? r.at(list[1 - k]) : null;
     const cell = `<span class="mono">${v != null ? fmt(v, 0) : "—"}</span>${cmpDelta(v, ref, r.total ? null : prev[k])}`;
     if (v != null && ref != null && !r.total) prev[k] = v - ref;

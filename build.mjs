@@ -226,7 +226,7 @@ for (const dir of [inCode("icons"), inSite("icons")]) if (fs.existsSync(dir)) fo
 // the sub-splits' and the Midgame checklist's icons (config.js' SUB_ITEMS and MIDGAME), as "item:<item>" (cut out of the
 // item atlas; "item:icon:<name>" is one of the icons above) or as they're named ("mh:<mob>": icons/monsters hunted/…)
 {
-  const {SUB_ITEMS, MIDGAME, AREA_LANES} = new Function(read(inCode("src/config.js")) + "\nreturn { SUB_ITEMS, MIDGAME, AREA_LANES };")();
+  const {SUB_ITEMS, MIDGAME, AREA_LANES, LAST_ICON} = new Function(read(inCode("src/config.js")) + "\nreturn { SUB_ITEMS, MIDGAME, AREA_LANES, LAST_ICON };")();
   const items = JSON.parse(read(inCode("items/items.json"))), atlas = readPng(fs.readFileSync(inCode("items/atlas.png")));
   const DIRS = {"at:": "adventuring time", "mh:": "monsters hunted", "2x2:": "two by two"};
   for (const id of new Set([...Object.values(SUB_ITEMS), ...MIDGAME.map(m => m.item), ...Object.values(AREA_LANES).map(a => a[1])])) {
@@ -235,6 +235,15 @@ for (const dir of [inCode("icons"), inSite("icons")]) if (fs.existsSync(dir)) fo
     if (prefix) icons[key] = "data:image/png;base64," + fs.readFileSync(path.join(inCode("icons"), DIRS[prefix], id.slice(prefix.length) + ".png")).toString("base64");
     else if (id.startsWith("icon:")) icons[key] = icons[id.slice(5)];
     else if (items.index[id] != null) icons[key] = "data:image/png;base64," + writePng(pickSquares(atlas, items.size, 1, [items.index[id]])).toString("base64");
+  }
+  // the Post-endgame split's icon: the run's last advancement's, as the game shows it ("adv:<id>"; LAST_ICON's own
+  // icons first, see splits.js). (The one before it too: the last of a run done Thunderless before waiting for thunder.)
+  for (const r of [...out, ...(wr ? [wr] : []), ...wrs]) {
+    const comp = (r.events || []).map(e => Array.isArray(e) ? e : String(e).split("|")).filter(e => +e[e.length - 1]);
+    for (const e of comp.slice(-2)) {
+      const id = e[2], it = items.adv && items.adv[id] && items.adv[id][0];
+      if (!LAST_ICON[id] && !icons["adv:" + id] && it && items.index[it] != null) icons["adv:" + id] = "data:image/png;base64," + writePng(pickSquares(atlas, items.size, 1, [items.index[it]])).toString("base64");
+    }
   }
 }
 

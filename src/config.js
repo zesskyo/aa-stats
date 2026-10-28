@@ -202,7 +202,7 @@ const SPLITS = [
   {name: "Midgame",      icon: "elytra"},
   {name: "Debris",       icon: "debris"},
   {name: "Endgame",      icon: "bucket"},
-  {name: "Post-endgame", icon: null},      // icon comes from the run's last advancement (LAST_ICON below)
+  {name: "Post-endgame", icon: null},      // icon comes from the run's last advancement (LAST_ICON below, or the game's)
 ];
 // Split colours (defined in app.css as --split0 … --split6)
 const SCOL = SPLITS.map((_, i) => "var(--split" + i + ")");

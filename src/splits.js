@@ -144,7 +144,8 @@ function findSplits(run, comp) {
   ];
 
   const lastId = (comp[comp.length - 1] || [])[2];
-  const postIcon = LAST_ICON[lastId] && okIcon(ICONS[LAST_ICON[lastId]]) ? LAST_ICON[lastId] : FALLBACK_LAST_ICON;
+  // (Post-endgame's icon: the last advancement's: LAST_ICON's, or the game's, "adv:<id>", see build.mjs)
+  const postIcon = LAST_ICON[lastId] && okIcon(ICONS[LAST_ICON[lastId]]) ? LAST_ICON[lastId] : okIcon(ICONS["adv:" + lastId]) ? "adv:" + lastId : FALLBACK_LAST_ICON;
 
   const splits = SPLITS.map((p, i) => {
     const segs = segsBySplit[i], ok = segs.length > 0;

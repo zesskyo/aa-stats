@@ -573,13 +573,13 @@ td.best{color:var(--gold);font-weight:700}
 .sptable.compact tbody th{padding-left:14px}
 .sptable .spth.tipped::after{bottom:auto;top:calc(100% + 6px)}
 
-/* ======== The look: flat and ruled, not boxes. The Minecraft font for times, numbers and headings; a plain one for
-   the words around them. (Last in the file: it overrides the shapes above.) ======== */
-:root{--body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--rule:var(--text)}
+/* ======== The look: flat and ruled, not boxes, in the Minecraft font throughout. (Last in the file: it overrides the
+   shapes above.) ======== */
+:root{--rule:var(--text)}
 body{font-size:14.5px}
 h2{font-size:17px;letter-spacing:0}
 h3{font-size:15px}
-.label,.stat .k,.stats .k,th,.k{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.label,.stat .k,.stats .k,th,.k{font-size:12px;font-weight:600;letter-spacing:.03em;color:var(--muted)}
 /* sections: a rule over each, no box */
 .card{background:transparent;border:0;border-top:2px solid var(--rule);border-radius:0;padding:16px 0 0}
 .card .card,.card.notes{border-top-width:1px;border-top-color:var(--line)}

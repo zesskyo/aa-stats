@@ -270,7 +270,8 @@ const head = `<meta charset="utf-8">
 // Which repository this site is, so its owner can add runs from the website (GitHub Actions tells us)
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
 const json = JSON.stringify({runs: out, wr, wrs: wrs.length ? wrs : undefined, icons, text, repo}).replace(/</g, "\\u003c");
-const html = `<!doctype html>\n<html lang="en">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
+const palette = ["gold", "diamond", "amethyst"].includes(T.palette) ? T.palette : "gold";
+const html = `<!doctype html>\n<html lang="en" data-palette="${palette}">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});
 fs.writeFileSync(inSite("dist/index.html"), html);
 if (paths.size) fs.mkdirSync(inSite("dist/paths"), {recursive: true});

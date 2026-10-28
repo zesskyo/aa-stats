@@ -497,12 +497,17 @@ function openSiteSettings() {
     <h2 id="siteSetTitle">${esc(RUNS.length ? T.edSiteSettings : T.welcomeName)}</h2>
     <label class="fld"><span class="label">${esc(T.edSiteTitle)}</span><input class="field" type="text" id="siteTitleIn" value="${esc(T.siteTitle)}" maxlength="80"></label>
     <label class="fld"><span class="label">${esc(T.edSiteSubtitle)}</span><input class="field" type="text" id="siteSubIn" value="${esc(T.siteSubtitle)}" maxlength="80"></label>
+    <label class="fld"><span class="label">${esc(T.edPalette)}</span><select class="field" id="sitePalIn">${Object.entries(T.edPalettes).map(([k, n]) => `<option value="${k}"${k === document.documentElement.dataset.palette ? " selected" : ""}>${esc(n)}</option>`).join("")}</select></label>
     <p class="note" style="margin:0">${esc(T.edSiteNote)}</p>
     <p class="cmp-status" id="siteSetMsg" role="status" aria-live="polite"></p>
     <div class="actions"><span style="flex:1"></span><button type="button" class="btn" id="siteSetClose">${esc(T.edCancel)}</button><button type="submit" class="btn primary" id="siteSetSave">${esc(T.edSave)}</button></div>
   </form>`;
   document.body.appendChild(m);
-  const close = () => m.remove();
+  // (the colours change as they're picked; back as they were if it's cancelled)
+  const palWas = document.documentElement.dataset.palette;
+  m.querySelector("#sitePalIn").addEventListener("change", e => { document.documentElement.dataset.palette = e.target.value; });
+  let saved = false;
+  const close = () => { if (!saved) document.documentElement.dataset.palette = palWas; m.remove(); };
   const say = (html, bad) => { const x = m.querySelector("#siteSetMsg"); x.innerHTML = html; x.classList.toggle("bad", !!bad); };
   m.addEventListener("click", e => { if (e.target === m) close(); });
   m.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
@@ -512,14 +517,14 @@ function openSiteSettings() {
     e.preventDefault();
     const title = m.querySelector("#siteTitleIn").value.trim(), sub = m.querySelector("#siteSubIn").value.trim();
     if (!title) return say(esc(T.edSiteNeedTitle), true);
-    m.querySelectorAll("input, #siteSetSave").forEach(x => { x.disabled = true; });
+    m.querySelectorAll("input, select, #siteSetSave").forEach(x => { x.disabled = true; });
     say(esc(T.edSaving));
     try {
       const site = await readJsonFile("site.json");
-      site.siteTitle = title; site.siteSubtitle = sub;
+      site.siteTitle = title; site.siteSubtitle = sub; site.palette = m.querySelector("#sitePalIn").value; saved = true;
       const sha = await ghCommit(T.edCommitName, [{path: "site.json", text: JSON.stringify(site, null, 2) + "\n"}]);
       m.querySelector("#siteSetClose").textContent = T.edClose;
       watchBuild(sha, say, () => m.isConnected);
-    } catch (x) { m.querySelectorAll("input, #siteSetSave").forEach(y => { y.disabled = false; }); say(esc(x.message || String(x)), true); }
+    } catch (x) { saved = false; m.querySelectorAll("input, select, #siteSetSave").forEach(y => { y.disabled = false; }); say(esc(x.message || String(x)), true); }
   });
 }

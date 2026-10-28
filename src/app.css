@@ -572,3 +572,58 @@ td.best{color:var(--gold);font-weight:700}
 .sptable.compact .spth{min-width:0}
 .sptable.compact tbody th{padding-left:14px}
 .sptable .spth.tipped::after{bottom:auto;top:calc(100% + 6px)}
+
+/* ======== The look: flat and ruled, not boxes. The Minecraft font for times, numbers and headings; a plain one for
+   the words around them. (Last in the file: it overrides the shapes above.) ======== */
+:root{--body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--rule:var(--text)}
+body{font-size:14.5px}
+h2{font-size:17px;letter-spacing:0}
+h3{font-size:15px}
+.label,.stat .k,.stats .k,th,.k{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+/* sections: a rule over each, no box */
+.card{background:transparent;border:0;border-top:2px solid var(--rule);border-radius:0;padding:16px 0 0}
+.card .card,.card.notes{border-top-width:1px;border-top-color:var(--line)}
+main{gap:40px}
+/* tiles in a section: side by side, divided by hairlines */
+.stat,.splitcard,.iconslot,.route-item{background:transparent;border:0;border-left:1px solid var(--line);border-radius:0;padding:4px 16px}
+.statgrid,.grid-splits{gap:14px 0}
+.missing span{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:2px 0;margin-right:10px}
+/* controls: flat, square-ish */
+.btn,.pg,.goto input,select.field,.form input[type=text],.form input[type=number],.seg,.seg button,.chip,.runbar-tab{border-radius:3px}
+.btn{min-height:38px;padding:0 14px}
+.btn.primary{font-weight:700}
+.chip{min-height:32px;background:transparent}
+.chip[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.pg{min-width:36px;min-height:36px;background:transparent}
+.goto input{min-height:36px;background:transparent}
+nav.tabs{gap:18px}
+nav.tabs button{min-height:40px;padding:0 2px;border-radius:0;border-bottom:2px solid transparent;font-family:var(--display);font-size:15px}
+nav.tabs button[aria-current="page"]{background:transparent;border-bottom-color:var(--accent);color:var(--text)}
+header.top{border-bottom:2px solid var(--rule)}
+.splitbar{border-radius:3px;border:0}
+.tip,.tipped:hover::after,.tipped:focus-visible::after{border-radius:3px;box-shadow:none}
+.cat,.badge,.pill{border-radius:2px}
+kbd{border-radius:2px;border-bottom-width:1px}
+/* tables: ruled, no fill */
+tr.split-row td{background:transparent;border-top:1px solid var(--rule)}
+.sptile,.viewslot,.cmp-slot,.edfilecard{background:transparent;border:0;border-left:1px solid var(--line);border-radius:0;padding:4px 16px}
+.cmp-slot{border-left:3px solid var(--c);padding:4px 0 4px 12px}
+.edfilecard{border-left-style:dashed}
+.viewslot:hover,.edfilecard.over,.cmp-slot.over{background:var(--surface2)}
+.sptable tr.sumrow th,.sptable tr.sumrow td{background:transparent}
+.sptable tr.sumrow:last-of-type th,.sptable tr.sumrow:last-of-type td{border-bottom:1px solid var(--rule)}
+.keys{font-size:12px}
+header.top{border-bottom-width:1px}
+@media (max-width:640px){.brand b{font-size:18px}.brand .muted{display:none}}
+
+/* the site's colours (site.json's palette, picked in the site's settings) */
+:root[data-palette="gold"]{--bg:#EDEEEC;--surface:#F7F7F5;--surface2:#DEE0DC;--line:#C6C9C2;--text:#141513;--muted:#5B5E57;--accent:#A8640C;--on-accent:#FFFFFF}
+@media (prefers-color-scheme:dark){:root[data-palette="gold"]:not([data-theme="light"]){--bg:#101110;--surface:#171816;--surface2:#222320;--line:#2E302C;--text:#EAEBE7;--muted:#A0A39B;--accent:#F0A63A;--on-accent:#1A1406}}
+:root[data-palette="gold"][data-theme="dark"]{--bg:#101110;--surface:#171816;--surface2:#222320;--line:#2E302C;--text:#EAEBE7;--muted:#A0A39B;--accent:#F0A63A;--on-accent:#1A1406}
+:root[data-palette="diamond"]{--bg:#ECEFF0;--surface:#F6F8F9;--surface2:#DCE2E5;--line:#C3CCD0;--text:#101518;--muted:#55626A;--accent:#0A7C76;--on-accent:#FFFFFF;--s0:#0A7C76;--split0:#0A7C76}
+@media (prefers-color-scheme:dark){:root[data-palette="diamond"]:not([data-theme="light"]){--bg:#0D1114;--surface:#141A1E;--surface2:#1D252A;--line:#29333A;--text:#E4EBEE;--muted:#8F9EA6;--accent:#3CCFC1;--on-accent:#04201E;--s0:#3CCFC1;--split0:#3CCFC1}}
+:root[data-palette="diamond"][data-theme="dark"]{--bg:#0D1114;--surface:#141A1E;--surface2:#1D252A;--line:#29333A;--text:#E4EBEE;--muted:#8F9EA6;--accent:#3CCFC1;--on-accent:#04201E;--s0:#3CCFC1;--split0:#3CCFC1}
+:root[data-palette="amethyst"]{--bg:#EEEDF1;--surface:#F8F7FA;--surface2:#E0DEE6;--line:#C9C5D3;--text:#16141B;--muted:#5D5868;--accent:#7444C0;--on-accent:#FFFFFF;--s0:#7444C0;--split0:#7444C0;--split1:#A8452F}
+@media (prefers-color-scheme:dark){:root[data-palette="amethyst"]:not([data-theme="light"]){--bg:#111014;--surface:#18171C;--surface2:#232129;--line:#302D38;--text:#ECEAF0;--muted:#A19BAD;--accent:#B48CF2;--on-accent:#1C1030;--s0:#B48CF2;--split0:#B48CF2;--split1:#E07A55}}
+:root[data-palette="amethyst"][data-theme="dark"]{--bg:#111014;--surface:#18171C;--surface2:#232129;--line:#302D38;--text:#ECEAF0;--muted:#A19BAD;--accent:#B48CF2;--on-accent:#1C1030;--s0:#B48CF2;--split0:#B48CF2;--split1:#E07A55}
+.modal-card{border-radius:4px;box-shadow:none;border:2px solid var(--rule)}

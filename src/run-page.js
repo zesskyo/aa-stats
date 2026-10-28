@@ -128,7 +128,7 @@ function splitsCard(d) {
 let subOpen = null, subRun = null;   // the split whose sub-splits are open (its number in SPLITS), or null
 const hasSubs = (d, i) => i === 3 ? !!d.splits[3].mid : !!(d.splits[i].subs && d.splits[i].subs.length);
 function subPanel(d, i) {
-  if (i == null || !hasSubs(d, i)) return `<p class="muted subhint">${esc(T.subHint)}</p>`;
+  if (i == null || !hasSubs(d, i)) return T.subHint ? `<p class="muted subhint">${esc(T.subHint)}</p>` : "";
   const p = d.splits[i], defs = subDefs(i), refs = subRefs(i, defs);
   const row = (icon, name, about, v, took, ref, at) => `<div class="subrow"><span class="subic">${ic(icon, 20)}</span>
     <span class="subname">${esc(name)}${about ? `<small>${about}</small>` : ""}</span>${v == null && !/^[\d:—]+$/.test(took) ? `<span class="mono wide">${took}</span>` : `<span class="mono">${took}</span><span class="mono">${vsAvg(v, ref)}</span>`}<span class="mono muted">${at}</span></div>`;

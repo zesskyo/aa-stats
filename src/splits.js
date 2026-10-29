@@ -223,7 +223,25 @@ function findSubSplits(run, splits, {anyEnd, endgameStart, now}) {
     const subs = splits[i].subs = list.map(([name, t]) => ({name, item: SUB_ITEMS[name] || null, t: inside(i, t), dur: null}));
     subs.forEach((x, j) => { if (x.t != null) x.dur = x.t - Math.max(startOf(i), ...subs.slice(0, j).map(y => y.t).filter(t => t != null && t <= x.t)); });
   };
-  const bastion = advTime(run, "nether/find_bastion"), fortress = advTime(run, "nether/find_fortress");
+  // (a structure counts once they've spent structStay in it, on a visit with no more than structGap out of it at a time:
+  // passing through a corner of a bastion on the way to a fortress doesn't make the bastion the first. It counts from
+  // when it was found, if that was shortly before (structFound), else from when that visit started. Without that in the
+  // log, when it was found)
+  const found = (area, id) => {
+    const A = (run.st || {}).areas || [], now = run.finalIgt, adv = advTime(run, id);
+    if (!A.some(x => x[1] === "bastion" || x[1] === "fortress")) return adv;
+    const at = v => adv != null && adv <= v && v - adv <= RULES.structFound ? adv : v;
+    let start = null, inside = 0, lastOut = null;
+    for (let k = 0; k < A.length; k++) {
+      if (A[k][1] !== area) continue;
+      const a = A[k][0], b = k + 1 < A.length ? A[k + 1][0] : now;
+      if (start == null || a - lastOut > RULES.structGap) { start = a; inside = 0; }
+      inside += b - a; lastOut = b;
+      if (inside >= RULES.structStay) return at(start);
+    }
+    return null;
+  };
+  const bastion = found("bastion", "nether/find_bastion"), fortress = found("fortress", "nether/find_fortress");
   const firstFortress = fortress != null && (bastion == null || fortress < bastion);
   // (each one is the time spent on it: it ends when the next one starts)
   sub(0, [

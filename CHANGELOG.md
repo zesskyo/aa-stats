@@ -4,6 +4,7 @@ Websites pick up changes on their next build (when the owner saves something, or
 
 ## 2026-10-29
 
+- Any%: a structure counts once you've spent 20 seconds in it, so passing through a corner of a bastion on the way to a fortress no longer makes the bastion the first
 - Debris is part of Endgame: Endgame starts with it when it's done on the way back to base; it's Endgame's first sub-split, and Setup and the others leave its time out
 - Endgame's sub-splits are listed in the order they were done (run page, timer); Endgame page and Overview have Debris with them
 - Main splits: Earlygame (Any%, Outer End, Enchanting), Midgame, Endgame, Post-endgame; Debris sits in whichever it's done in

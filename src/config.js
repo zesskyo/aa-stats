@@ -261,6 +261,9 @@ const CRIT_RENAME = {"British Shorthair": "British", "All Black": "Black"};
 const RULES = {
   campfireToHoney: 45 * 60000,     // a campfire starts (early) Endgame only if Bee Our Guest comes within this after it
   postEndgameMin: 5 * 60000,        // a Post-endgame shorter than this is folded into Endgame
+  structStay: 20000,   // Any%'s structures: this long in one (on a visit) for it to count as found (see findSubSplits)
+  structGap: 60000,    // (out of it this long or less: still the same visit)
+  structFound: 3 * 60000,   // (found up to this long before that visit: from when it was found)
   gatewayAfterDragon: 10 * 60000,   // Remote Getaway this long after the dragon was only given later (Any% ends at the dragon then)
   enchantPickupGap: 15 * 60000,     // enchanting-table pickups closer than this count as one enchanting session
   debrisSessionGap: 10 * 60000,     // debris mined closer together than this counts as one debris session

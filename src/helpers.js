@@ -22,6 +22,8 @@ const fmtShort = ms => {
   const t = Math.round(Math.abs(ms) / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
   return (h ? h + ":" + String(m).padStart(2, "0") : String(m)) + ":" + String(s).padStart(2, "0");
 };
+// Times in a run (truncated, like the timer): 2552900 → "42:32"
+const fmtAt = ms => ms == null || isNaN(ms) ? "—" : fmt(ms, 0).replace(/^0:/, "");
 const num = n => n == null ? "—" : Number(n).toLocaleString();
 const fmtDay = t => new Date(t).toLocaleDateString(undefined, {day: "numeric", month: "short", year: "numeric"});
 

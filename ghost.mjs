@@ -96,28 +96,65 @@ export function outerEndTime(path) {
   return null;
 }
 
-// Getting to where each campfire was placed (the Endgame base, with the bees): from the campfire, back as long as they
-// were within BASE blocks of it (in Overworld blocks: the Nether's times 8), up to BASE_BACK before. [[campfire, arrived]]
-const BASE = 400, BASE_BACK = 15 * 60000;
+// Getting back to the Endgame base, for each campfire (set up with the bees; often on the Nether side of the base's
+// portal): back from the campfire as long as they were within BASE blocks of it (Overworld blocks: the Nether's times
+// 8), over trips away of up to AWAY, up to BASE_BACK before; then the first time on that stretch they're in the
+// Overworld within LAND blocks of the base (where they were in the Overworld closest in time to the campfire) and
+// slowing down (out of the portal, or landed). [[campfire, arrived]]
+const BASE = 400, BASE_BACK = 15 * 60000, AWAY = 60000, LAND = 64, SLOW = 5;   // SLOW: blocks a second
+const eqAt = (path, i) => path.d[i] === "n" ? [path.x[i] * 8, path.z[i] * 8] : path.d[i] === "o" ? [path.x[i], path.z[i]] : null;
+const pointAt = (path, t) => { let i = -1; for (let k = 0; k < path.t.length && path.t[k] * 100 <= t; k++) i = k; return i; };
 export function baseArrivals(path, times) {
   const out = [];
   if (!path || !path.t || !times) return out;
-  const eq = i => path.d[i] === "n" ? [path.x[i] * 8, path.z[i] * 8] : path.d[i] === "o" ? [path.x[i], path.z[i]] : null;
+  const near = (i, at) => { const p = eqAt(path, i); return p && Math.hypot(p[0] - at[0], p[1] - at[1]) <= BASE; };
   for (const t of times) {
-    let i = -1; for (let k = 0; k < path.t.length && path.t[k] * 100 <= t; k++) i = k;
-    const at = i >= 0 ? eq(i) : null; if (!at) continue;
-    let j = i;
-    while (j > 0) { const p = eq(j - 1); if (!p || Math.hypot(p[0] - at[0], p[1] - at[1]) > BASE || t - path.t[j - 1] * 100 > BASE_BACK) break; j--; }
-    out.push([t, path.t[j] * 100]);
+    const i = pointAt(path, t), at = i >= 0 ? eqAt(path, i) : null; if (!at) continue;
+    let j = i, k = i;
+    while (k > 0 && t - path.t[k - 1] * 100 <= BASE_BACK) {
+      k--;
+      if (near(k, at)) j = k; else if (path.t[j] * 100 - path.t[k] * 100 > AWAY) break;
+    }
+    let o = -1;
+    for (let k = i; k >= j && o < 0; k--) if (path.d[k] === "o") o = k;
+    for (let k = i; k < path.t.length && o < 0 && path.t[k] * 100 - t <= 2 * 60000; k++) if (path.d[k] === "o") o = k;
+    const base = o >= 0 ? [path.x[o], path.z[o]] : at;
+    let arrived = j;
+    for (let a = j; a <= i; a++) {
+      if (path.d[a] !== "o" || Math.hypot(path.x[a] - base[0], path.z[a] - base[1]) > LAND) continue;
+      let b = a; while (b < path.t.length - 1 && path.t[b] - path.t[a] < 20) b++;
+      const dt = (path.t[b] - path.t[a]) / 10;
+      if (dt > 0 && path.d[b] === "o" && Math.hypot(path.x[b] - path.x[a], path.z[b] - path.z[a]) / dt <= SLOW) { arrived = a; break; }
+    }
+    out.push([t, path.t[arrived] * 100]);
+  }
+  return out;
+}
+
+// Done enchanting: after each enchanting-table pickup, the first time they're LEAVE blocks from where they picked it
+// up (or change dimension); still there LEAVE_MAX later: the pickup. [[pickup, left]]; left is null while they're still there.
+const LEAVE = 20, LEAVE_MAX = 10 * 60000;
+export function enchLeaves(path, times) {
+  const out = [];
+  if (!path || !path.t || !times) return out;
+  for (const t of times) {
+    const i = pointAt(path, t); if (i < 0) continue;
+    let left = null;
+    for (let k = i + 1; k < path.t.length; k++) {
+      if (path.t[k] * 100 - t > LEAVE_MAX) { left = t; break; }   // (stayed: done at the pickup)
+      if (path.d[k] !== path.d[i] || Math.hypot(path.x[k] - path.x[i], path.z[k] - path.z[i]) > LEAVE) { left = path.t[k] * 100; break; }
+    }
+    out.push([t, left]);
   }
   return out;
 }
 
 // What the splits use from the ghost file, for a run's st: when they were deep in the Nether, when they got to the outer
-// End, and when they got to where each campfire was placed (st: the run's, for its campfires)
+// End, when they got to where each campfire was placed, and when they left each enchanting table (st: the run's, for its campfires)
 export function ghostFacts(path, st) {
   const out = {deep: deepTimes(path)}, oe = outerEndTime(path);
   if (oe != null) out.outerEnd = oe;
   if (st && st.campfire && st.campfire.length) out.campArrive = baseArrivals(path, st.campfire);
+  out.enchLeave = enchLeaves(path, st && st.ench);
   return out;
 }

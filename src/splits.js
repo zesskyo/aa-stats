@@ -46,7 +46,10 @@ function findSplits(run, comp) {
   // Enchanting: first session of enchanting-table pickups after leaving the End
   const pickups = (st.ench || []).filter(t => t > (outerEnd ?? anyEnd ?? 0));
   const session = pickups.length ? clusters(pickups, RULES.enchantPickupGap)[0] : null;
-  const enchDone = session ? session[session.length - 1] : null;
+  // (it ends when they leave the table, from the ghost file: st.enchLeave; still there, on the timer: not done yet)
+  const pickedUp = session ? session[session.length - 1] : null, leave = pickedUp != null ? (st.enchLeave || []).find(x => x[0] === pickedUp) : null;
+  // (on the timer, with the ghost file read every few seconds: not done until it's seen them leave)
+  const enchDone = leave && leave[1] != null ? leave[1] : live && st.enchLeave ? null : pickedUp;
 
   // Debris: the first burst of debris mining that's a real one: 3 or more debris, or on a Nether trip spent a minute or
   // more deep down (below y 25, where debris is mined: st.deep, from the ghost file), even if it got few (or none);
@@ -160,11 +163,34 @@ function findSplits(run, comp) {
   });
   findSubSplits(run, splits, {anyEnd});
   splits[3].mid = findMidgame(run, splits);
-  return {splits, anyEnd, endAgain};
+
+  // The main splits (TOP in config.js): one stretch each, from where the one before ends. (Earlygame ends with
+  // Enchanting, or, in a run without it, where the End was left; live, it runs until then)
+  const F = run.finalIgt, earlyDone = enchDone ?? (live ? null : outerEnd ?? anyEnd);
+  const ends = [earlyDone, segsBySplit[5].length ? segsBySplit[5][0][0] : null, postStart];
+  const top = TOP.map((p, i) => {
+    const a = i === 0 ? 0 : ends[i - 1];
+    if (a == null) return {name: p.name, icon: p.icon || postIcon, segs: [], start: null, end: null, dur: null};
+    const b = ends.slice(i).find(t => t != null && t >= a) ?? F;
+    const segs = b > a ? [[a, b]] : [];
+    return {name: p.name, icon: p.icon || postIcon, segs, start: segs.length ? a : null, end: segs.length ? b : null, dur: segs.length ? b - a : null};
+  });
+  top[1].mid = splits[3].mid;
+
+  // Debris in the checklist: the Debris part's time, under the main split it's (last) done in
+  const deb = splits[3].mid && splits[3].mid.sections.find(x => x.key === "debris"), dp = splits[4];
+  if (deb && dp.segs.length) {
+    const g = dp.segs[dp.segs.length - 1], going = live && g[1] >= F;
+    Object.assign(deb, {split: true, why: null, start: dp.start, end: going ? null : dp.end, dur: dp.dur, complete: !going, since: going ? g[0] : null, last: g[1],
+      in: Math.max(1, top.findIndex(t => t.segs.length && g[0] >= t.start && g[0] <= t.end))});
+  }
+  return {splits, top, anyEnd, endAgain};
 }
 
 // The time shown for a split: Any% and Outer End show when they ended, the rest when they started
 const splitMark = (p, i) => i <= 1 ? p.end : p.start;
+// For a main split (TOP): when it ended, as LiveSplit shows a split's time
+const topMark = p => p.end;
 
 /*
  * Sub-splits: steps inside a split, each done when its event happens, in any order (AA No Reset often changes the
@@ -176,7 +202,9 @@ const splitMark = (p, i) => i <= 1 ? p.end : p.start;
  *              whichever was found first; until the 2nd is found) → 2nd structure (until back in the Overworld with blaze
  *              rods) → Blind (until Eye Spy) → Stronghold (until entering the End) → End (until the dragon dies)
  *   Outer End  Elytra → End Leave
- *   Endgame    Setup (for How Did We Get Here, until Voluntary Exile) → Raid (Hero of the Village) → Monument (mining
+ *   Endgame    Setup (for How Did We Get Here, until Voluntary Exile) → Raid (until Bad Omen the second time, from another
+ *              captain for How Did We Get Here, with every raid mob killed for Monsters Hunted by then; else when the last
+ *              of them is; logs without the effects: Hero of the Village) → Monument (mining
  *              fatigue from an elder guardian) → HDWGH (How Did We Get Here) → End Again
  */
 function findSubSplits(run, splits, {anyEnd}) {
@@ -204,9 +232,13 @@ function findSubSplits(run, splits, {anyEnd}) {
   // (leaving the End for real, not the timer's pretend "now")
   const loot = advTime(run, "end/elytra") ?? advTime(run, "end/find_end_city"), left = loot == null ? null : dims.find(d => d[0] > loot && d[1] !== "e");
   sub(1, [["Elytra", advTime(run, "end/elytra")], ["End Leave", left ? left[0] : null]]);
+  const exile = advTime(run, "adventure/voluntary_exile"), hero = advTime(run, "adventure/hero_of_the_village");
+  const omen2 = ((run.st || {}).omen || []).filter(t => t >= (exile ?? Infinity) - 5000)[1] ?? null;
+  const killedAt = m => { const e = run.events.find(x => x[2] === "adventure/kill_all_mobs" && x[3] === m); return e ? e[0] : null; };
+  const mobs = RAID_MOBS.map(killedAt), allMobs = mobs.every(t => t != null) ? Math.max(...mobs) : null;
   sub(5, [
-    ["Setup", advTime(run, "adventure/voluntary_exile")],
-    ["Raid", advTime(run, "adventure/hero_of_the_village")],
+    ["Setup", exile],
+    ["Raid", omen2 != null ? (allMobs != null ? Math.max(omen2, allMobs) : null) : hero],
     ["Monument", ((run.st || {}).fatigue || []).find(t => t >= (startOf(5) ?? Infinity)) ?? null],
     ["HDWGH", advTime(run, "nether/all_effects")],
     ["End Again", advTime(run, "end/respawn_dragon")],
@@ -313,7 +345,7 @@ function findMidgame(run, splits) {
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
     const e = {key: m.key, why: m.start ? null : "untimed", name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
-      parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n), left: []};
+      parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n), left: [], biomesLeft: goals.filter(g => g[0] == null && g[3] === "biome").map(g => g[4])};
     // what's left, one by one ("Bamboo Jungle", "Breed Panda", "Cats 9/11", "Skulls 2/3")
     const cl = goals.filter(g => g[1] === "Cats"), cHave = cl.filter(g => g[0] != null).length;
     if (m.count && v < target) e.left.push(`${m.countName || m.name} ${v}/${target}`);
@@ -411,9 +443,16 @@ function findMidgame(run, splits) {
     if (e.end == null && open) e.since = Math.max(open[0], e.start);
     return e;
   });
-  // (shown on the timer once enough of the rare biomes have been gone to: showAfter in config.js)
-  const rareGone = out.filter(e => ["mushroom", "badlands", "jungle", "snowy", "taiga"].includes(e.key) && (e.start != null || e.done != null)).length;
-  for (const e of out) { const m = MIDGAME.find(x => x.key === e.key); if (m.showAfter) e.hidden = rareGone < m.showAfter; if (m.pin) e.pin = true; if (m.pinLeft != null && e.need && e.need - e.have <= m.pinLeft && e.have < e.need) e.pin = true; }
+  // (on the timer: shown once what it still needs is in few enough of the rare biomes, rareLeft in config.js; shown
+  // wherever they are once there's little left, pinLeft)
+  const rareOf = b => RARE_KEYS.filter(k => MIDGAME.find(x => x.key === k).goals.some(g => g[0] === "biome" && g[1] === b));
+  for (const e of out) {
+    const m = MIDGAME.find(x => x.key === e.key), pinLeft = m.pinLeft === undefined ? PIN_LEFT : m.pinLeft;
+    if (m.rareLeft != null) e.hidden = new Set(e.biomesLeft.flatMap(rareOf)).size > m.rareLeft;
+    if (m.pin) e.pin = true;
+    // (not one that only ever needs that few, like the 3 skulls: it'd be everywhere from the start)
+    if (pinLeft != null && e.need > pinLeft && e.have < e.need && e.need - e.have <= pinLeft) e.pin = true;
+  }
   const near = [...new Set(areas.filter(([t], i) => t >= now - NEAR || i === areas.length - 1 || (areas[i + 1] && areas[i + 1][0] >= now - NEAR)).map(a => a[1]))];
   // (when they were last underwater: the timer puts the shells first then)
   const uw = st.underwater || [];

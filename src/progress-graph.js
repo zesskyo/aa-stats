@@ -57,7 +57,7 @@ function progressParts(run, d) {
   const riptide = d.riptide.map(r => ({...r, text: T.riptideMarker(r.uses, fmtShort(r.end - r.start))}));
 
   // ---------- Hover text ----------
-  const bands = d.splits.flatMap((p, i) => p.segs.map(g => ({name: p.name, start: g[0], end: g[1], ci: i}))).sort((a, b) => a.start - b.start);
+  const bands = d.top.flatMap((p, k) => p.segs.map(g => ({name: p.name, start: g[0], end: g[1], ci: TOP[k].col}))).sort((a, b) => a.start - b.start);
   const splitAt = t => bands.find(b => t >= b.start && t <= b.end);
   const rows = (list, t) => list
     .filter(x => { const m = MULTI[x.key] && d.multis.find(q => q.id === x.key); return !(m && m.done != null && t >= m.done); })   // hide finished multi-criteria

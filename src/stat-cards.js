@@ -48,4 +48,31 @@ function statCard(def, value, name) {
 }
 // Cards for one run (Stats page) or averages (Overview)
 const runStatCards = run => `<div class="statgrid">${STAT_CARDS.map(k => statCard(STAT_DEFS[k], STAT_DEFS[k].one(run), STAT_DEFS[k].name())).join("")}</div>`;
-const averageStatCards = () => `<div class="statgrid">${STAT_CARDS.map(k => { const d = STAT_DEFS[k]; return statCard(d, d.avg(), (d.avgName || d.name)()); }).join("")}</div>`;
+const averageStatCards = () => `<div class="statgrid">${STAT_CARDS.map(k => { const d = STAT_DEFS[k]; return statCard(d, d.avg(), (d.avgName || d.name)()); }).join("")}</div>`
+  + `<div class="statgrid runstats">${RUN_STATS().map(([name, v, note, flip]) => `<${flip ? `button type="button" class="stat flip" data-flip="${flip}" title="${esc(T.clickToChange)}"` : `div class="stat"`}><span class="k">${esc(name)}${flip ? ` <span aria-hidden="true">⇄</span>` : ""}</span><span class="v">${v}</span>${note ? `<span class="note">${esc(note)}</span>` : ""}</${flip ? "button" : "div"}>`).join("")}</div>`;
+// (Runs in the past week or month: clicking switches, and it's remembered in this browser)
+let runSpan = "week";
+try { if (localStorage.getItem("runSpan") === "month") runSpan = "month"; } catch {}
+function bindRunStats(el, redraw) {
+  el.querySelectorAll('[data-flip="span"]').forEach(b => b.addEventListener("click", () => {
+    runSpan = runSpan === "week" ? "month" : "week";
+    try { localStorage.setItem("runSpan", runSpan); } catch {}
+    redraw();
+  }));
+}
+
+// Across all the runs, under the averages: [name, value, note]
+const RUN_STATS = () => {
+  const valid = validRuns(), byNum = valid.slice().sort((a, b) => runNum(a) - runNum(b));
+  // VVF rate (Very Very Frightening, i.e. 100%): Thunderful out of the runs that are Thunderful or Thunderless
+  const cats = valid.map(r => derive(r).category).filter(c => c === "Thunderful" || c === "Thunderless"), full = cats.filter(c => c === "Thunderful").length;
+  // runs done in the past 7 or 30 days
+  const when = r => r.meta && r.meta.date ? new Date(r.meta.date + "T12:00").getTime() : r.manual ? null : doneAt(r);
+  const since = Date.now() - (runSpan === "week" ? 7 : 30) * 86400000, recent = RUNS.filter(r => { const t = when(r); return t != null && t >= since; }).length;
+  const last5 = byNum.slice(-5);
+  return [
+    [T.statVvfRate, cats.length ? Math.round(full / cats.length * 100) + "%" : "—", cats.length ? T.ofRuns(full, cats.length) : ""],
+    [runSpan === "week" ? T.statRunsWeek : T.statRunsMonth, String(recent), "", "span"],
+    [T.statLast5, last5.length ? fmt(average(last5.map(r => r.finalIgt)), 0) : "—", last5.length ? T.runsRange(runNum(last5[0]), runNum(last5[last5.length - 1])) : ""],
+  ];
+};

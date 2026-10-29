@@ -47,7 +47,7 @@ const appCss = fontFace("MinecraftRegular.otf", "400 500") + fontFace("Minecraft
 // Reuse the site's own log reader so the build and the website always agree
 const { parseLog, encodeRun, runKey } = new Function(read(inCode("src/parse-log.js")) + "\nreturn { parseLog, encodeRun, runKey };")();
 const T = new Function(read(inCode("src/text.js")) + "\nreturn T;")();
-const { SPLITS, SPLIT_CARDS } = new Function(read(inCode("src/config.js")) + "\nreturn { SPLITS, SPLIT_CARDS };")();
+const { SPLITS, MANUAL_SPLITS } = new Function(read(inCode("src/config.js")) + "\nreturn { SPLITS, MANUAL_SPLITS };")();
 
 const { timeMs, runMeta, manualRun } = new Function(read(inCode("src/run-meta.js")) + "\nreturn { timeMs, runMeta, manualRun };")();
 // "3:41:22", "3:41:22.629" or "41:22" → milliseconds
@@ -134,8 +134,8 @@ for (const [n, run] of [...runs].sort((a, b) => a[0] - b[0])) {
     if (d.splits && typeof d.splits === "object") {
       const splits = {};
       for (const [name, t] of Object.entries(d.splits)) {
-        const i = SPLIT_CARDS.find(k => SPLITS[k].name.toLowerCase() === name.toLowerCase());
-        if (i == null) throw new Error(`runs.json run ${n}: split "${name}" should be one of ${SPLIT_CARDS.map(k => SPLITS[k].name).join(", ")}`);
+        const i = MANUAL_SPLITS.find(k => SPLITS[k].name.toLowerCase() === name.toLowerCase());
+        if (i == null) throw new Error(`runs.json run ${n}: split "${name}" should be one of ${MANUAL_SPLITS.map(k => SPLITS[k].name).join(", ")}`);
         if (t != null && t !== "") splits[i] = parseTime(t, `runs.json run ${n} split ${name}`);
       }
       meta.splits = splits;

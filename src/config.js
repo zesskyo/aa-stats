@@ -104,9 +104,9 @@ const SUB_ITEMS = {
  * stats site's own icons. A counter (no target, no split) has need: null; needIfNot: [advancement, need], a different target
  * while that advancement isn't done. info: a rate the timer shows with it ("tnt": TNT used per debris found with TNT, and netherrack mined,
  * "kills": skulls got out of wither skeletons killed, like 3/64). extra: {name, until, goals}: not part of
- * the split, what's left of these is shown with it on the timer until the advancement "until" is done. showAfter: on the timer, only once that many
- * of the rare biomes' splits have started (hidden until then); pin: on the timer, shown wherever they are, under the
- * rest; pinLeft: pinned once only that many are left. finishOutside: done out of its area (a ghast
+ * the split, what's left of these is shown with it on the timer until the advancement "until" is done. rareLeft: on the timer, only once
+ * the biomes it still needs are in that many of the rare biomes or fewer (hidden until then); pin: on the timer, shown wherever they are, under the
+ * rest; pinLeft: pinned once only that many things are left (PIN_LEFT if not given; null: never). finishOutside: done out of its area (a ghast
  * brought to the Overworld), the time from leaving it until then counts too, up to that long. notTimedIn: areas where what's done
  * for it counts but adds no time (it's in another split's time there). notBefore: a kind of goal ("mush") that, all done before the split started (all the
  * mushrooms the stews need, or the stews, got beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
@@ -114,6 +114,8 @@ const SUB_ITEMS = {
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
  */
 const NETHER = ["nether", "crimson", "warped", "fortress", "bastion"];
+const PIN_LEFT = 3;   // (the timer: a checklist split with this many things left or fewer is shown wherever they are, if it needs more)
+const RARE_KEYS = ["mushroom", "badlands", "jungle", "snowy", "taiga"];   // (the rare biomes' keys below)
 const MIDGAME = [
   // the rare biomes: time spent there
   {key: "mushroom", name: "Mushroom Island", item: "red_mushroom_block", area: ["mushroom"], start: "enter", time: "area", end: "leave",
@@ -136,12 +138,12 @@ const MIDGAME = [
       ["adv", "adventure/trade"], ["adv", "adventure/sniper_duel"], ["adv", "adventure/arbalistic"], ["adv", "adventure/summon_iron_golem"]]}},
   {key: "taiga", name: "Taiga", item: "spruce_log", area: ["taiga"], start: "enter", time: "area", end: "done",
     goals: [["biome", "taiga"], ["biome", "taiga_hills"], ["food", ["sweet_berries"]], ["bred", "fox"], ["bred", "wolf"]]},
-  // every biome (Adventuring Time): from the start of Midgame; on the timer once 3 of the rare biomes have been gone to
-  // (showAfter), as a row of its own under the rest (pin)
-  {key: "at", name: "Adventuring Time", item: "icon:boots", area: [], start: "mid", time: "clock", end: "done", showAfter: 3, pin: true,
+  // every biome (Adventuring Time): from the start of Midgame; on the timer once what it still needs is in 2 of the rare
+  // biomes or fewer (rareLeft), as a row of its own under the rest (pin)
+  {key: "at", name: "Adventuring Time", item: "icon:boots", area: [], start: "mid", time: "clock", end: "done", rareLeft: 2, pin: true,
     goals: [["biome", "badlands"], ["biome", "badlands_plateau"], ["biome", "bamboo_jungle"], ["biome", "bamboo_jungle_hills"], ["biome", "beach"], ["biome", "birch_forest"], ["biome", "birch_forest_hills"], ["biome", "cold_ocean"], ["biome", "dark_forest"], ["biome", "deep_cold_ocean"], ["biome", "deep_frozen_ocean"], ["biome", "deep_lukewarm_ocean"], ["biome", "desert"], ["biome", "desert_hills"], ["biome", "forest"], ["biome", "frozen_river"], ["biome", "giant_tree_taiga"], ["biome", "giant_tree_taiga_hills"], ["biome", "jungle"], ["biome", "jungle_edge"], ["biome", "jungle_hills"], ["biome", "lukewarm_ocean"], ["biome", "mountains"], ["biome", "mushroom_field_shore"], ["biome", "mushroom_fields"], ["biome", "plains"], ["biome", "river"], ["biome", "savanna"], ["biome", "savanna_plateau"], ["biome", "snowy_beach"], ["biome", "snowy_mountains"], ["biome", "snowy_tundra"], ["biome", "snowy_taiga"], ["biome", "snowy_taiga_hills"], ["biome", "stone_shore"], ["biome", "swamp"], ["biome", "taiga"], ["biome", "taiga_hills"], ["biome", "warm_ocean"], ["biome", "wooded_badlands_plateau"], ["biome", "wooded_hills"], ["biome", "wooded_mountains"]]},
   // villages, the ocean and deserts: from the start of Midgame
-  {key: "cats", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]], pinLeft: 3},
+  {key: "cats", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]]},
   {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "nautilus", need: 8, activity: ["drowned"]},
   {key: "trident", name: "Trident", item: "trident", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "trident", need: 1, activity: ["drowned"]},
   {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164, activity: ["prism"]},
@@ -174,7 +176,7 @@ const MIDGAME = [
       ["kill", "hoglin"], ["kill", "zoglin"], ["kill", "piglin"], ["kill", "zombified_piglin"], ["kill", "blaze"], ["kill", "magma_cube"]]},
   // (netherite: 20 debris for the armour and the hoe; 24 when the lodestone for Country Lode is still needed too)
   // (not timed: it has its own split, Debris)
-  {key: "debris", name: "Debris", item: "ancient_debris", area: NETHER, count: "netherite", need: 20, info: "tnt",
+  {key: "debris", name: "Debris", item: "ancient_debris", area: NETHER, count: "netherite", need: 20, info: "tnt", pinLeft: null,
     needIfNot: ["nether/use_lodestone", 24]},
 ];
 
@@ -183,7 +185,7 @@ const MIDGAME = [
 const MID_GROUPS = [
   ["Biomes", ["mushroom", "badlands", "jungle", "snowy", "taiga", "at"]],
   ["Overworld", ["cats", "shells", "trident", "beacon", "godapple", "ocean", "animals"]],
-  ["Nether", ["skulls", "alliance", "nethermisc"]],
+  ["Nether", ["skulls", "alliance", "nethermisc", "debris"]],
 ];
 // The areas on the Midgame timeline (areaOf in parse-log.js): name, icon, colour; in this order, those visited (visits
 // under 3 seconds aren't shown, and ones less than 10 seconds apart are joined)
@@ -206,14 +208,34 @@ const SPLITS = [
 ];
 // Split colours (defined in app.css as --split0 … --split6)
 const SCOL = SPLITS.map((_, i) => "var(--split" + i + ")");
+// The main splits: the timer's, and the site's split cards, runs table and graphs. Each is one stretch of time made of
+// the parts above (SPLITS): Earlygame until Enchanting's done; Midgame until Endgame starts, with any Debris done
+// before then; Endgame until Post-endgame, with any Debris done during it; Post-endgame. (The parts stay for their own
+// stats, like Debris's, and for what's inside each main split.)
+const TOP = [
+  {name: "Earlygame",    icon: "pickaxe", parts: [0, 1, 2], col: 0},
+  {name: "Midgame",      icon: "elytra", parts: [3, 4],    col: 3},
+  {name: "Endgame",      icon: "bucket", parts: [5],       col: 5},
+  {name: "Post-endgame", icon: null,     parts: [6],       col: 6},
+];
+const TCOL = TOP.map(t => SCOL[t.col]);
+// The raid's mobs, for Monsters Hunted: the Raid sub-split isn't done until they're all killed (see findSubSplits)
+const RAID_MOBS = ["evoker", "pillager", "ravager", "vex", "witch", "vindicator"];
 
-// Which splits get a time card on the Stats page and a column in the runs table (numbers = position in SPLITS).
-// Any% and Outer End show when they ended; the others show when they started.
-const SPLIT_CARDS = [0, 3, 5, 6];
-// Which splits appear under "Fastest Splits" on Overview
-const FASTEST_SPLITS = [0, 1, 2, 3, 4, 5];
-// Extra splits shown after the splits: "skulls" or an advancement id (shows when it was completed)
-const OTHER_SPLITS = ["end/elytra", "skulls", "adventure/adventuring_time", "husbandry/complete_catalogue"];
+// The main splits (numbers = position in TOP) with a column in the runs table and Compare (when each ended); a run's
+// page has a card for each (Post-endgame when it had one)
+const SPLIT_CARDS = [0, 1, 2];
+// Under "Fastest Splits" on Overview: the first row, then the second (keys of SPLIT_VIEWS, split-page.js); each one's
+// average opens its page, with every run
+// Overview's Fastest Splits: the main splits (split-page.js' SPLIT_VIEWS keys); each opens to show the ones in it
+// (more: other split pages; subs: that split's sub-splits, SPLITS index)
+const OVERVIEW_SPLITS = [
+  {key: "earlygame", more: ["any", "elytra", "outer", "ench"]},
+  {key: "midgame",   more: ["acc", "at", "debris"]},
+  {key: "endgame",   subs: 5},
+];
+// The splits a run without a log can have times for in runs.json ("splits": {"Any%": "0:41:00", …}): positions in SPLITS
+const MANUAL_SPLITS = [0, 3, 5, 6];
 
 // Post-endgame icon depends on the last advancement of the run
 const LAST_ICON = {...MICON, "adventure/throw_trident": "trident", "end/respawn_dragon": "dragon", "adventure/very_very_frightening": "trident"};

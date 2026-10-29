@@ -378,7 +378,7 @@ const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>$
 // and how far ahead or behind the other run
 function cmpSplitsTable(list) {
   const rowsDef = [
-    ...SPLIT_CARDS.map(i => ({name: SPLITS[i].name, icHtml: splitIcon(i, 20, list.map(c => c.run)), at: c => splitMark(c.d.splits[i], i)})),
+    ...SPLIT_CARDS.map(k => ({name: TOP[k].name, icHtml: splitIcon(k, 20, list.map(c => c.run)), at: c => topMark(c.d.top[k])})),
     {name: T.timeLabel, total: true, at: c => c.run.finalIgt},
   ];
   const prev = list.map(() => null);   // last difference for each run, to tell if a split gained or lost time

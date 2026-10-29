@@ -71,10 +71,10 @@ const icCycle = (keys, size = 20) => {
 if (typeof document.querySelectorAll === "function") setInterval(() => document.querySelectorAll("img[data-cycle]").forEach(im => {
   const ks = im.dataset.cycle.split(" "), k = (+(im.dataset.k || 0) + 1) % ks.length; im.dataset.k = k; im.src = ICONS[ks[k]];
 }), 1500);
-// A split's icon; Post-endgame's, which is each run's last advancement's, going through those of the runs (all of them,
-// or those given) that had one
-const splitIcon = (i, size = 20, runs = RUNS) => SPLITS[i].icon ? ic(SPLITS[i].icon, size)
-  : icCycle(runs.map(r => derive(r).splits[i]).filter(s => s && s.segs.length).map(s => s.icon), size);
+// A split's icon (one with a page, SPLIT_VIEWS); Post-endgame's, which is each run's last advancement's, going through
+// those of the runs (all of them, or those given) that had one
+const splitIcon = (v, size = 20, runs = RUNS) => SPLIT_VIEWS[v].icon ? ic(SPLIT_VIEWS[v].icon, size)
+  : icCycle(runs.map(r => SPLIT_VIEWS[v].of(derive(r))).filter(s => s && s.segs.length).map(s => s.icon), size);
 // Icon inside a graph (SVG), or ""
 const icAt = (key, x, y, size) => okIcon(ICONS[key]) ? `<image href="${ICONS[key]}" x="${x}" y="${y}" width="${size}" height="${size}" style="image-rendering:pixelated"/>` : "";
 

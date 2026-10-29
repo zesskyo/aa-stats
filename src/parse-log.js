@@ -56,13 +56,13 @@ function logReader(filename, opts = {}) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
-    tears: [], ghasts: [], wheat: [], redMush: [], brownMush: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: []};
+    tears: [], ghasts: [], wheat: [], redMush: [], brownMush: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: [], omen: []};
   const tot = {}, clock = [];
   const inv = {}, wheatInv = {}, wheatDrops = [], gaInv = {}, gaGone = [], gaNot = [], splashes = []; let wheatHeld = 0, gaHeld = 0, inDesert = false, goldCum = 0, tntCum = 0, tntOwed = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
   let onIsland = false;   // in the End, on the central island since arriving (see "biome" below)
   let biome = null, structs = [];   // where they are (for st.areas)
-  let fatigued = false;
+  let fatigued = false, omened = false;
   let chBook = null, chTrident = null;   // when a Channeling book, and a trident, were first held (see st.channeling)
   const minInv = {}, netInv = {}; let minHeld = 0, netHeld = 0;   // beacon blocks and netherite in each inventory slot (see BEACON, NETHERITE), and the most held
   // st.areas: [time, area] each time the kind of place they're in changes (areaOf); a few seconds somewhere else and back
@@ -190,6 +190,10 @@ function logReader(filename, opts = {}) {
       if (Object.keys(d.effects || {}).some(x => x === "minecraft:conduit_power" || x === "minecraft:dolphins_grace") && (!st.underwater.length || igt - st.underwater[st.underwater.length - 1] >= 5000)) st.underwater.push(igt);
       if (has && !fatigued) st.fatigue.push(igt);
       fatigued = has;
+      // st.omen: each time Bad Omen starts (from a raid captain: the raid, then again for How Did We Get Here)
+      const omen = Object.keys(d.effects || {}).includes("minecraft:bad_omen");
+      if (omen && !omened) st.omen.push(igt);
+      omened = omen;
     } else if (type === "biome") {
       // the first time in the outer End: any End biome but the central island's is over 1024 blocks out, past the
       // gateway (Remote Getaway is sometimes only given later; logs from older Hermes have no biome lines)

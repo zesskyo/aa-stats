@@ -31,7 +31,7 @@ function derive(run) {
   const thunderReady = st.channeling !== false || !!(run.meta && run.meta.countAnyway);
   const category = !missing.length ? "Thunderful" : missing.length === 1 && missing[0] === VVF && thunderReady ? "Thunderless" : "Invalid";
 
-  const {splits, anyEnd, endAgain} = findSplits(run, comp);
+  const {splits, top, anyEnd, endAgain} = findSplits(run, comp);
 
   // Deaths: runs.json can mark any death as intentional or not ("intent"); otherwise deaths after
   // The End... Again... are intentional and everything else isn't.
@@ -66,7 +66,7 @@ function derive(run) {
   const tntD = inDebris(st.tnt).length, debD = inDebris(fromTnt).length;
 
   return run._d = {
-    comp, missing, category, splits, deaths, multis, skullRate, debrisSplit, tntD, debD,
+    comp, missing, category, splits, top, deaths, multis, skullRate, debrisSplit, tntD, debD,
     tntPer: debD ? tntD / debD : null,
     gold: st.goldV >= 2 ? (st.gold || []) : [],
     lanes: {trident: obtains("trident"), skull: obtains("skulls"), nautilus: obtains("nautilus")},
@@ -146,7 +146,11 @@ function deriveManual(run) {
     const t = marks[i] ?? null;
     return {name: p.name, icon: p.icon, segs: [], dur: null, start: i <= 1 ? (t != null ? 0 : null) : t, end: i <= 1 ? t : null};
   });
-  return {comp: [], missing: [], category, splits, deaths: [], multis: [], skullRate: {skulls: 0, kills: 0}, debrisSplit: splits[4],
+  // (the main splits: Earlygame ends where Midgame starts, and so on)
+  const ends = [marks[3], marks[5], marks[6]];
+  const top = TOP.map((p, i) => { const a = i === 0 ? 0 : ends[i - 1] ?? null, b = ends[i] ?? null;
+    return {name: p.name, icon: p.icon, segs: [], dur: a != null && b != null ? b - a : null, start: a, end: b}; });
+  return {comp: [], missing: [], category, splits, top, deaths: [], multis: [], skullRate: {skulls: 0, kills: 0}, debrisSplit: splits[4],
     tntD: 0, debD: 0, tntPer: null, gold: [], lanes: {trident: [], skull: [], nautilus: []}, skullSplit: null, rare: [], thunder: null, riptide: []};
 }
 

@@ -2,7 +2,7 @@
 //
 // With <site folder>/truth.json (the right times, from the runs' videos), it says how far off each one is:
 //   {"29": {"Midgame": "3:25:28", "Debris": "3:36:41"}, …}     the time each split ends (IGT, h:mm:ss)
-//   ("Debris start" for when Debris starts; any split can be left out)
+//   ("Debris start", "Endgame start" for when those start; any split can be left out)
 // Before changing a rule: --save before.json; after: --diff before.json lists the runs whose splits moved.
 //
 // Usage: node check-splits.mjs <site folder> [--save <file>] [--diff <file>]
@@ -32,10 +32,12 @@ for (const f of logs) {
   for (const s of d.splits) { const segs = s.segs.filter(x => x[1] > x[0]); if (segs.length) b[s.name] = segs[segs.length - 1][1]; }
   const deb = d.splits.find(s => s.name === "Debris");
   if (deb && deb.segs.length) b["Debris start"] = deb.segs[0][0];
+  const eg = d.splits.find(s => s.name === "Endgame");
+  if (eg && eg.segs.length) b["Endgame start"] = eg.segs[0][0];
   out[n] = {b, ghost: !!g, category: d.category};
 }
 
-const names = ["Any%", "Outer End", "Enchanting", "Midgame", "Debris start", "Debris", "Endgame", "Post-endgame"];
+const names = ["Any%", "Outer End", "Enchanting", "Midgame", "Debris start", "Debris", "Endgame start", "Endgame", "Post-endgame"];
 console.log("run  " + names.map(x => x.slice(0, 9).padEnd(9)).join(" ") + "  ghost");
 for (const [n, o] of Object.entries(out)) console.log(String(n).padEnd(4) + " " + names.map(k => hms(o.b[k]).padEnd(9)).join(" ") + "  " + (o.ghost ? "yes" : "no"));
 

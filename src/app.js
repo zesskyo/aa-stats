@@ -56,7 +56,7 @@ const render = () => { state.view === "runs" ? renderOverview() : state.view ===
 
 // ---------- The address: each page has its own (#/run/12, #/split/midgame, #/compare), so the browser's back button
 // goes back to what was shown before, and a page can be linked to ----------
-const splitSlug = i => SPLITS[i].name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const splitSlug = i => SPLIT_VIEWS[i].name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 function routeOf() {
   if (state.view === "run") {
     const r = findRun(state.runId); if (!r) return "#/run";
@@ -76,11 +76,15 @@ function applyUrl() {
     state.view = "run";
     const r = p[1] ? (/^\d+$/.test(p[1]) ? RUNS.find(x => String(runNum(x)) === p[1]) : findRun(p[1])) : null;
     if (r) state.runId = r.id;
-  } else if (p[0] === "split") { state.view = "split"; state.split = Math.max(0, SPLITS.findIndex((_, k) => splitSlug(k) === p[1])); }
+  } else if (p[0] === "split") { state.view = "split"; state.split = Math.max(0, SPLIT_VIEWS.findIndex((_, k) => splitSlug(k) === p[1])); }
   else state.view = p[0] === "compare" ? "compare" : "runs";   // (adding or editing a run isn't reopened from an address)
 }
 window.addEventListener("popstate", () => { routing = true; applyUrl(); showView(); render(); routing = false; window.scrollTo(0, 0); });
-document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.view)));
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {
+  // (the Stats tab opens the latest run; a run is opened from its links)
+  if (b.dataset.view === "run") { const l = byNumber(); if (l.length) state.runId = l[l.length - 1].id; }
+  go(b.dataset.view);
+}));
 
 // Clicking (or pressing Enter on) a row in the runs table opens that run
 $("#runsTable").addEventListener("click", e => {

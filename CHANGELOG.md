@@ -2,6 +2,19 @@
 
 Websites pick up changes on their next build (when the owner saves something, or daily at 05:23 UTC). Older changes: the commit history.
 
+## 2026-10-29
+
+- Main splits: Earlygame (Any%, Outer End, Enchanting), Midgame, Endgame, Post-endgame; Debris sits in whichever it's done in
+- Enchanting ends on leaving the enchanting table (ghost file)
+- Endgame starts on getting back to base: out of the portal or landed; a campfire near spawn (also "nether bees" in the Nether) means base is spawn
+- Raid sub-split ends at the second Bad Omen, or when the last raid mob is killed if that's later
+- Overview: Earlygame, Midgame, Endgame cards open to show what's in them; new split pages for Elytra Obtain, A Complete Catalogue, Adventuring Time
+- Average stats: VVF rate, runs in the past week or month (click to switch), last 5 average
+- Stats tab opens the latest run
+- Earlygame icon: stone pickaxe
+- Timer checklist: anything with 3 or fewer left is shown wherever you are; Adventuring Time once 2 rare biomes or fewer are left
+- `check-splits.mjs`: "Endgame start" in truth.json
+
 ## 2026-10-28
 
 - Post-endgame icon: the run's last advancement (was a star for most); cycles through the runs' last advancements where one icon stands for all runs

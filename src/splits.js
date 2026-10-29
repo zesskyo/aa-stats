@@ -161,13 +161,16 @@ function findSplits(run, comp) {
       dur: ok ? segs.reduce((a, g) => a + g[1] - g[0], 0) : null,
     };
   });
-  findSubSplits(run, splits, {anyEnd});
   splits[3].mid = findMidgame(run, splits);
 
   // The main splits (TOP in config.js): one stretch each, from where the one before ends. (Earlygame ends with
   // Enchanting, or, in a run without it, where the End was left; live, it runs until then)
   const F = run.finalIgt, earlyDone = enchDone ?? (live ? null : outerEnd ?? anyEnd);
-  const ends = [earlyDone, segsBySplit[5].length ? segsBySplit[5][0][0] : null, postStart];
+  // (Endgame starts with Debris when Debris comes after the last of Midgame: done on the way back to base, it's part of
+  // Endgame; done in the middle of Midgame, with more of it after, it stays there)
+  const midLast = segsBySplit[3].length ? segsBySplit[3][segsBySplit[3].length - 1][1] : null, debStart = segsBySplit[4].length ? segsBySplit[4][0][0] : null;
+  const egStart = segsBySplit[5].length ? segsBySplit[5][0][0] : null;
+  const ends = [earlyDone, debStart != null && (midLast == null || debStart >= midLast) ? Math.min(debStart, egStart ?? Infinity) : egStart, postStart];
   const top = TOP.map((p, i) => {
     const a = i === 0 ? 0 : ends[i - 1];
     if (a == null) return {name: p.name, icon: p.icon || postIcon, segs: [], start: null, end: null, dur: null};
@@ -176,13 +179,14 @@ function findSplits(run, comp) {
     return {name: p.name, icon: p.icon || postIcon, segs, start: segs.length ? a : null, end: segs.length ? b : null, dur: segs.length ? b - a : null};
   });
   top[1].mid = splits[3].mid;
+  findSubSplits(run, splits, {anyEnd, endgameStart: top[2].start, now: F});
 
   // Debris in the checklist: the Debris part's time, under the main split it's (last) done in
   const deb = splits[3].mid && splits[3].mid.sections.find(x => x.key === "debris"), dp = splits[4];
   if (deb && dp.segs.length) {
     const g = dp.segs[dp.segs.length - 1], going = live && g[1] >= F;
     Object.assign(deb, {split: true, why: null, start: dp.start, end: going ? null : dp.end, dur: dp.dur, complete: !going, since: going ? g[0] : null, last: g[1],
-      in: Math.max(1, top.findIndex(t => t.segs.length && g[0] >= t.start && g[0] <= t.end))});
+      in: Math.max(1, top.findLastIndex(t => t.segs.length && g[0] >= t.start && g[0] <= t.end))});
   }
   return {splits, top, anyEnd, endAgain};
 }
@@ -205,9 +209,11 @@ const topMark = p => p.end;
  *   Endgame    Setup (for How Did We Get Here, until Voluntary Exile) → Raid (until Bad Omen the second time, from another
  *              captain for How Did We Get Here, with every raid mob killed for Monsters Hunted by then; else when the last
  *              of them is; logs without the effects: Hero of the Village) → Monument (mining
- *              fatigue from an elder guardian) → HDWGH (How Did We Get Here) → End Again
+ *              fatigue from an elder guardian) → HDWGH (How Did We Get Here) → End Again; and Debris, when it's part of
+ *              Endgame (first in the list: it's usually done while setting up). Each of these is the Endgame time up to
+ *              it since the one before, without Debris's; Debris's is its own.
  */
-function findSubSplits(run, splits, {anyEnd}) {
+function findSubSplits(run, splits, {anyEnd, endgameStart, now}) {
   const dims = run.dims.filter(d => d[2] !== "live");   // (the timer adds a pretend dimension change "now")
   const dimAfter = (t, x) => { if (t == null) return null; const d = dims.find(d => d[0] > t && d[1] === x); return d ? d[0] : null; };
   // (a split that hasn't ended yet has no start either: Any% starts at 0, Outer End when Any% ended)
@@ -243,6 +249,18 @@ function findSubSplits(run, splits, {anyEnd}) {
     ["HDWGH", advTime(run, "nether/all_effects")],
     ["End Again", advTime(run, "end/respawn_dragon")],
   ]);
+  // Debris, in Endgame: its own time; the rest, the Endgame time between them without Debris's
+  const subs = splits[5].subs, E0 = endgameStart, dp = splits[4];
+  const dsegs = E0 == null ? [] : (dp.segs || []).filter(g => g[0] >= E0);
+  const deb = {name: "Debris", item: SUB_ITEMS.Debris, t: null, dur: null};
+  const overlap = (a, b) => dsegs.reduce((x, [s, e]) => x + Math.max(0, Math.min(b, e ?? now) - Math.max(a, s)), 0);
+  const going = dsegs.length && dsegs[dsegs.length - 1][1] >= now && (run.dims[run.dims.length - 1] || [])[2] === "live";
+  if (dsegs.length && !going) { deb.t = dsegs[dsegs.length - 1][1]; deb.dur = overlap(E0, deb.t); }
+  if (E0 != null) for (const x of subs) if (x.t != null) {
+    const prev = Math.max(E0, ...subs.filter(y => y !== x && y.t != null && y.t <= x.t).map(y => y.t));
+    x.dur = x.t - prev - overlap(prev, x.t);
+  }
+  subs.unshift(deb);
 }
 
 /*

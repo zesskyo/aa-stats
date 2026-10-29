@@ -20,8 +20,8 @@ const SPLIT_VIEWS = [
 const viewByKey = k => SPLIT_VIEWS.findIndex(v => v.key === k);
 const viewOfPart = i => SPLIT_VIEWS.findIndex(v => v.part === i);
 // A split's steps, the same for every run: [{key, name, icon, about, f: a run's derive() → the step's time, or null}]
-// (Earlygame: Any%, Outer End and Enchanting; Midgame: the checklist's timed splits; Endgame, Any% and Outer End: their
-// sub-splits)
+// (Earlygame: Any%, Outer End and Enchanting; Midgame: the checklist's timed splits; Endgame (Debris among them), Any%
+// and Outer End: their sub-splits)
 function subDefs(v) {
   v = SPLIT_VIEWS[v];
   if (v.top === 0) return TOP[0].parts.map(i => ({key: "p" + i, name: SPLITS[i].name, icon: SPLITS[i].icon, part: i, f: d => d.splits[i].dur}));

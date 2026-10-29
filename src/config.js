@@ -80,7 +80,7 @@ const SUB_ITEMS = {
   "Overworld": "grass_block", "Nether": "netherrack", "Bastion": "gilded_blackstone", "Fortress": "nether_bricks", "Blind": "blaze_rod",
   "Stronghold": "ender_eye", "End": "end_stone",
   "Elytra": "elytra", "End Leave": "ender_pearl",
-  "Setup": "brewing_stand", "Raid": "icon:ominous_banner", "Monument": "prismarine_bricks", "HDWGH": "potion", "End Again": "end_crystal",
+  "Debris": "ancient_debris", "Setup": "brewing_stand", "Raid": "icon:ominous_banner", "Monument": "prismarine_bricks", "HDWGH": "potion", "End Again": "end_crystal",
 };
 
 /*
@@ -209,13 +209,13 @@ const SPLITS = [
 // Split colours (defined in app.css as --split0 … --split6)
 const SCOL = SPLITS.map((_, i) => "var(--split" + i + ")");
 // The main splits: the timer's, and the site's split cards, runs table and graphs. Each is one stretch of time made of
-// the parts above (SPLITS): Earlygame until Enchanting's done; Midgame until Endgame starts, with any Debris done
-// before then; Endgame until Post-endgame, with any Debris done during it; Post-endgame. (The parts stay for their own
+// the parts above (SPLITS): Earlygame until Enchanting's done; Midgame until Endgame starts; Endgame until
+// Post-endgame, starting with Debris when that comes after the last of Midgame (see findSplits); Post-endgame. (The parts stay for their own
 // stats, like Debris's, and for what's inside each main split.)
 const TOP = [
   {name: "Earlygame",    icon: "pickaxe", parts: [0, 1, 2], col: 0},
-  {name: "Midgame",      icon: "elytra", parts: [3, 4],    col: 3},
-  {name: "Endgame",      icon: "bucket", parts: [5],       col: 5},
+  {name: "Midgame",      icon: "elytra", parts: [3],       col: 3},
+  {name: "Endgame",      icon: "bucket", parts: [4, 5],    col: 5},
   {name: "Post-endgame", icon: null,     parts: [6],       col: 6},
 ];
 const TCOL = TOP.map(t => SCOL[t.col]);
@@ -228,10 +228,10 @@ const SPLIT_CARDS = [0, 1, 2];
 // Under "Fastest Splits" on Overview: the first row, then the second (keys of SPLIT_VIEWS, split-page.js); each one's
 // average opens its page, with every run
 // Overview's Fastest Splits: the main splits (split-page.js' SPLIT_VIEWS keys); each opens to show the ones in it
-// (more: other split pages; subs: that split's sub-splits, SPLITS index)
+// (subs: that split's sub-splits, SPLITS index; more: other split pages, after them)
 const OVERVIEW_SPLITS = [
   {key: "earlygame", more: ["any", "elytra", "outer", "ench"]},
-  {key: "midgame",   more: ["acc", "at", "debris"]},
+  {key: "midgame",   more: ["acc", "at"]},
   {key: "endgame",   subs: 5},
 ];
 // The splits a run without a log can have times for in runs.json ("splits": {"Any%": "0:41:00", …}): positions in SPLITS

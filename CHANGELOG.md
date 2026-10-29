@@ -4,6 +4,8 @@ Websites pick up changes on their next build (when the owner saves something, or
 
 ## 2026-10-29
 
+- Debris is part of Endgame: Endgame starts with it when it's done on the way back to base; it's Endgame's first sub-split, and Setup and the others leave its time out
+- Endgame's sub-splits are listed in the order they were done (run page, timer); Endgame page and Overview have Debris with them
 - Main splits: Earlygame (Any%, Outer End, Enchanting), Midgame, Endgame, Post-endgame; Debris sits in whichever it's done in
 - Enchanting ends on leaving the enchanting table (ghost file)
 - Endgame starts on getting back to base: out of the portal or landed; a campfire near spawn (also "nether bees" in the Nether) means base is spawn

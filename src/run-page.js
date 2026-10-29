@@ -124,7 +124,6 @@ function splitsCard(d) {
 // Each step: its icon and name, a bar for how long it took (out of the split), the time, against the average of the
 // runs on the site, and when it was done. Midgame: the checklist, by where it's done.
 let subOpen = null, subRun = null;   // the split whose sub-splits are open (its place in SPLIT_VIEWS), or null
-const debrisItem = d => d.top[1].mid && d.top[1].mid.sections.find(x => x.key === "debris" && x.split);
 const hasSubs = (d, v) => { const sv = SPLIT_VIEWS[v]; if (!sv || sv.top === 3) return false;
   return sv.top === 0 ? true : sv.top === 1 ? !!d.top[1].mid : sv.top === 2 ? !!(d.splits[5].subs && d.splits[5].subs.length) : !!(d.splits[sv.part].subs && d.splits[sv.part].subs.length); };
 function subPanel(d, i) {
@@ -134,8 +133,10 @@ function subPanel(d, i) {
     <span class="subname">${esc(name)}${about ? `<small>${about}</small>` : ""}</span>${v == null && !/^[\d:—]+$/.test(took) ? `<span class="mono wide">${took}</span>` : `<span class="mono">${took}</span><span class="mono">${vsAvg(v, ref)}</span>`}<span class="mono muted">${at}</span></div>`;
   const head = `<div class="subrow subcols"><span></span><span></span><span>${esc(T.subTook)}</span><span>${esc(T.subVsAvg)}</span><span>${esc(T.subDoneAt)}</span></div>`;
   // a part's own sub-splits (Any%'s, Outer End's, Endgame's), indented under it in Earlygame
-  const partSubs = (pi, cls = "") => { const pr = subRefs(viewOfPart(pi) >= 0 ? viewOfPart(pi) : 2);
-    return (d.splits[pi].subs || []).map((x, j) => row(itemIcon(x.item), x.name, "", x.dur, x.dur != null ? fmtShort(x.dur) : "—", pr[j], x.t != null ? fmt(x.t, 0) : "—").replace('class="subrow"', `class="subrow${cls}"`)).join(""); };
+  // ([done at, row] each, for putting others in among them)
+  const subRows = (pi, cls = "") => { const pr = subRefs(viewOfPart(pi) >= 0 ? viewOfPart(pi) : 2);
+    return (d.splits[pi].subs || []).map((x, j) => [x.t, row(itemIcon(x.item), x.name, "", x.dur, x.dur != null ? fmtShort(x.dur) : "—", pr[j], x.t != null ? fmt(x.t, 0) : "—").replace('class="subrow"', `class="subrow${cls}"`)]); };
+  const partSubs = (pi, cls) => subRows(pi, cls).map(x => x[1]).join("");
   let body;
   if (sv.top === 0) {
     // Earlygame: Any%, Outer End and Enchanting, each with its own sub-splits under it
@@ -143,9 +144,9 @@ function subPanel(d, i) {
       return row(SPLITS[pi].icon, q.name, "", q.dur, q.dur != null ? fmtShort(q.dur) : "—", refs["p" + pi], q.end != null ? fmt(q.end, 0) : "—").replace('class="subrow"', 'class="subrow subpart"')
         + partSubs(pi, " subin"); }).join("");
   } else if (sv.top === 2) {
-    // Endgame: its sub-splits, and Debris if it was done during it
-    const deb = debrisItem(d);
-    body = subZoom(d.splits[5], 5) + partSubs(5) + (deb && deb.in === 2 ? row(itemIcon(deb.item), deb.name, "", deb.dur, fmtShort(deb.dur), subRefs(1)["debris"], deb.end != null ? fmt(deb.end, 0) : "—") : "");
+    // Endgame: its sub-splits (Debris among them), in the order they were done; what's not done yet after, in order
+    const rows = subRows(5), done = rows.filter(x => x[0] != null).sort((a, b) => a[0] - b[0]);
+    body = subZoom({...d.splits[5], start: d.top[2].start, dur: d.top[2].dur}, 5) + [...done, ...rows.filter(x => x[0] == null)].map(x => x[1]).join("");
   } else if (sv.top === 1) {
     // (only the checklist's splits: what isn't timed isn't here)
     // (an old log, with no biomes in it: the biomes and where Midgame went can't be told, so they're left out)

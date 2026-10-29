@@ -54,6 +54,7 @@ function renderOverview() {
     return splitCard(sv.icon, sv.name, r => { const p = sv.of(derive(r)); return sv.mark ? p.end : p.dur; }, sv.mark ? fmtAt : fmtShort, v, pick); };
   // (a sub-split: its average opens its split's page)
   const subCard = (pi, name, item, v) => splitCard(itemIcon(item), name, r => { const x = (derive(r).splits[pi].subs || []).find(y => y.name === name); return x ? x.dur : null; }, fmtShort, v);
+  // (Debris has a page of its own)
   const subsOf = pi => { const r = valid.find(x => (derive(x).splits[pi].subs || []).length); return r ? derive(r).splits[pi].subs.map(x => [x.name, x.item]) : []; };
   $("#bestSplits").innerHTML = OVERVIEW_SPLITS.map((o, k) => viewCard(o.key, k)).join("");
   // the open one's splits, underneath
@@ -64,7 +65,7 @@ function renderOverview() {
     if (!o) { el.innerHTML = ""; return; }
     const v = viewByKey(o.key);
     el.style.setProperty("--sc", SPLIT_VIEWS[v].col);
-    el.innerHTML = o.more ? o.more.map(key => viewCard(key)).join("") : subsOf(o.subs).map(([n, it]) => subCard(o.subs, n, it, v)).join("");
+    el.innerHTML = (o.subs != null ? subsOf(o.subs).map(([n, it]) => subCard(o.subs, n, it, n === SPLITS[4].name ? viewByKey("debris") : v)) : []).concat((o.more || []).map(key => viewCard(key))).join("");
     bind(el);
   };
   const bind = el => {

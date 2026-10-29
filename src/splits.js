@@ -229,7 +229,7 @@ function findSubSplits(run, splits, {anyEnd, endgameStart, now}) {
   // log, when it was found)
   const found = (area, id) => {
     const A = (run.st || {}).areas || [], now = run.finalIgt, adv = advTime(run, id);
-    if (!A.some(x => x[1] === "bastion" || x[1] === "fortress")) return adv;
+    if (!A.length) return adv;
     const at = v => adv != null && adv <= v && v - adv <= RULES.structFound ? adv : v;
     let start = null, inside = 0, lastOut = null;
     for (let k = 0; k < A.length; k++) {

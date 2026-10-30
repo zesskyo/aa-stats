@@ -113,6 +113,8 @@ const SUB_ITEMS = {
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame. minGain: for a count, only gains of that many
  * or more, picked up close together (RULES.gainGap), count as working on it (on the timer: a few ingots on their own don't).
+ * activeWith: not timed, on the timer only while these (the run's stats) happened in the last 2 minutes: Debris, debris
+ * mined or deep down (not a piece of TNT for Uneasy Alliance).
  */
 const NETHER = ["nether", "crimson", "warped", "fortress", "bastion"];
 const PIN_LEFT = 3;   // (the timer: a checklist split with this many things left or fewer is shown wherever they are, if it needs more)
@@ -177,7 +179,7 @@ const MIDGAME = [
       ["kill", "hoglin"], ["kill", "zoglin"], ["kill", "piglin"], ["kill", "zombified_piglin"], ["kill", "blaze"], ["kill", "magma_cube"]]},
   // (netherite: 20 debris for the armour and the hoe; 24 when the lodestone for Country Lode is still needed too)
   // (not timed: it has its own split, Debris)
-  {key: "debris", name: "Debris", item: "ancient_debris", area: NETHER, count: "netherite", need: 20, info: "tnt", pinLeft: null,
+  {key: "debris", name: "Debris", item: "ancient_debris", area: NETHER, count: "netherite", need: 20, info: "tnt", pinLeft: null, activeWith: ["debris", "deep"],
     needIfNot: ["nether/use_lodestone", 24]},
 ];
 

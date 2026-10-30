@@ -399,6 +399,8 @@ function findMidgame(run, splits) {
       const rack = st.rack || [], at = t => { let v = 0; for (const [x, n] of rack) { if (x > t) break; v = n; } return v; };
       if (midStart != null && rack.length) e.info.push(["Netherrack", "item:netherrack", (at(now) - at(midStart)).toLocaleString("en-US")]); }
     if (m.info === "kills") { const k = series("ws").length, n = series("skulls").length; e.info = [["Skull Rates", "mh:wither_skeleton", `${n}/${k}`]]; }
+    // (not timed, but only shown while it's being worked on (activeWith): when that was last)
+    if (m.activeWith) { const ts = m.activeWith.flatMap(k => (st[k] || []).map(x => Array.isArray(x) ? x[0] : x)).filter(t => t >= (midStart ?? Infinity) && t <= now); e.last = ts.length ? Math.max(...ts) : null; }
     if (midStart == null || !m.start) return e;   // (not timed: just what's left)
     if (m.time === "farm") {
       // skulls: the Skulls split's own time (live, until now while the 3rd isn't got)

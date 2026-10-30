@@ -111,7 +111,8 @@ const SUB_ITEMS = {
  * for it counts but adds no time (it's in another split's time there). notBefore: a kind of goal ("mush") that, all done before the split started (all the
  * mushrooms the stews need, or the stews, got beforehand), means it isn't a split in that run. Nothing done in Post-endgame is a split either (it's a leftover). Under the split it's on, what's left, in groups: "Biomes", "Foods", "Breeds",
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
- * Anything not done by the end of Midgame is a leftover, shown in Post-endgame.
+ * Anything not done by the end of Midgame is a leftover, shown in Post-endgame. minGain: for a count, only gains of that many
+ * or more, picked up close together (RULES.gainGap), count as working on it (on the timer: a few ingots on their own don't).
  */
 const NETHER = ["nether", "crimson", "warped", "fortress", "bastion"];
 const PIN_LEFT = 3;   // (the timer: a checklist split with this many things left or fewer is shown wherever they are, if it needs more)
@@ -146,7 +147,7 @@ const MIDGAME = [
   {key: "cats", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]]},
   {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "nautilus", need: 8, activity: ["drowned"]},
   {key: "trident", name: "Trident", item: "trident", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "trident", need: 1, activity: ["drowned"]},
-  {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164, activity: ["prism"]},
+  {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164, activity: ["prism"], minGain: 3},
   {key: "godapple", name: "God Apple", item: "icon:s_gapple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
   // the Nether: time spent there, on visits that got something done for it (shown first there)
   // (the same as the Skulls split on a run's page: findSkullSplit in stats.js)
@@ -261,6 +262,7 @@ const CRIT_RENAME = {"British Shorthair": "British", "All Black": "Black"};
 const RULES = {
   campfireToHoney: 45 * 60000,     // a campfire starts (early) Endgame only if Bee Our Guest comes within this after it
   postEndgameMin: 5 * 60000,        // a Post-endgame shorter than this is folded into Endgame
+  gainGap: 2 * 60000,   // a count's minGain (Beacon Blocks): picked up with no more than this between (see findMidgame)
   structStay: 20000,   // Any%'s structures: this long in one (on a visit) for it to count as found (see findSubSplits)
   structGap: 60000,    // (out of it this long or less: still the same visit)
   structFound: 3 * 60000,   // (found up to this long before that visit: from when it was found)

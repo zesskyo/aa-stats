@@ -411,7 +411,13 @@ function findMidgame(run, splits) {
       return e;
     }
     // when something was done for it (in Midgame and after)
-    const progress = [...goals.map(g => g[0]), ...xs.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);
+    // (a count that only counts in bursts of minGain or more, picked up with less than gainGap between: from where a
+    // burst reaches it on; a few ingots on their own aren't working on it)
+    const gains = !m.minGain ? xs : xs.filter((x, k) => {
+      let a = k; while (a > 0 && xs[a][0] - xs[a - 1][0] <= RULES.gainGap) a--;
+      return x[1] - (a > 0 ? xs[a - 1][1] : 0) >= m.minGain;
+    });
+    const progress = [...goals.map(g => g[0]), ...gains.map(x => x[0]), ...(m.activity || []).flatMap(k => series(k).map(x => x[0]))].filter(t => t != null && t >= midStart).sort((a, b) => a - b);
     e.last = progress.length ? progress[progress.length - 1] : null;
     // the end: everything done; or leaving once it is (Mushroom Island); or either (Snowy), leaving once all but the optional is
     // (optional: a group of goals, "Zombie Doctor", or one goal, "zombified_piglin")

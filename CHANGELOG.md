@@ -2,6 +2,10 @@
 
 Websites pick up changes on their next build (when the owner saves something, or daily at 05:23 UTC). Older changes: the commit history.
 
+## 2026-10-30
+
+- Beacon Blocks: only 3 blocks or more picked up close together count as working on it (a few ingots on their own don't)
+
 ## 2026-10-29
 
 - Any%: a structure counts once you've spent 20 seconds in it, so passing through a corner of a bastion on the way to a fortress no longer makes the bastion the first

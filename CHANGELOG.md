@@ -4,6 +4,7 @@ Websites pick up changes on their next build (when the owner saves something, or
 
 ## 2026-10-30
 
+- Timer: a campfire starts Endgame only once the honey's collected (pre-placed hives no longer start it early); Debris isn't a small trip picked as the biggest so far
 - Timer: Debris's count in Midgame only shows after debris mined or time deep down in the last 2 minutes (not for TNT used for Uneasy Alliance)
 - Beacon Blocks: only 3 blocks or more picked up close together count as working on it (a few ingots on their own don't)
 

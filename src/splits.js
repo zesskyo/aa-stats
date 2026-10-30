@@ -66,7 +66,8 @@ function findSplits(run, comp) {
   let debrisSession = bursts.find(b => b.length >= 3) || null;
   if (deepTrip && (!debrisSession || deepTrip[0] < debrisSession[0])) debrisSession = (st.debris || []).filter(t => t >= deepTrip[0] && t <= deepTrip[1]).concat(deepIn(deepTrip[0], deepTrip[1])).sort((a, b) => a - b);
   const debrisAfter = (st.debris || []).filter(t => t >= after);
-  if (!debrisSession && debrisAfter.length) debrisSession = clusters(debrisAfter, RULES.debrisSessionGap).sort((a, b) => b.length - a.length)[0];
+  // (the biggest only once the run's over: on the timer, a small trip now could be beaten by the real one later)
+  if (!debrisSession && debrisAfter.length && !live) debrisSession = clusters(debrisAfter, RULES.debrisSessionGap).sort((a, b) => b.length - a.length)[0];
   let debrisStart = null, debrisEnd = null;
   if (debrisSession && debrisSession.length) {
     const d0 = debrisSession[0];
@@ -119,7 +120,9 @@ function findSplits(run, comp) {
   // don't start Endgame; then it starts when the honey is collected.
   const honey = advTime(run, "husbandry/safely_harvest_honey");
   const camps = (st.campfire || []).filter(t => t > (enchDone ?? Infinity));
-  let campT = honey == null ? camps[0] : camps.find(t => t <= honey && honey - t <= RULES.campfireToHoney);
+  // (on the timer, not until the honey's collected: a campfire put down early, with hives set up for later, would
+  // start Endgame too soon; once it is, Endgame starts back when they got to base)
+  let campT = honey == null ? (live ? null : camps[0]) : camps.find(t => t <= honey && honey - t <= RULES.campfireToHoney);
   if (campT == null && honey != null && camps.some(t => t <= honey)) campT = honey;
   // (and it starts when they got to where the campfire went, back at their base, setting up: from the ghost file, see
   // baseArrivals; not before Enchanting's end)

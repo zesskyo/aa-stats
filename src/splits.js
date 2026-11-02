@@ -27,7 +27,7 @@ const advTime = (run, id) => { const e = run.events.find(x => x[2] === id && x[4
 // First dimension change after time t into a dimension matching `pred`
 const firstDimAfter = (run, t, pred) => { if (t == null) return null; const d = run.dims.find(x => x[0] > t && pred(x[1])); return d ? d[0] : null; };
 
-function findSplits(run, comp) {
+function findSplits(run, comp, liveCamp) {
   const st = run.st || {};
 
   // Any%
@@ -120,9 +120,10 @@ function findSplits(run, comp) {
   // don't start Endgame; then it starts when the honey is collected.
   const honey = advTime(run, "husbandry/safely_harvest_honey");
   const camps = (st.campfire || []).filter(t => t > (enchDone ?? Infinity));
-  // (on the timer, not until the honey's collected: a campfire put down early, with hives set up for later, would
-  // start Endgame too soon; once it is, Endgame starts back when they got to base)
-  let campT = honey == null ? (live ? null : camps[0]) : camps.find(t => t <= honey && honey - t <= RULES.campfireToHoney);
+  // (on the timer, before the honey's collected: only a campfire put down with little of the Midgame checklist left,
+  // liveCamp, see the end; one put down early, with hives set up for later, would start Endgame too soon. Once the
+  // honey's collected, as above)
+  let campT = honey == null ? (live ? liveCamp ?? null : camps[0]) : camps.find(t => t <= honey && honey - t <= RULES.campfireToHoney);
   if (campT == null && honey != null && camps.some(t => t <= honey)) campT = honey;
   // (and it starts when they got to where the campfire went, back at their base, setting up: from the ghost file, see
   // baseArrivals; not before Enchanting's end)
@@ -190,6 +191,12 @@ function findSplits(run, comp) {
     const g = dp.segs[dp.segs.length - 1], going = live && g[1] >= F;
     Object.assign(deb, {split: true, why: null, start: dp.start, end: going ? null : dp.end, dur: dp.dur, complete: !going, since: going ? g[0] : null, last: g[1],
       in: Math.max(1, top.findLastIndex(t => t.segs.length && g[0] >= t.start && g[0] <= t.end))});
+  }
+  // (on the timer: a campfire with RULES.campfireLeftMax or fewer of the Midgame checklist left when it was put down
+  // starts Endgame without waiting for the honey; worked out again with it)
+  if (live && honey == null && liveCamp === undefined && camps.length && splits[3].mid) {
+    const c = camps[0], left = splits[3].mid.sections.filter(x => x.key !== "debris" && !(x.done != null && x.done <= c)).length;
+    if (left <= RULES.campfireLeftMax) return findSplits(run, comp, c);
   }
   return {splits, top, anyEnd, endAgain};
 }

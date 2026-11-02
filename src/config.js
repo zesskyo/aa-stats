@@ -262,6 +262,7 @@ const CRIT_RENAME = {"British Shorthair": "British", "All Black": "Black"};
 
 // ---------- Rules of thumb (times in milliseconds: 60000 = 1 minute) ----------
 const RULES = {
+  campfireLeftMax: 3,              // on the timer, before the honey: a campfire starts Endgame with this many of the Midgame checklist left or fewer
   campfireToHoney: 45 * 60000,     // a campfire starts (early) Endgame only if Bee Our Guest comes within this after it
   postEndgameMin: 5 * 60000,        // a Post-endgame shorter than this is folded into Endgame
   gainGap: 2 * 60000,   // a count's minGain (Beacon Blocks): picked up with no more than this between (see findMidgame)

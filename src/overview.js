@@ -34,6 +34,9 @@ function renderOverview() {
     : `<div class="pbrow"><div class="pbcol"><span class="label">${esc(T.pb)}</span><p class="muted" style="margin:4px 0 0">${esc(T.noPbYet)}</p></div>${wrCol}</div>`;
   $("#pbCard").querySelectorAll("[data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
 
+  // ---------- PB history ----------
+  renderPbHistory(valid);
+
   // ---------- Fastest Splits ----------
   // A card: icon, name, the fastest (and which run), the average and the slowest; each opens its run
   // (the average opens the run closest to it)
@@ -129,4 +132,38 @@ function renderRunsTable(pb) {
     state.sort = state.sort.key === k ? {key: k, dir: -state.sort.dir} : {key: k, dir: 1};
     renderRunsTable(pb);
   }));
+}
+
+// PB history: each run's time (a dot, opening the run), and after each run the PB so far, the average of the last 5
+// runs and the sum of best (Earlygame, Midgame and Endgame's fastest so far)
+function renderPbHistory(valid) {
+  const el = $("#pbHistory"), runs = valid.slice().sort((a, b) => a.start - b.start);
+  if (runs.length < 2) { el.innerHTML = ""; el.hidden = true; return; }
+  el.hidden = false;
+  let pb = Infinity; const best = [Infinity, Infinity, Infinity];
+  const pts = runs.map((r, k) => {
+    const d = derive(r); pb = Math.min(pb, r.finalIgt);
+    d.top.slice(0, 3).forEach((t, j) => { if (t.dur != null) best[j] = Math.min(best[j], t.dur); });
+    const last = runs.slice(Math.max(0, k - 4), k + 1).map(x => x.finalIgt);
+    return {r, k, t: r.finalIgt, pb, avg5: last.length === 5 ? average(last) : null, sob: best.every(isFinite) ? best[0] + best[1] + best[2] : null};
+  });
+  // (drawn at the width it's shown at, so its labels stay readable on a phone)
+  const cs = getComputedStyle(el), inner = el.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+  const W = Math.max(300, Math.min(1200, inner || 960)), H = W < 600 ? 240 : 300, L = 48, R = 10, Tp = 12, B = 30;
+  const ys = pts.flatMap(p => [p.t, p.pb, p.avg5, p.sob]).filter(v => v != null);
+  const step = 15 * 60000, lo = Math.floor(Math.min(...ys) / step) * step, hi = Math.ceil(Math.max(...ys) / step) * step;
+  const x = k => L + (runs.length === 1 ? 0 : k / (runs.length - 1)) * (W - L - R), y = v => Tp + (1 - (v - lo) / (hi - lo || 1)) * (H - Tp - B);
+  const line = (key, cls) => { const ps = pts.filter(p => p[key] != null); return ps.length > 1 ? `<path class="ph-${cls}" d="${ps.map((p, i) => (i ? "L" : "M") + x(p.k).toFixed(1) + " " + y(p[key]).toFixed(1)).join(" ")}"/>` : ""; };
+  // (the PB as steps: it only changes on a new PB)
+  const pbPath = pts.map((p, i) => (i ? `H${x(p.k).toFixed(1)}V` : `M${x(p.k).toFixed(1)} `) + y(p.pb).toFixed(1)).join("");
+  const grid = []; for (let v = lo; v <= hi; v += step) grid.push(`<line class="ph-grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ph-ax" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v, 0).replace(/:00$/, "")}</text>`);
+  const every = Math.max(1, Math.ceil(runs.length / Math.max(4, Math.floor((W - L) / 56))));
+  const xl = pts.filter(p => p.k % every === 0 || p.k === runs.length - 1).map(p => `<text class="ph-ax" x="${x(p.k)}" y="${H - 10}" text-anchor="middle">${esc(String(runNum(p.r)))}</text>`);
+  const dots = pts.map(p => `<circle class="ph-dot${p.t === p.pb && (p.k === 0 || p.t < pts[p.k - 1].pb) ? " pb" : ""}" cx="${x(p.k)}" cy="${y(p.t)}" r="5" data-open="${esc(p.r.id)}" tabindex="0" role="button" aria-label="${esc(runTitle(p.r))} · ${fmt(p.t, 0)}"><title>${esc(runTitle(p.r))} · ${esc(runDay(p.r))} · ${fmt(p.t, 0)}</title></circle>`);
+  const now = pts[pts.length - 1];
+  el.innerHTML = `
+    <div class="head-row" style="align-items:baseline;flex-wrap:wrap;gap:6px 16px"><h2>${esc(T.pbHistory)}</h2>
+      <span class="ph-legend"><span><i class="ph-k pb"></i>${esc(T.pb)} ${fmt(now.pb, 0)}</span><span><i class="ph-k avg5"></i>${esc(T.pbHistoryLast5)} ${now.avg5 != null ? fmt(now.avg5, 0) : "—"}</span><span><i class="ph-k sob"></i>${esc(T.sumOfBest)} ${now.sob != null ? fmt(now.sob, 0) : "—"}</span><span><i class="ph-k dot"></i>${esc(T.pbHistoryRun)}</span></span></div>
+    <svg class="ph" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(T.pbHistoryLabel)}">${grid.join("")}${xl.join("")}${line("sob", "sob")}${line("avg5", "avg5")}<path class="ph-pb" d="${pbPath}"/>${dots.join("")}</svg>`;
+  el.querySelectorAll("[data-open]").forEach(c => { const open = () => go("run", c.dataset.open); c.addEventListener("click", open); c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }); });
 }

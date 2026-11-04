@@ -22,6 +22,7 @@ document.getElementById("app").innerHTML = `
     <div class="grid-splits" id="otherSplits"></div>
   </section>
   <section id="aggregates"></section>
+  <section class="card" id="pbHistory"></section>
   <section style="display:flex;flex-direction:column;gap:14px">
     <h2 style="font-size:28px">${esc(T.runsTitle)}</h2>
     <div class="card tablewrap" style="padding:0" id="runsTable"></div>

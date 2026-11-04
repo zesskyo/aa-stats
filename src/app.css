@@ -663,3 +663,21 @@ header.top{border-bottom-width:1px}
 .subpanel .subrow.subpart .subname{font-weight:700}
 .subpanel .subrow.subin{padding-left:18px}
 .subpanel .subrow.subin .subname{color:var(--muted)}
+
+/* PB history (Overview) */
+#pbHistory{display:flex;flex-direction:column;gap:12px}
+.ph{width:100%;height:auto;display:block;overflow:visible}
+.ph-grid{stroke:var(--line);stroke-width:1}
+.ph-ax{fill:var(--muted);font-family:var(--mono);font-size:12px}
+.ph-pb{fill:none;stroke:var(--gold);stroke-width:3}
+.ph-avg5{fill:none;stroke:var(--blue);stroke-width:2}
+.ph-sob{fill:none;stroke:var(--good);stroke-width:2;stroke-dasharray:6 5}
+.ph-dot{fill:var(--surface);stroke:var(--muted);stroke-width:2;cursor:pointer}
+.ph-dot.pb{fill:var(--gold);stroke:var(--gold)}
+.ph-dot:hover,.ph-dot:focus-visible{stroke:var(--text);stroke-width:3;outline:none}
+.ph-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.ph-legend span{display:inline-flex;align-items:center;gap:6px}
+.ph-k{display:inline-block;width:16px;height:0;border-top:3px solid var(--gold)}
+.ph-k.avg5{border-top:2px solid var(--blue)}
+.ph-k.sob{border-top:2px dashed var(--good)}
+.ph-k.dot{width:10px;height:10px;border:2px solid var(--muted);border-radius:50%}

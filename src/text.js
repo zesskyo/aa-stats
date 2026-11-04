@@ -119,6 +119,9 @@ const T = {
   theEnd: "The End",
   lineAdvancements: "Advancements",
   runStatsTitle: "Run stats",
+  statLowest: "Lowest",
+  statHighest: "Highest",
+  statRangeHint: "Click for the lowest and highest of the runs",
   debrisTitle: "Debris",
   skullsTitle: "Skulls",
   rareBiomesTitle: "Rare biomes",
@@ -309,6 +312,7 @@ const T = {
   labelNetherrack: "Netherrack",
   labelTnt: "TNT",
   labelWitherSkeletons: "Wither Skeletons",
+  labelKilled: n => `Killed: ${n}`,
 
   // Screen-reader names for the icon-only stat cards
   statDeaths: "Deaths",

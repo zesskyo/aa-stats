@@ -36,6 +36,7 @@ function renderRunPage() {
   drawStatsScreen(run);
   bindSubPanel(run, d);
   bindPager(el);
+  bindStatCards(el);
   el.querySelectorAll(".wrhist [data-open]").forEach(b => b.addEventListener("click", () => go("run", b.dataset.open)));
   mountRunBar(run, d);
 }
@@ -287,6 +288,6 @@ function drawSkulls(run, d) {
   });
   // a little room either side, so the first and last skulls aren't cut off and can be hovered
   const edge = Math.max(1000, sp.dur * .04);
-  mountChart(box, {series: [{points: killPts, color: "var(--muted)", w: 2, endLabel: v => T.labelWitherSkeletons + " " + v}], W: 480, H: 260, xmin: -edge, xmaxFix: Math.max(1000, sp.dur) + edge, noY: true, noXAxis: true, clean: true, markers, vlines},
+  mountChart(box, {series: [{points: killPts, color: "var(--muted)", w: 2, endLabel: v => T.labelKilled(v)}], W: 480, H: 260, xmin: -edge, xmaxFix: Math.max(1000, sp.dur) + edge, noY: true, noXAxis: true, clean: true, markers, vlines},
     t => { t = Math.max(0, Math.min(sp.dur, t)); const l = lastBefore(killPts, t); return `<div class="thead"><span class="mono">${fmt(realTime(t), 0)}</span><span class="mono">${fmtShort(t)}</span></div><div>${T.skullsHover(l ? l[1] : 0, skulls.filter(x => active(x) <= t).length)}</div>`; });
 }

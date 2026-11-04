@@ -681,3 +681,17 @@ header.top{border-bottom-width:1px}
 .ph-k.avg5{border-top:2px solid var(--blue)}
 .ph-k.sob{border-top:2px dashed var(--good)}
 .ph-k.dot{width:10px;height:10px;border:2px solid var(--muted);border-radius:50%}
+
+/* stat cards: click for the lowest and highest of the runs */
+.statgrid.centred{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.statgrid.centred .stat{align-items:center;text-align:center}
+.statgrid.centred .stat-ic,.statgrid.centred .statbtn{justify-content:center}
+.stat.pick{flex-direction:column;align-items:stretch;gap:8px}
+.statbtn{display:flex;flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:inherit}
+#aggregates .statbtn{justify-content:center}
+.statbtn:hover .v,.statbtn:focus-visible .v{color:var(--accent)}
+.statbtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.statrange{display:flex;flex-direction:column;gap:4px}
+.statrange[hidden]{display:none}
+.rangerow{display:flex;gap:8px;align-items:baseline;justify-content:center;flex-wrap:wrap;font-size:13px;padding:2px 0}
+.rangerow .k{min-width:52px;text-align:left}

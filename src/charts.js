@@ -80,7 +80,8 @@ function chartSVG({series, W = 1280, H = 460, strip = null, bands = null, deaths
     if (s.label) { o += "</g>"; let ly = YY(l[1]) + 4; while (usedLY.some(u => Math.abs(u - ly) < 15)) ly += 15; usedLY.push(ly); o += `<text class="c-endlabel" x="${W - padR + 8}" y="${ly}" style="fill:${s.color}">${esc(s.label)}</text>`; o += `<g clip-path="url(#${cid})">`; }
   });
   if (markers) { o += `<g style="opacity:${markersDim ? .14 : 1}">`; markers.filter(m => Y(m.v) >= padT - 2).forEach(m => {
-    const cy = m.end || m.faded != null ? Y(m.v) : Y(m.v) - 12;
+    // (kept inside the chart: a marker at the top would put its icon over the edge)
+    const cy = Math.max(10, m.end || m.faded != null ? Y(m.v) : Y(m.v) - 12);
     const g0 = m.faded ? `<g style="opacity:.4">` : "", g1 = m.faded ? "</g>" : "";
     o += g0 + (icAt(m.icon, X(m.t) - 10, cy - 10, 20) || `<circle cx="${X(m.t)}" cy="${cy}" r="${m.end ? 4.5 : 5}" style="fill:${m.color};stroke:var(--surface);stroke-width:1.5"/>`) + g1;
     if (!markersDim && m.text && m.t >= xmin && m.t <= xmax) hot.push({x: X(m.t), y: cy, text: m.text, sub: m.sub, t: m.realT ?? m.t});

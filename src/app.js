@@ -10,8 +10,9 @@ document.getElementById("app").innerHTML = `
     <button data-view="runs" aria-current="page">${esc(T.tabOverview)}</button>
     <button data-view="run">${esc(T.tabStats)}</button>
     <button data-view="compare">${esc(T.tabCompare)}</button>
+    <button data-view="board">${esc(T.tabLeaderboard)}</button>
   </nav>
-  <span style="display:flex;align-items:center;gap:4px;justify-self:end"><a class="toplink" href="${esc(T.leaderboardUrl)}" target="_blank" rel="noopener noreferrer">${esc(T.leaderboard)} <span aria-hidden="true">↗</span></a><span class="ownerbox" id="ownerBox"></span></span>
+  <span style="display:flex;align-items:center;gap:4px;justify-self:end"><span class="ownerbox" id="ownerBox"></span></span>
 </header>
 <main id="view-runs">
   <div id="welcome" style="display:contents"></div>
@@ -32,6 +33,7 @@ document.getElementById("app").innerHTML = `
 <main id="view-compare" class="hidden"></main>
 <main id="view-edit" class="hidden"></main>
 <main id="view-split" class="hidden"></main>
+<main id="view-board" class="hidden"></main>
 <footer class="foot" id="siteFoot"></footer>`;
 
 // The site's name (again when it's changed in the site settings)
@@ -50,10 +52,10 @@ function go(view, runId) {
 function showView() {
   const bar = $("#runbar"); if (bar) bar.classList.remove("show");
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === state.view ? "page" : "false"));
-  ["runs", "run", "compare", "edit", "split"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== state.view));
+  ["runs", "run", "compare", "edit", "split", "board"].forEach(v => $("#view-" + v).classList.toggle("hidden", v !== state.view));
 }
 const render = () => { state.view === "runs" ? renderOverview() : state.view === "compare" ? renderCompare() : state.view === "edit" ? renderEditor()
-  : state.view === "split" ? renderSplitPage() : renderRunPage(); syncUrl(); };
+  : state.view === "split" ? renderSplitPage() : state.view === "board" ? renderLeaderboard() : renderRunPage(); syncUrl(); };
 
 // ---------- The address: each page has its own (#/run/12, #/split/midgame, #/compare), so the browser's back button
 // goes back to what was shown before, and a page can be linked to ----------
@@ -63,7 +65,7 @@ function routeOf() {
     const r = findRun(state.runId); if (!r) return "#/run";
     return "#/run/" + (RUNS.includes(r) && !(r.meta && r.meta.viewed) ? runNum(r) : encodeURIComponent(r.id));   // (the WR, a run being looked at: by id)
   }
-  return state.view === "split" ? "#/split/" + splitSlug(state.split || 0) : state.view === "compare" ? "#/compare" : state.view === "edit" ? "#/edit" : "#/";
+  return state.view === "split" ? "#/split/" + splitSlug(state.split || 0) : state.view === "compare" ? "#/compare" : state.view === "board" ? "#/leaderboard" : state.view === "edit" ? "#/edit" : "#/";
 }
 let routing = false;
 function syncUrl() {
@@ -78,7 +80,7 @@ function applyUrl() {
     const r = p[1] ? (/^\d+$/.test(p[1]) ? RUNS.find(x => String(runNum(x)) === p[1]) : findRun(p[1])) : null;
     if (r) state.runId = r.id;
   } else if (p[0] === "split") { state.view = "split"; state.split = Math.max(0, SPLIT_VIEWS.findIndex((_, k) => splitSlug(k) === p[1])); }
-  else state.view = p[0] === "compare" ? "compare" : "runs";   // (adding or editing a run isn't reopened from an address)
+  else state.view = p[0] === "compare" ? "compare" : p[0] === "leaderboard" ? "board" : "runs";   // (adding or editing a run isn't reopened from an address)
 }
 window.addEventListener("popstate", () => { routing = true; applyUrl(); showView(); render(); routing = false; window.scrollTo(0, 0); });
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {

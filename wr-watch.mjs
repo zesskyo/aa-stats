@@ -12,11 +12,10 @@
 //        node wr-watch.mjs approve      (in the approval workflow: reads ISSUE_BODY and COMMENT from the environment)
 import fs from "node:fs";
 import path from "node:path";
-import zlib from "node:zlib";
+import {readSheet} from "./sheet.mjs";
 
 const code = path.dirname(new URL(import.meta.url).pathname);
 const inCode = p => path.join(code, p), read = p => fs.readFileSync(p, "utf8");
-const SHEET = "1RMPL2zGM0Bkxsz-UFAbShVXP4arD8E7C-kBvGzSyRv0";   // the leaderboard (T.leaderboardUrl)
 const SITE_RE = /^https:\/\/[a-z0-9-]+\.github\.io\/[^/?#\s]+\/?$/i;
 
 // The site code, as a site's page runs it, on a site's data (or none)
@@ -54,28 +53,11 @@ function records() {
   return out;
 }
 
-// The leaderboard's "Stats" proof links (both tabs): from its .xlsx export, which keeps the links
+// The leaderboard's "Stats" proof links (both tabs)
 async function leaderboardSites() {
-  const buf = await get(`https://docs.google.com/spreadsheets/d/${SHEET}/export?format=xlsx`, "buffer");
   const urls = new Set();
-  // (an .xlsx is a zip: the links are in each sheet's relationships, xl/worksheets/_rels/sheetN.xml.rels)
-  for (const xml of unzip(buf).filter(f => /^xl\/worksheets\/_rels\/.*\.rels$/.test(f.name)).map(f => f.data.toString("utf8")))
-    for (const m of xml.matchAll(/Target="(https:\/\/[^"]+)"/g)) { const u = siteUrl(m[1].replace(/&amp;/g, "&")); if (SITE_RE.test(u)) urls.add(u); }
+  for (const tab of await readSheet()) for (const row of tab.rows) for (const u of Object.values(row._links)) { const x = siteUrl(u); if (SITE_RE.test(x)) urls.add(x); }
   return [...urls];
-}
-// Just enough zip reading for that (stored or deflated entries, from the central directory)
-function unzip(buf) {
-  let e = buf.length - 22; while (e >= 0 && buf.readUInt32LE(e) !== 0x06054b50) e--;
-  if (e < 0) throw new Error("not a zip");
-  const n = buf.readUInt16LE(e + 10); let p = buf.readUInt32LE(e + 16); const out = [];
-  for (let i = 0; i < n; i++) {
-    const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20), nameLen = buf.readUInt16LE(p + 28), extra = buf.readUInt16LE(p + 30), comment = buf.readUInt16LE(p + 32), local = buf.readUInt32LE(p + 42);
-    const name = buf.toString("utf8", p + 46, p + 46 + nameLen);
-    const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28), raw = buf.subarray(start, start + size);
-    out.push({name, data: method === 8 ? zlib.inflateRawSync(raw) : raw});
-    p += 46 + nameLen + extra + comment;
-  }
-  return out;
 }
 
 async function scan(outFile) {

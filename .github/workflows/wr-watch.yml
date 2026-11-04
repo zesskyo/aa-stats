@@ -1,8 +1,11 @@
 name: World records
 
-# Every day (before the stats sites rebuild), and from the Actions tab: looks through the stats sites the leaderboard
-# links to for a run faster than a record, and opens an issue for each one found, for the leaderboard's owner to approve
-# (comment "approve": see wr-approve.yml) or close. Also fills in each record's video and notes from its stats site.
+# Every day (before the stats sites rebuild), and from the Actions tab:
+# - the leaderboard (leaderboard/leaderboard.json, every site's Leaderboard page) from its spreadsheet, with its history;
+#   anything that doesn't match the runs themselves (a date, a time, a faster run not on it) in a "Leaderboard checks" issue
+# - looks through the stats sites the leaderboard links to for a run faster than a record, and opens an issue for each one
+#   found, for the leaderboard's owner to approve (comment "approve": see wr-approve.yml) or close
+# - fills in each record's video and notes from its stats site
 on:
   schedule:
     - cron: "41 4 * * *"
@@ -23,16 +26,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: node leaderboard.mjs sync --checks "$RUNNER_TEMP/checks.md"
       - run: node wr-watch.mjs scan --out "$RUNNER_TEMP/candidates.json"
-      - name: Save the records' details
+      - name: Save the leaderboard and the records' details
         run: |
-          if [ -n "$(git status --porcelain wr)" ]; then
+          if [ -n "$(git status --porcelain wr leaderboard)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add wr
-            git commit -m "World records: video and notes from their stats sites"
+            git add wr leaderboard
+            git commit -m "Leaderboard and world records: from the spreadsheet and the stats sites"
             git push
           fi
+      - name: The leaderboard checks issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const checks = fs.readFileSync(process.env.RUNNER_TEMP + "/checks.md", "utf8").trim();
+            const open = (await github.paginate(github.rest.issues.listForRepo, {...context.repo, state: "open", labels: "leaderboard-check", per_page: 100}))[0];
+            const body = "Things on the leaderboard spreadsheet that don't match the runs themselves (their logs, their stats sites). Fix them on the spreadsheet, or leave them if they're right: this issue closes itself once they all match.\n\n" + checks + "\n\n(Dates are only listed when more than a day out: logs keep UTC.)";
+            if (checks && !open) await github.rest.issues.create({...context.repo, title: "Leaderboard checks", body, labels: ["leaderboard-check"]});
+            else if (checks && open && open.body !== body) await github.rest.issues.update({...context.repo, issue_number: open.number, body});
+            else if (!checks && open) await github.rest.issues.update({...context.repo, issue_number: open.number, state: "closed", state_reason: "completed"});
       - name: An issue for each possible new record
         uses: actions/github-script@v7
         with:

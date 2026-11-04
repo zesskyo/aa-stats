@@ -12,6 +12,13 @@ Code for Minecraft 1.16 All Advancements stats websites, e.g. [Zesskyo's AA No R
 - Websites build from this repository's `main` whenever their owner saves something, and daily at 05:23 UTC.
 - *Check the build* builds an empty site and `example/` on every push: check it's green after pushing.
 
+## Leaderboard
+
+- Every site has a Leaderboard page: AA No Reset's leaderboard, the same everywhere, from `leaderboard/leaderboard.json`.
+- It's kept from the leaderboard spreadsheet (both tabs) every day by *World records* (`node leaderboard.mjs sync`): runs submitted and verified there show up on every site after its next build.
+- It keeps history: a time that leaves the spreadsheet stays as the runner's earlier time, and runners' earlier personal bests come from their stats sites and the records. The world record history is worked out from all of them.
+- Anything on the spreadsheet that doesn't match the runs themselves (a time, a date more than a day out, a faster run on a runner's stats site that isn't on it) goes in a *Leaderboard checks* issue, which closes itself once they all match.
+
 ## World records
 
 - The records are the same on every site, so they live here: `wr/` (the WR) and `wr/archive/<date runner>/` (former ones), each a run's `wr.log`, `wr.ghost`, `wr.stats.json`, and `wr.json` (`runner`, `date`, `seed`, `video`, `notes`, and `site` + `run`: the run on the runner's own stats site).

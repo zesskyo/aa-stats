@@ -4,6 +4,8 @@ Websites pick up changes on their next build (when the owner saves something, or
 
 ## 2026-11-04
 
+- Leaderboard page on every site: All and Thunderful boards from the leaderboard spreadsheet, each runner's earlier times, proof links, videos that play on the page, records' runs opened on the site, and the world record history with how long each stood
+- Leaderboard checks: times and dates on the spreadsheet checked against the runs' logs and stats sites, listed in an issue
 - Compare: Earlygame, Midgame and Endgame open to their parts and steps (Any%'s, Outer End's, the Midgame checklist, Endgame's), each with how long it took and the difference; Post-endgame when there is one; all the run stats
 - Compare: world records to pick from: the WR, the Thunderful WR and former WRs
 - World records: a daily check of the stats sites on the leaderboard for faster runs, each opened as an issue to approve (comment `approve`); records keep their video and notes from the runner's stats site, and link to it ("Runner's stats")

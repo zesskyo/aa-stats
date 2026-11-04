@@ -35,7 +35,7 @@ const read = p => fs.readFileSync(p, "utf8");
 const FILES = [
   "text.js", "config.js", "helpers.js", "parse-log.js", "run-meta.js", "runs.js",
   "splits.js", "stats.js", "stat-cards.js", "charts.js",
-  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "stats-screen.js", "run-switcher.js", "compare.js", "editor.js", "split-page.js", "app.js",
+  "overview.js", "run-page.js", "progress-graph.js", "biomes.js", "seed-map.js", "travel-map.js", "inventory.js", "stats-screen.js", "run-switcher.js", "compare.js", "editor.js", "split-page.js", "leaderboard.js", "app.js",
 ];
 // (and the ghost and inventory readers, for a run looked at on the Compare page)
 const appJs = "(() => {\n\"use strict\";\n" + FILES.map(f => `/* ======== ${f} ======== */\n` + read(inCode("src/" + f))).join("\n")
@@ -260,7 +260,9 @@ const head = `<meta charset="utf-8">
 const repo = process.env.GITHUB_REPOSITORY ? {full: process.env.GITHUB_REPOSITORY, branch: process.env.GITHUB_REF_NAME || "main"} : null;
 // (the commit it's built from: the page then knows which of the runs it saved itself are in it, see runs.js)
 const commit = /^[0-9a-f]{40}$/.test(process.env.GITHUB_SHA || "") ? process.env.GITHUB_SHA : undefined;
-const json = JSON.stringify({runs: out, wr, wrs: wrs.length ? wrs : undefined, icons, text, repo, commit}).replace(/</g, "\\u003c");
+// the leaderboard (the same on every site: leaderboard/leaderboard.json, kept from its spreadsheet by leaderboard.mjs)
+const leaderboard = fs.existsSync(inCode("leaderboard/leaderboard.json")) ? JSON.parse(read(inCode("leaderboard/leaderboard.json"))) : undefined;
+const json = JSON.stringify({runs: out, wr, wrs: wrs.length ? wrs : undefined, leaderboard, icons, text, repo, commit}).replace(/</g, "\\u003c");
 const palette = ["gold", "diamond", "amethyst"].includes(T.palette) ? T.palette : "gold";
 const html = `<!doctype html>\n<html lang="en" data-palette="${palette}">\n<head>\n${head}<style>${appCss}</style>\n</head>\n<body>\n<div id="app"></div>\n<script type="application/json" id="aa-data">${json}</script>\n<script>${appJs}</script>\n</body>\n</html>\n`;
 fs.mkdirSync(inSite("dist"), {recursive: true});

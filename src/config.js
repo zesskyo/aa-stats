@@ -141,7 +141,7 @@ const MIDGAME = [
       ["kill", "endermite"], ["kill", "zombie_villager"], ["adv", "adventure/bullseye"], ["adv", "story/upgrade_tools"], ["adv", "husbandry/fishy_business"],
       ["adv", "adventure/trade"], ["adv", "adventure/sniper_duel"], ["adv", "adventure/arbalistic"], ["adv", "adventure/summon_iron_golem"]]}},
   {key: "taiga", name: "Taiga", item: "spruce_log", area: ["taiga"], start: "enter", time: "area", end: "done",
-    goals: [["biome", "taiga"], ["biome", "taiga_hills"], ["food", ["sweet_berries"]], ["bred", "fox"], ["bred", "wolf"]]},
+    goals: [["biome", "taiga"], ["biome", "taiga_hills"], ["biome", "giant_tree_taiga"], ["biome", "giant_tree_taiga_hills"], ["food", ["sweet_berries"]], ["bred", "fox"], ["bred", "wolf"]]},
   // every biome (Adventuring Time): from the start of Midgame; on the timer once what it still needs is in 2 of the rare
   // biomes or fewer (rareLeft), as a row of its own under the rest (pin)
   {key: "at", name: "Adventuring Time", item: "icon:boots", area: [], start: "mid", time: "clock", end: "done", rareLeft: 2, pin: true,

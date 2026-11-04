@@ -5,6 +5,7 @@ Websites pick up changes on their next build (when the owner saves something, or
 ## 2026-11-04
 
 - Beacon Blocks: only gold blocks (3 or more, close together) count as working on it, not a block of iron, emerald or diamonds picked up along the way
+- Taiga split: Giant Tree Taiga and Giant Tree Taiga Hills (mega taiga) are among its biomes to get
 - Timer: Midgame's checklist keeps each item's progress over time, so Current Pace can go by how far through it you are (shells, gold blocks and biomes included)
 
 ## 2026-11-02

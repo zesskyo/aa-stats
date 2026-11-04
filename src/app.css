@@ -695,3 +695,16 @@ header.top{border-bottom-width:1px}
 .statrange[hidden]{display:none}
 .rangerow{display:flex;gap:8px;align-items:baseline;justify-content:center;flex-wrap:wrap;font-size:13px;padding:2px 0}
 .rangerow .k{min-width:52px;text-align:left}
+
+/* Compare: the splits table, main splits opening to their parts and steps */
+.cmp-splits .cmp-name{display:inline-flex;align-items:center;gap:8px}
+.cmp-tog{display:inline-flex;align-items:center;gap:6px;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.cmp-tog .chev{display:inline-block;transition:transform .15s;color:var(--muted);font-size:12px}
+.cmp-tog[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.cmp-tog:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.cmp-splits .cmp-top th{font-weight:600}
+.cmp-splits .cmp-part th{padding-left:34px;font-size:13px;color:var(--muted)}
+.cmp-splits .cmp-step th{padding-left:56px;font-size:12px;color:var(--muted)}
+.cmp-splits .cmp-part td .mono,.cmp-splits .cmp-step td .mono{font-size:13px}
+.cmp-splits tr[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.cmp-tog .chev{transition:none}}

@@ -1,0 +1,48 @@
+name: World records
+
+# Every day (before the stats sites rebuild), and from the Actions tab: looks through the stats sites the leaderboard
+# links to for a run faster than a record, and opens an issue for each one found, for the leaderboard's owner to approve
+# (comment "approve": see wr-approve.yml) or close. Also fills in each record's video and notes from its stats site.
+on:
+  schedule:
+    - cron: "41 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: world-records
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node wr-watch.mjs scan --out "$RUNNER_TEMP/candidates.json"
+      - name: Save the records' details
+        run: |
+          if [ -n "$(git status --porcelain wr)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add wr
+            git commit -m "World records: video and notes from their stats sites"
+            git push
+          fi
+      - name: An issue for each possible new record
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const cands = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/candidates.json", "utf8"));
+            // (one issue per run, ever: one that was closed isn't opened again)
+            const all = await github.paginate(github.rest.issues.listForRepo, {...context.repo, state: "all", labels: "world-record", per_page: 100});
+            for (const c of cands) {
+              if (all.some(i => (i.body || "").includes(c.marker))) continue;
+              await github.rest.issues.create({...context.repo, title: c.title, body: c.body, labels: ["world-record"]});
+              core.info("Opened: " + c.title);
+            }

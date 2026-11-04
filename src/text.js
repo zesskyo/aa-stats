@@ -136,6 +136,9 @@ const T = {
   // Compare page
   cmpAdd: "Pick a run…",
   cmpMine: "Runs on this site",
+  cmpRecords: "World records",
+  runnerStats: "Runner's stats",
+  cmpThunderfulWr: "Thunderful WR",
   cmpUploadedRuns: "Your uploaded runs",
   cmpUploaded: "uploaded",
   cmpUpload: "Upload world",

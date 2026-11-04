@@ -12,7 +12,8 @@
 //   icons/<name>.png       optional: adds or replaces icons
 //
 // The world record (AA No Reset, 1.16) is the same for every site, so it lives here with the code, in wr/:
-//   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video, notes}.
+//   wr/wr.log, wr/wr.ghost, wr/wr.stats.json like a run, and wr/wr.json: {runner, date, seed, video, notes, site, run}
+//   (site and run: the run on the runner's own stats site, where wr-watch.mjs keeps its video and notes from).
 //   Past records go in wr/archive/<date runner>/ (the same files): they're listed with the record on its page,
 //   and each has a page of its own.
 // Sites rebuild every day, so a new record shows up on all of them by the next day. It's changed here only (not from the sites).
@@ -175,6 +176,8 @@ function readWr(dir, key, former) {
   if (!meta.seed && r.seed) meta.seed = String(r.seed);
   if (meta.date && !/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) throw new Error(`${where}wr.json: date must look like 2026-09-22`);
   if (meta.video && !/^https?:\/\//i.test(meta.video)) throw new Error(`${where}wr.json: video must start with http:// or https://`);
+  // (the run on the runner's own stats site: wr.json "site" and "run", see wr-watch.mjs)
+  if (d.site && /^https:\/\/[^\s"<>]+$/i.test(d.site) && Number.isInteger(d.run)) meta.siteRun = d.site.replace(/[#?].*$/, "").replace(/\/?$/, "/") + "#/run/" + d.run;
   if (fs.existsSync(at("wr.ghost"))) {
     const g = readGhost(fs.readFileSync(at("wr.ghost")), r);
     if (g) { paths.set(key, g); meta.path = `paths/${key}.json`; Object.assign(r.st, ghostFacts(g, r.st)); console.log(`Read ${where}wr.ghost: ${g.t.length} points`); }

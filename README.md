@@ -12,6 +12,14 @@ Code for Minecraft 1.16 All Advancements stats websites, e.g. [Zesskyo's AA No R
 - Websites build from this repository's `main` whenever their owner saves something, and daily at 05:23 UTC.
 - *Check the build* builds an empty site and `example/` on every push: check it's green after pushing.
 
+## World records
+
+- The records are the same on every site, so they live here: `wr/` (the WR) and `wr/archive/<date runner>/` (former ones), each a run's `wr.log`, `wr.ghost`, `wr.stats.json`, and `wr.json` (`runner`, `date`, `seed`, `video`, `notes`, and `site` + `run`: the run on the runner's own stats site).
+- *World records* (daily at 04:41 UTC, or from the Actions tab) looks through the stats sites the leaderboard links to (and any in `wr/sites.json`) for a run faster than the WR, or than the Thunderful WR with Very Very Frightening. Each one found gets an issue.
+- To make it a record, comment `approve` on its issue: its files are copied in from its site (the WR before it moves to `wr/archive/`), and every site shows it from its next build. Only the repository's owner can approve; close the issue to leave it.
+- It also keeps each record's `video` and `notes` up to date from its stats site.
+- By hand: `node wr-watch.mjs scan`, `node wr-watch.mjs install <stats site url> <run number>`.
+
 ## Development
 
 - Build a site (Node 20, nothing to install): `node build.mjs <site folder>` → `<site folder>/dist/index.html`

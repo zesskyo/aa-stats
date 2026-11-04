@@ -111,6 +111,8 @@ const shotUrl = r => { const s = r.meta && r.meta.screenshot; if (r.meta && r.me
 const shotLink = (r, big) => shotUrl(r)
   ? `<a class="vlink${big ? " big" : ""}" href="${esc(shotUrl(r))}" target="_blank" rel="noopener noreferrer" aria-label="${esc(T.screenshot)}" title="${esc(T.screenshot)}"><svg width="${big ? 18 : 14}" height="${big ? 18 : 14}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>${big ? esc(T.screenshot) : ""}</a>`
   : "";
+// (a record's run on the runner's own stats site)
+const siteRunLink = r => okUrl(r.meta && r.meta.siteRun) ? `<a class="vlink big" href="${esc(r.meta.siteRun)}" target="_blank" rel="noopener noreferrer">${esc(T.runnerStats)} <span aria-hidden="true">↗</span></a>` : "";
 const videoLink = (r, big) => okUrl(r.meta && r.meta.video)
   ? `<a class="vlink${big ? " big" : ""}" href="${esc(r.meta.video)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(T.watchVideo)}" title="${esc(T.watchVideo)}"><svg width="${big ? 18 : 14}" height="${big ? 18 : 14}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>${big ? esc(T.video) : ""}</a>`
   : "";

@@ -66,8 +66,18 @@ async function pickWorld(filesInput) {
 
 // ---------- Finding a run by id (this site's runs first, then uploaded ones) ----------
 function cmpFind(id) {
-  const r = findRun(id); if (r) return {run: r, label: runTitle(r), mine: true};
+  const r = findRun(id); if (r) { const rec = isWr(r) ? cmpRecords().find(x => x[0] === r) : null; return {run: r, label: rec ? rec[1] : runTitle(r), mine: true}; }
   const u = UPLOADED.find(x => x.run.id === id); return u ? {run: u.run, label: u.label, mine: false} : null;
+}
+// The world records to pick from: the WR, the Thunderful WR (the fastest record with Very Very Frightening), and the
+// former records: [run, label, time]
+function cmpRecords() {
+  const all = [...(WR && WR.finalIgt != null ? [WR] : []), ...WRS.filter(r => r.finalIgt != null)];
+  const tf = r => derive(r).category === "Thunderful" ? r.finalIgt : r.thunderful ? r.thunderful.igt : null;
+  const tfs = all.filter(r => tf(r) != null).sort((a, b) => tf(a) - tf(b)), tfWr = tfs[0] || null;
+  const who = r => r.meta.runner || T.wrWord;
+  return [...(WR ? [[WR, T.wrWord + " · " + who(WR), WR.finalIgt]] : []), ...(tfWr && tfWr !== WR ? [[tfWr, T.cmpThunderfulWr + " · " + who(tfWr), tf(tfWr)]] : []),
+    ...WRS.filter(r => r !== tfWr && r.finalIgt != null).sort((a, b) => (b.meta.date || "").localeCompare(a.meta.date || "")).map(r => [r, T.wrFormerWord + " · " + who(r) + (r.meta.date ? " · " + r.meta.date : ""), r.finalIgt])];
 }
 // PB against the latest run (or the one before, if the PB is the latest)
 const cmpDefault = () => { const pb = pbRun(), all = byNumber(), other = all.filter(r => r !== pb).pop(); return [pb || all[0], other].filter(Boolean).map(r => r.id); };
@@ -193,9 +203,11 @@ function renderCompare() {
   // One slot per run: pick a run, or upload one into it
   const options = sel => {
     const o = (id, label) => `<option value="${esc(id)}"${id === sel ? " selected" : ""}>${esc(label)}</option>`;
-    const mine = byNumber().concat(WR && WR.finalIgt != null ? [WR] : []).map(r => o(r.id, runTitle(r) + " · " + fmt(r.finalIgt, 0))).join("");
+    const mine = byNumber().map(r => o(r.id, runTitle(r) + " · " + fmt(r.finalIgt, 0))).join("");
+    const recs = cmpRecords().map(([r, label, t]) => o(r.id, label + " · " + fmt(t, 0))).join("");
     const up = UPLOADED.map(u => o(u.run.id, u.label + " · " + fmt(u.run.finalIgt, 0))).join("");
-    return (sel ? "" : `<option value="" selected>${esc(T.cmpAdd)}</option>`) + (mine ? `<optgroup label="${esc(T.cmpMine)}">${mine}</optgroup>` : "") + (up ? `<optgroup label="${esc(T.cmpUploadedRuns)}">${up}</optgroup>` : "");
+    return (sel ? "" : `<option value="" selected>${esc(T.cmpAdd)}</option>`) + (mine ? `<optgroup label="${esc(T.cmpMine)}">${mine}</optgroup>` : "")
+      + (recs ? `<optgroup label="${esc(T.cmpRecords)}">${recs}</optgroup>` : "") + (up ? `<optgroup label="${esc(T.cmpUploadedRuns)}">${up}</optgroup>` : "");
   };
   const slot = k => {
     const c = list[k];
@@ -238,6 +250,7 @@ function renderCompare() {
     ${graphs}
     ${withLog ? `<section class="card tablewrap" style="padding:0">${cmpStatsTable(list)}</section>` : ""}` : ""}`;
 
+  bindCmpGroups(el);
   // looking at one run: a file into each slot (or dropped anywhere on the card), the seed, then open it
   const viewWorld = async w => { if (!w) return; viewStatus = T.viewReading; renderCompare(); const got = await readWorld(w); if (!got) { viewStatus = T.worldNoLog; renderCompare(); return; } viewAdd([got.log, got.ghost, got.stats].filter(Boolean)); };
   if ($("#viewWorldBtn")) {
@@ -373,21 +386,48 @@ const cmpDelta = (v, ref, prev) => {
 };
 const cmpHead = (list, first) => `<thead><tr><th scope="col">${esc(first)}</th>${list.map(c => `<th scope="col"><span class="swatch" style="background:${c.color};margin-right:8px"></span>${esc(c.label)} ${catPill(c.d, "margin-left:6px")}</th>`).join("")}</tr></thead>`;
 
-// Splits: the time on the clock at each split (like LiveSplit; same splits and times as the Overview table),
-// and how far ahead or behind the other run
+// Splits: each main split's time on the clock (like LiveSplit; the same as the Overview table), and under it how long
+// each of its parts and steps took (Earlygame's Any%, Outer End and Enchanting and their steps; Midgame's checklist;
+// Endgame's steps), with how far ahead or behind the other run. A main split's row opens and closes what's under it.
+let cmpOpen = {0: true, 1: false, 2: true, 3: true};
+try { cmpOpen = {...cmpOpen, ...(JSON.parse(localStorage.getItem("aa-cmp-open") || "{}") || {})}; } catch {}
 function cmpSplitsTable(list) {
-  const rowsDef = [
-    ...SPLIT_CARDS.map(k => ({name: TOP[k].name, icHtml: splitIcon(k, 20, list.map(c => c.run)), at: c => topMark(c.d.top[k])})),
-    {name: T.timeLabel, total: true, at: c => c.run.finalIgt},
-  ];
-  const prev = list.map(() => null);   // last difference for each run, to tell if a split gained or lost time
-  const rows = rowsDef.map(r => `<tr${r.total ? ` class="cmp-total"` : ""}><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${r.icHtml || (r.icon ? ic(r.icon) : "")}${esc(r.name)}</span></th>${list.map((c, k) => {
-    const v = r.at(c), ref = list.length > 1 ? r.at(list[1 - k]) : null;
-    const cell = `<span class="mono">${v != null ? fmt(v, 0) : "—"}</span>${cmpDelta(v, ref, r.total ? null : prev[k])}`;
-    if (v != null && ref != null && !r.total) prev[k] = v - ref;
-    return `<td>${cell}</td>`;
-  }).join("")}</tr>`).join("");
-  return `<table class="cmp-table">${cmpHead(list, T.splitsTitle)}<tbody>${rows}</tbody></table>`;
+  // (a part's steps, by name, in the order the first run has them; Bastion and Fortress swap about between runs)
+  const stepsOf = pi => { const out = []; for (const c of list) for (const x of c.d.splits[pi].subs || []) if (!out.some(n => n[0] === x.name)) out.push([x.name, x.item]); return out; };
+  const stepDur = (pi, name) => c => { const x = (c.d.splits[pi].subs || []).find(y => y.name === name); return x ? x.dur : null; };
+  const midDur = key => c => { const m = c.d.splits[3].mid, x = m && m.sections.find(s => s.key === key); return x && x.complete ? x.dur : null; };
+  const rows = [], row = (name, icHtml, at, kind, g) => rows.push({name, icHtml, at, kind, g});
+  TOP.forEach((t, k) => {
+    if (k === TOP.length - 1 && !list.some(c => c.d.top[k].dur)) return;   // (Post-endgame: only when a run has one)
+    row(t.name, splitIcon(k, 20, list.map(c => c.run)), c => topMark(c.d.top[k]), "top", k);
+    if (k === 0) for (const i of t.parts) { row(SPLITS[i].name, ic(SPLITS[i].icon, 18), c => c.d.splits[i].dur, "part", k); for (const [n, it] of stepsOf(i)) row(n, ic(itemIcon(it), 16), stepDur(i, n), "step", k); }
+    if (k === 1) for (const key of MID_GROUPS.flatMap(g => g[1])) { const m = MIDGAME.find(x => x.key === key); if (m && m.start) row(m.name, ic(itemIcon(m.item), 16), midDur(key), "part", k); }
+    if (k === 2) for (const [n, it] of stepsOf(5)) row(n, ic(itemIcon(it), 16), stepDur(5, n), "part", k);
+  });
+  row(T.timeLabel, "", c => c.run.finalIgt, "total", null);
+  const prev = list.map(() => null);   // last difference at a main split for each run, to tell if a split gained or lost time
+  const body = rows.map(r => {
+    const has = r.kind === "top" && rows.some(x => x.g === r.g && x.kind !== "top"), open = cmpOpen[r.g] !== false;
+    const name = `<span class="cmp-name">${r.icHtml || ""}${esc(r.name)}</span>`;
+    const head = has ? `<button type="button" class="cmp-tog" data-cmpg="${r.g}" aria-expanded="${open}"><span class="chev" aria-hidden="true">▾</span>${name}</button>` : name;
+    const cells = list.map((c, k) => {
+      const v = r.at(c), ref = list.length > 1 ? r.at(list[1 - k]) : null, clock = r.kind === "top" || r.kind === "total";
+      const cell = `<span class="mono">${v != null ? (clock ? fmt(v, 0) : fmtShort(v)) : "—"}</span>${cmpDelta(v, ref, r.kind === "top" ? prev[k] : null)}`;
+      if (r.kind === "top" && v != null && ref != null) prev[k] = v - ref;
+      return `<td>${cell}</td>`;
+    }).join("");
+    const cls = r.kind === "total" ? "cmp-total" : r.kind === "top" ? "cmp-top" : "cmp-" + r.kind;
+    return `<tr class="${cls}"${r.kind === "part" || r.kind === "step" ? ` data-g="${r.g}"${open ? "" : " hidden"}` : ""}><th scope="row">${head}</th>${cells}</tr>`;
+  }).join("");
+  return `<table class="cmp-table cmp-splits">${cmpHead(list, T.splitsTitle)}<tbody>${body}</tbody></table>`;
+}
+function bindCmpGroups(el) {
+  el.querySelectorAll("[data-cmpg]").forEach(b => b.addEventListener("click", () => {
+    const g = b.dataset.cmpg, open = b.getAttribute("aria-expanded") !== "true";
+    b.setAttribute("aria-expanded", String(open)); cmpOpen[g] = open;
+    el.querySelectorAll(`tr[data-g="${g}"]`).forEach(tr => { tr.hidden = !open; });
+    try { localStorage.setItem("aa-cmp-open", JSON.stringify(cmpOpen)); } catch {}
+  }));
 }
 
 function cmpStatsTable(list) {
@@ -398,8 +438,8 @@ function cmpStatsTable(list) {
     {icon: "debris", name: T.cmpDebrisTime, cell: cellOf(c => c.d.debrisSplit.start != null ? c.d.debrisSplit.dur : null, fmtShort, true)},
     {icon: MICON["husbandry/complete_catalogue"], name: advName("husbandry/complete_catalogue"), cell: cellOf(multiDone("husbandry/complete_catalogue"), t => fmt(t, 0), true)},
     {icon: MICON["adventure/adventuring_time"], name: advName("adventure/adventuring_time"), cell: cellOf(multiDone("adventure/adventuring_time"), t => fmt(t, 0), true)},
-    {icon: STAT_DEFS.creepers.icon, name: STAT_DEFS.creepers.name(), cell: cellOf(c => c.run.tot.creepers, num)},
-    {icon: STAT_DEFS.shulkers.icon, name: STAT_DEFS.shulkers.name(), cell: cellOf(c => c.run.tot.shulkerOpen, num)},
+    // (and the run stats, as on each run's page)
+    ...STAT_CARDS.map(k => STAT_DEFS[k]).map(d => ({icon: d.icon, name: d.name(), cell: c => `<span class="mono">${c.run.manual ? "—" : d.one(c.run)}</span>`})),
   ];
   return `<table class="cmp-table">${cmpHead(list, T.runStatsTitle)}<tbody>${rows.map(r => `<tr><th scope="row"><span style="display:inline-flex;align-items:center;gap:8px">${r.icon ? ic(r.icon) : ""}${esc(r.name)}</span></th>${list.map((c, k) => `<td>${r.cell(c, k)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }

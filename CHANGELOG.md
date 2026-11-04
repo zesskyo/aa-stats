@@ -4,6 +4,9 @@ Websites pick up changes on their next build (when the owner saves something, or
 
 ## 2026-11-04
 
+- Compare: Earlygame, Midgame and Endgame open to their parts and steps (Any%'s, Outer End's, the Midgame checklist, Endgame's), each with how long it took and the difference; Post-endgame when there is one; all the run stats
+- Compare: world records to pick from: the WR, the Thunderful WR and former WRs
+- World records: a daily check of the stats sites on the leaderboard for faster runs, each opened as an issue to approve (comment `approve`); records keep their video and notes from the runner's stats site, and link to it ("Runner's stats")
 - Run stats and average stats: click one (elytra distance, deaths, skulls, TNT per debris, shulker boxes, creepers) for the lowest and highest of the runs, each opening its run
 - Run page: the run stats are centred
 - Skulls graph: the last skull's icon stays on the chart; its label is "Killed: N"

@@ -113,7 +113,8 @@ const SUB_ITEMS = {
  * "Kills", a counter, and advancements by name, each with the icons of what's missing in it (see goalIcon in splits.js).
  * Anything not done by the end of Midgame is a leftover, shown in Post-endgame. minGain: for a count, only gains of that many
  * or more, picked up close together (RULES.gainGap), count as working on it (on the timer: a few ingots on their own don't);
- * gainFrom: another count's gains instead (Beacon Blocks: gold blocks alone, not a block of iron or diamonds picked up).
+ * orCount: for a count, another that also does once Midgame's over without it (Beacon Blocks counts gold, blocks and ingots;
+ * a run that finished the beacon with iron, emeralds or diamonds instead is done when all of them together were enough).
  * activeWith: not timed, on the timer only while these (the run's stats) happened in the last 2 minutes: Debris, debris
  * mined or deep down (not a piece of TNT for Uneasy Alliance).
  */
@@ -150,7 +151,7 @@ const MIDGAME = [
   {key: "cats", name: "Cats", item: "cod", area: ["village"], start: "mid", time: "clock", end: "done", goals: [["cats"]]},
   {key: "shells", name: "Nautilus Shells", item: "nautilus_shell", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "nautilus", need: 8, activity: ["drowned"]},
   {key: "trident", name: "Trident", item: "trident", area: ["ocean"], start: "mid", time: "clock", end: "done", count: "trident", need: 1, activity: ["drowned"]},
-  {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "beacon", need: 164, gainFrom: "goldHeld", minGain: 3},
+  {key: "beacon", name: "Beacon Blocks", item: "gold_block", area: ["ocean", "bastion"], start: "mid", time: "clock", end: "done", count: "goldHeld", need: 164, orCount: "beacon", minGain: 3},
   {key: "godapple", name: "God Apple", item: "icon:s_gapple", area: ["desert"], start: "mid", time: "clock", end: "done", count: "gapple", need: 1},
   // the Nether: time spent there, on visits that got something done for it (shown first there)
   // (the same as the Skulls split on a run's page: findSkullSplit in stats.js)

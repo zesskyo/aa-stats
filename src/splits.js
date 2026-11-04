@@ -387,6 +387,12 @@ function findMidgame(run, splits) {
     const target = m.needIfNot && advTime(run, m.needIfNot[0]) == null ? m.needIfNot[1] : m.need;
     let v = 0, reached = null;
     if (m.count) { v = countAt(xs, now); const r = xs.find(([, c]) => c >= target); reached = r ? r[0] : null; }
+    // (not enough of it by the end of Midgame, but of orCount: done when that was enough)
+    // (Midgame over: Endgame has started; live, Midgame's end is just now until then)
+    if (m.orCount && reached == null && splits[3].end != null && splits[5].start != null) {
+      const r = series(m.orCount).find(([t, c]) => c >= target && t <= splits[3].end);
+      if (r) { reached = r[0]; v = target; }
+    }
     const parts = [...(m.count ? [[m.countName || m.name, Math.min(v, target), target, [m.item.includes(":") ? m.item : "item:" + m.item]]] : []),
       ...[...groups].map(([name, g]) => [name, g.have, g.need, g.icons])].filter(p => p[1] < p[2]);
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
@@ -429,9 +435,7 @@ function findMidgame(run, splits) {
     // when something was done for it (in Midgame and after)
     // (a count that only counts in bursts of minGain or more, picked up with less than gainGap between: from where a
     // burst reaches it on; a few ingots on their own aren't working on it)
-    // (gainFrom: another count's bursts instead: Beacon Blocks', gold blocks alone)
-    const gx = m.gainFrom ? series(m.gainFrom) : xs;
-    const gains = !m.minGain ? gx : gx.filter((x, k, xs) => {
+    const gains = !m.minGain ? xs : xs.filter((x, k) => {
       let a = k; while (a > 0 && xs[a][0] - xs[a - 1][0] <= RULES.gainGap) a--;
       return x[1] - (a > 0 ? xs[a - 1][1] : 0) >= m.minGain;
     });

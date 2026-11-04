@@ -217,7 +217,7 @@ function logReader(filename, opts = {}) {
         const inside = (v && v.tag && v.tag.BlockEntityTag && v.tag.BlockEntityTag.Items) || [];   // (a shulker box's)
         minInv[slot] = worth(BEACON, v) + inside.reduce((a, x) => a + worth(BEACON, x), 0);
         netInv[slot] = worth(NETHERITE, v) + inside.reduce((a, x) => a + worth(NETHERITE, x), 0);
-        gbInv[slot] = worth(GOLD_BLOCK, v) + inside.reduce((a, x) => a + worth(GOLD_BLOCK, x), 0);
+        gbInv[slot] = worth(GOLD, v) + inside.reduce((a, x) => a + worth(GOLD, x), 0);
         const id = v && String(v.id).replace("minecraft:", "");
         if (id && HELD.includes(id) && st.held[id] == null) st.held[id] = igt;
         wheatInv[slot] = id === "wheat" ? v.Count || 1 : 0;
@@ -235,9 +235,9 @@ function logReader(filename, opts = {}) {
       // (st.beacon: [time, blocks] each time there are more than ever before: they end up in the beacon)
       const mh = Math.floor(Object.values(minInv).reduce((a, b) => a + b, 0) + 1e-9);
       if (mh > minHeld) { minHeld = mh; const lb = st.beacon[st.beacon.length - 1]; if (lb && lb[0] === igt) lb[1] = mh; else st.beacon.push([igt, mh]); }
-      // (st.goldHeld: the same for gold blocks alone, what Beacon Blocks is mostly got from: a monument's, a bastion's;
-      // a few blocks of iron, emerald or diamond picked up along the way aren't working on it)
-      const gh = Object.values(gbInv).reduce((a, b) => a + b, 0);
+      // (st.goldHeld: the same for gold alone, in blocks (an ingot a ninth): what Beacon Blocks counts, as runners fill
+      // the beacon with gold and keep the iron for golems)
+      const gh = Math.floor(Object.values(gbInv).reduce((a, b) => a + b, 0) + 1e-9);
       if (gh > gbHeld) { gbHeld = gh; const lb = st.goldHeld[st.goldHeld.length - 1]; if (lb && lb[0] === igt) lb[1] = gh; else st.goldHeld.push([igt, gh]); }
       // (st.netherite: the same for netherite, in debris: the most there's been at once)
       const nh = Object.values(netInv).reduce((a, b) => a + b, 0);
@@ -376,7 +376,7 @@ function areaOf(dim, biome, structs) {
 // of a block each). (Not netherite: that's for the armour.) And netherite, in debris (an ingot is 4).
 const MINERAL = /(iron|gold)_(block|ingot)|emerald|diamond|netherite|ancient_debris/;
 const BEACON = {iron_block: 1, gold_block: 1, emerald_block: 1, diamond_block: 1, iron_ingot: 1 / 9, gold_ingot: 1 / 9, emerald: 1 / 9, diamond: 1 / 9};
-const GOLD_BLOCK = {gold_block: 1};
+const GOLD = {gold_block: 1, gold_ingot: 1 / 9};
 const NETHERITE = {ancient_debris: 1, netherite_scrap: 1, netherite_ingot: 4, netherite_block: 36};
 const worth = (table, v) => v && v.id ? (table[String(v.id).replace("minecraft:", "")] || 0) * (v.Count || 1) : 0;
 // items whose first time in the inventory is kept (st.held): foods for A Balanced Diet that are got in one place

@@ -75,7 +75,6 @@ const cmpDefault = () => { const pb = pbRun(), all = byNumber(), other = all.fil
 // ---------- Looking at one run on its own: its play.log (and .ghost, stats.json), read here, opened on the Stats page ----------
 let viewStatus = "";
 // the files picked so far (each in its own slot), and the seed (from the log, or typed in)
-const VIEW_SLOTS = [["log", ".log,.txt,.jsonl", "play.log"], ["ghost", ".ghost", ".ghost"], ["stats", ".json", "stats.json"]];
 const viewPend = {log: null, ghost: null, stats: null, seed: "", seedTyped: false};
 const slotOf = f => /\.ghost$/i.test(f.name) ? "ghost" : /\.json$/i.test(f.name) ? "stats" : /\.(log|txt|jsonl)$/i.test(f.name) ? "log" : null;
 async function viewAdd(files, only) {
@@ -111,7 +110,7 @@ async function viewOpen() {
     // the inventory (every icon, as it can have any item)
     try { const items = await (await fetch("items/all.json")).json(); const inv = readInventory(text, items, r.finalIgt); if (inv) { invData[r.id] = invPrep(inv); r.meta.inv = "-"; } } catch {}
   } catch (e) { viewStatus = T.viewFailed; renderCompare(); return; }
-  const {clock, ...rest} = r;
+  const {clock: _clock, ...rest} = r;   // (not the clock it was read with)
   VIEWED = decodeRun(rest); viewStatus = "";
   state.runId = VIEWED.id; go("run");
 }

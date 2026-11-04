@@ -2,6 +2,11 @@
 
 Websites pick up changes on their next build (when the owner saves something, or daily at 05:23 UTC). Older changes: the commit history.
 
+## 2026-11-04
+
+- Beacon Blocks: only gold blocks (3 or more, close together) count as working on it, not a block of iron, emerald or diamonds picked up along the way
+- Timer: Midgame's checklist keeps each item's progress over time, so Current Pace can go by how far through it you are (shells, gold blocks and biomes included)
+
 ## 2026-11-02
 
 - Timer: a campfire put down with 3 or fewer of the Midgame checklist left starts Endgame straight away (others wait for the honey, as pre-placed hives do)

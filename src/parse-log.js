@@ -56,7 +56,7 @@ function logReader(filename, opts = {}) {
   let start = null, player = null, uuid = null, seed = null, mc = null, dim = "o";   // seed: if one was typed in, or /seed was used
   const seen = new Set(), done = new Set(), events = [], dims = [], deaths = [];
   const st = {tnt: [], debris: [], skulls: [], ws: [], ench: [], trident: [], tridentUse: [], riptideUse: [], nautilus: [], drowned: [], tntHeld: [], campfire: [], hives: [], debrisGot: [], debrisTnt: [], wither: [], rose: [], gold: [], goldV: 2, invV: 1, rack: [], desert: [], gapple: null, gappleMax: 0, channeling: false, outerEnd: null,
-    tears: [], ghasts: [], wheat: [], redMush: [], brownMush: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], netherite: [], held: {}, fatigue: [], omen: []};
+    tears: [], ghasts: [], wheat: [], redMush: [], brownMush: [], areas: [], underwater: [], prism: [], rodNether: [], beacon: [], goldHeld: [], netherite: [], held: {}, fatigue: [], omen: []};
   const tot = {}, clock = [];
   const inv = {}, wheatInv = {}, wheatDrops = [], gaInv = {}, gaGone = [], gaNot = [], splashes = []; let wheatHeld = 0, gaHeld = 0, inDesert = false, goldCum = 0, tntCum = 0, tntOwed = 0, dbHeld = 0, dbOwed = 0, rackNow = 0, lastTnt = null, ripHeld = 0, debrisPlaced = 0; const dbInv = {}, rackRecent = [], ripInv = {};
   const kept = {}, keptMax = {};   // KEPT items in each inventory slot (with shulker boxes' contents), and the most of each held at once
@@ -64,7 +64,7 @@ function logReader(filename, opts = {}) {
   let biome = null, structs = [];   // where they are (for st.areas)
   let fatigued = false, omened = false;
   let chBook = null, chTrident = null;   // when a Channeling book, and a trident, were first held (see st.channeling)
-  const minInv = {}, netInv = {}; let minHeld = 0, netHeld = 0;   // beacon blocks and netherite in each inventory slot (see BEACON, NETHERITE), and the most held
+  const minInv = {}, netInv = {}, gbInv = {}; let minHeld = 0, netHeld = 0, gbHeld = 0;   // beacon blocks and netherite in each inventory slot (see BEACON, NETHERITE), and the most held
   // st.areas: [time, area] each time the kind of place they're in changes (areaOf); a few seconds somewhere else and back
   // (along a shore, say) is left out
   const setArea = t => {
@@ -217,6 +217,7 @@ function logReader(filename, opts = {}) {
         const inside = (v && v.tag && v.tag.BlockEntityTag && v.tag.BlockEntityTag.Items) || [];   // (a shulker box's)
         minInv[slot] = worth(BEACON, v) + inside.reduce((a, x) => a + worth(BEACON, x), 0);
         netInv[slot] = worth(NETHERITE, v) + inside.reduce((a, x) => a + worth(NETHERITE, x), 0);
+        gbInv[slot] = worth(GOLD_BLOCK, v) + inside.reduce((a, x) => a + worth(GOLD_BLOCK, x), 0);
         const id = v && String(v.id).replace("minecraft:", "");
         if (id && HELD.includes(id) && st.held[id] == null) st.held[id] = igt;
         wheatInv[slot] = id === "wheat" ? v.Count || 1 : 0;
@@ -234,6 +235,10 @@ function logReader(filename, opts = {}) {
       // (st.beacon: [time, blocks] each time there are more than ever before: they end up in the beacon)
       const mh = Math.floor(Object.values(minInv).reduce((a, b) => a + b, 0) + 1e-9);
       if (mh > minHeld) { minHeld = mh; const lb = st.beacon[st.beacon.length - 1]; if (lb && lb[0] === igt) lb[1] = mh; else st.beacon.push([igt, mh]); }
+      // (st.goldHeld: the same for gold blocks alone, what Beacon Blocks is mostly got from: a monument's, a bastion's;
+      // a few blocks of iron, emerald or diamond picked up along the way aren't working on it)
+      const gh = Object.values(gbInv).reduce((a, b) => a + b, 0);
+      if (gh > gbHeld) { gbHeld = gh; const lb = st.goldHeld[st.goldHeld.length - 1]; if (lb && lb[0] === igt) lb[1] = gh; else st.goldHeld.push([igt, gh]); }
       // (st.netherite: the same for netherite, in debris: the most there's been at once)
       const nh = Object.values(netInv).reduce((a, b) => a + b, 0);
       if (nh > netHeld) { netHeld = nh; const ln = st.netherite[st.netherite.length - 1]; if (ln && ln[0] === igt) ln[1] = nh; else st.netherite.push([igt, nh]); }
@@ -317,7 +322,7 @@ function deathCause(t, dim, killedBy, hits) {
 const runKey = r => "run-" + r.start + "-" + String(r.player).replace(/[^A-Za-z0-9_-]/g, "");
 
 // Runs are stored with each event squashed into one "igt|rta|id|criterion|done" string to keep files small.
-const encodeRun = r => { const {_d, clock, ...x} = r; return {...x, events: r.events.map(e => e.join("|"))}; };
+const encodeRun = r => { const {_d, clock: _clock, ...x} = r; return {...x, events: r.events.map(e => e.join("|"))}; };
 const decodeRun = x => thunderlessFirst({meta: {}, st: {}, tot: {}, deaths: [], ...x,
   events: (x.events || []).map(s => { if (Array.isArray(s)) return s; const p = String(s).split("|"); return [+p[0], +p[1], p[2], p.slice(3, -1).join("|"), +p[p.length - 1]]; }),
   dims: (x.dims || []).map(s => Array.isArray(s) ? s : [+String(s).split("|")[0], String(s).split("|")[1]])});
@@ -371,6 +376,7 @@ function areaOf(dim, biome, structs) {
 // of a block each). (Not netherite: that's for the armour.) And netherite, in debris (an ingot is 4).
 const MINERAL = /(iron|gold)_(block|ingot)|emerald|diamond|netherite|ancient_debris/;
 const BEACON = {iron_block: 1, gold_block: 1, emerald_block: 1, diamond_block: 1, iron_ingot: 1 / 9, gold_ingot: 1 / 9, emerald: 1 / 9, diamond: 1 / 9};
+const GOLD_BLOCK = {gold_block: 1};
 const NETHERITE = {ancient_debris: 1, netherite_scrap: 1, netherite_ingot: 4, netherite_block: 36};
 const worth = (table, v) => v && v.id ? (table[String(v.id).replace("minecraft:", "")] || 0) * (v.Count || 1) : 0;
 // items whose first time in the inventory is kept (st.held): foods for A Balanced Diet that are got in one place

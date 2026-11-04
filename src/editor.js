@@ -42,7 +42,6 @@ async function gh(path, opts = {}, token = ghToken()) {
   }
   return res.status === 204 ? null : res.json();
 }
-const utf8ToB64 = s => { const b = new TextEncoder().encode(s); let x = ""; for (let i = 0; i < b.length; i += 0x8000) x += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(x); };
 const b64ToUtf8 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c => c.charCodeAt(0)));
 const fileToB64 = f => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => bad(r.error); r.readAsDataURL(f); });
 
@@ -181,7 +180,7 @@ const tIn = t => t == null ? "" : fmt(t, t % 1000 ? 3 : 0);
 function renderEditor() {
   const el = $("#view-edit");
   if (!ED) { el.innerHTML = ""; return; }
-  const run = ED.run, meta = (run && run.meta) || {}, withLog = !!ED.log || ED.hasLog;
+  const run = ED.run, meta = (run && run.meta) || {};
   const lr = ED.log && ED.log.run, ld = lr ? derive(lr) : null;
   // (only Invalid for never having had a channeling trident: it can be counted anyway)
   const noChanneling = noChannelingOnly(lr || (ED.log ? null : ED.run));

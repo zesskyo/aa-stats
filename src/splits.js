@@ -201,8 +201,6 @@ function findSplits(run, comp, liveCamp) {
   return {splits, top, anyEnd, endAgain};
 }
 
-// The time shown for a split: Any% and Outer End show when they ended, the rest when they started
-const splitMark = (p, i) => i <= 1 ? p.end : p.start;
 // For a main split (TOP): when it ended, as LiveSplit shows a split's time
 const topMark = p => p.end;
 
@@ -301,6 +299,9 @@ function findSubSplits(run, splits, {anyEnd, endgameStart, now}) {
  * counting, from when; complete: it ended with everything done; done: when everything was done; have/need: progress;
  * parts: what's left, as [name, have, need, icons of what's missing] ("Biomes", "Foods", "Breeds", "Kills", a counter, the
  * rest one by one); missing: the same as text; left: what's left one by one, as text.
+ * prog: how it went, [when each goal was done, the counter as it went ([time, count]) or null, the counter's target]
+ * (for the timer's pace). On the timer: hidden (Adventuring Time, until few rare biomes are left: rareLeft), pin
+ * (shown wherever they are: nearly done, pinLeft), biomesLeft.
  * Also the area the runner is in now, and the areas they've been in over the last NEAR (to keep showing those).
  * Leaving an area only counts once they've been out of it for LEAVE_AFTER.
  */
@@ -353,7 +354,7 @@ function findMidgame(run, splits) {
   const series = k => {
     if (k === "gapple") return st.gapple != null ? [[st.gapple, 1]] : [];
     if (k === "tnt") return (st.tntHeld || []).map(([t, c]) => [t, Math.max(0, c)]);
-    if (k === "beacon" || k === "netherite") return st[k] || [];
+    if (k === "beacon" || k === "netherite" || k === "goldHeld") return st[k] || [];
     if (k === "ws") return (st.ws || []).filter(t => t > (splits[0].end ?? 0)).map((t, i) => [t, i + 1]);   // (not Any%'s)
     return (st[k] || []).slice().sort((a, b) => a - b).map((t, i) => [t, i + 1]);
   };
@@ -391,7 +392,10 @@ function findMidgame(run, splits) {
     const need = goals.length + (m.count ? target : 0), have = goals.filter(g => g[0] != null).length + (m.count ? Math.min(v, target) : 0);
     const done = have >= need ? Math.max(...goals.map(g => g[0]), reached ?? 0) : null;
     const e = {key: m.key, why: m.start ? null : "untimed", name: m.name, item: m.item, area: m.area, split: !!m.start, time: m.time || null, start: null, end: null, complete: false, dur: null, since: null, done, have, need,
-      parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n), left: [], biomesLeft: goals.filter(g => g[0] == null && g[3] === "biome").map(g => g[4])};
+      parts, missing: parts.map(([n, h, k]) => k > 1 ? `${n} ${h}/${k}` : n), left: [], biomesLeft: goals.filter(g => g[0] == null && g[3] === "biome").map(g => g[4]),
+      // (how it went: when each of its goals was done, and its count as it went, up to the target: for the timer's pace,
+      // which goes by how far through the checklist the runs were)
+      prog: [goals.map(g => g[0]).filter(t => t != null).sort((a, b) => a - b), m.count ? xs.filter(([t]) => t <= now) : null, m.count ? target : 0]};
     // what's left, one by one ("Bamboo Jungle", "Breed Panda", "Cats 9/11", "Skulls 2/3")
     const cl = goals.filter(g => g[1] === "Cats"), cHave = cl.filter(g => g[0] != null).length;
     if (m.count && v < target) e.left.push(`${m.countName || m.name} ${v}/${target}`);
@@ -425,7 +429,9 @@ function findMidgame(run, splits) {
     // when something was done for it (in Midgame and after)
     // (a count that only counts in bursts of minGain or more, picked up with less than gainGap between: from where a
     // burst reaches it on; a few ingots on their own aren't working on it)
-    const gains = !m.minGain ? xs : xs.filter((x, k) => {
+    // (gainFrom: another count's bursts instead: Beacon Blocks', gold blocks alone)
+    const gx = m.gainFrom ? series(m.gainFrom) : xs;
+    const gains = !m.minGain ? gx : gx.filter((x, k, xs) => {
       let a = k; while (a > 0 && xs[a][0] - xs[a - 1][0] <= RULES.gainGap) a--;
       return x[1] - (a > 0 ? xs[a - 1][1] : 0) >= m.minGain;
     });

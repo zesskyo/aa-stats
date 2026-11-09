@@ -1,7 +1,8 @@
 /*
  * leaderboard.js — the Leaderboard page: AA No Reset's leaderboard, the same on every site (leaderboard/leaderboard.json
  * in the code repository, LB_REPO). Two tabs: Thunderless (every run) and Thunderful (100% runs). The top three, the
- * rest of the board, each runner's obsolete times, and the runs added most recently.
+ * rest of the board (with obsolete runs, when shown, in among it by time, as on speedrun.com), and the runs added
+ * most recently.
  *
  * Only the leaderboard's owner edits it: signed in (editor.js) with a GitHub key that can write to LB_REPO, the page
  * shows Add to leaderboard and an edit button on every run, and a save commits the new leaderboard.json there. Everyone else's
@@ -10,9 +11,8 @@
  */
 const LB_REPO = "zesskyo/aa-stats", LB_BRANCH = "main", LB_PATH = "leaderboard/leaderboard.json";
 let LB = DATA.leaderboard && Array.isArray(DATA.leaderboard.entries) ? DATA.leaderboard : {entries: []};
-let lbCat = "all", lbOwner = false, lbFresh = false;
-try { if (localStorage.getItem("aa-lb-cat") === "thunderful") lbCat = "thunderful"; } catch {}
-const lbOpen = new Set();
+let lbCat = "all", lbObs = false, lbOwner = false, lbFresh = false;
+try { if (localStorage.getItem("aa-lb-cat") === "thunderful") lbCat = "thunderful"; lbObs = localStorage.getItem("aa-lb-obsolete") === "1"; } catch {}
 
 const lbFmt = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 const lbDay = iso => { if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "—"; const [y, m, d] = iso.split("-").map(Number); return fmtDay(new Date(y, m - 1, d).getTime()); };
@@ -27,7 +27,7 @@ function lbBoard(cat) {
   const inCat = LB.entries.filter(e => cat === "all" || e.thunderful), best = new Map();
   for (const e of inCat) { const k = e.player.toLowerCase(), b = best.get(k); if (!b || e.ms < b.ms) best.set(k, e); }
   const board = [...best.values()].sort((a, b) => a.ms - b.ms);
-  const obsolete = e => inCat.filter(x => x !== e && x.player.toLowerCase() === e.player.toLowerCase()).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const obsolete = inCat.filter(e => !board.includes(e)).sort((a, b) => a.ms - b.ms);
   return {board, obsolete};
 }
 
@@ -40,29 +40,25 @@ function renderLeaderboard() {
   const run = e => e.run != null && e.run !== "" ? String(e.run) : "—";
   const hundred = e => e.thunderful ? T.lbYes : T.lbNo;
   const note = e => e.note ? `<button type="button" class="lbnote" aria-label="${esc(T.lbNoteOf(e.note))}"><span class="lbtri" aria-hidden="true"></span><span class="lbtip" aria-hidden="true">${esc(e.note)}</span></button>` : "";
-  const isOpen = e => lbOpen.has(cat + e.player.toLowerCase());
   const meta = e => `${esc(lbDay(e.date))} · ${esc(T.lbRunN(run(e)))} · ${proof(e)}${thunderless ? ` · ${esc(T.lbHundred)}: ${esc(hundred(e))}` : ""}`;
 
   // the top three (on a wide screen 2nd, 1st, 3rd)
   const pod = board.slice(0, 3).map((e, i) => {
-    const obs = obsolete(e), k = e.player.toLowerCase();
     return `<article class="lbpod lbpod${i + 1}">
       <div class="lbpodtop"><span class="lbmedal">${i + 1}</span>${pen(e)}</div>
       <div class="lbpodwho"><h2>${esc(e.player)}${note(e)}</h2><span class="mono lbpodtime">${esc(lbFmt(e.ms))}</span></div>
       ${i === 0 ? `<span class="lbstanding">${esc(T.lbStanding(lbDaysSince(e.date)))}</span>` : ""}
       <div class="lbmeta">${meta(e)}</div>
-      ${obs.length ? `<button type="button" class="lbplain lbobsbtn" data-lbopen="${esc(k)}" aria-expanded="${isOpen(e)}">${esc(T.lbObsoleteN(obs.length))}</button>
-      <ol class="lbobslist" data-lbof="${esc(k)}"${isOpen(e) ? "" : " hidden"}>${obs.map(x => `<li><span class="mono">${esc(lbFmt(x.ms))}</span><span class="muted">${esc(T.lbRunN(run(x)))}</span><span class="muted">${esc(lbDay(x.date))}</span><span>${proof(x)}</span>${pen(x)}</li>`).join("")}</ol>` : ""}
     </article>`;
   }).join("");
 
-  // the rest of the board (on a phone, Run, Date, Proof and 100% go under the runner's name)
+  // the rest of the board, and the obsolete runs (shown) in among it by time, without a place (on a phone, Run, Date,
+  // Proof and 100% go under the runner's name)
   const cells = e => `<td class="mono lbw">${esc(run(e))}</td><td class="lbw lbdate">${esc(lbDay(e.date))}</td><td class="lbw">${proof(e)}</td>${thunderless ? `<td class="lbw">${esc(hundred(e))}</td>` : ""}${lbOwner ? `<td class="lbpen">${pen(e)}</td>` : ""}`;
-  const rows = board.slice(3).map((e, i) => {
-    const obs = obsolete(e), k = e.player.toLowerCase(), open = isOpen(e);
-    const name = obs.length ? `<button type="button" class="lbwho" data-lbopen="${esc(k)}" aria-expanded="${open}"><span class="chev" aria-hidden="true">▾</span>${esc(e.player)}</button>` : `<span class="lbwho">${esc(e.player)}</span>`;
-    return `<tr><td class="mono lbrank">${i + 4}</td><td class="lbname"><span class="lbnamel">${name}${note(e)}</span><span class="lbsub">${meta(e)}</span></td><td class="mono lbtime">${esc(lbFmt(e.ms))}</td>${cells(e)}</tr>`
-      + obs.map(x => `<tr class="lbobs" data-lbof="${esc(k)}"${open ? "" : " hidden"}><td></td><td class="lbname"><span class="lbobsname">${esc(T.lbObsolete)}</span><span class="lbsub">${meta(x)}</span></td><td class="mono lbtime">${esc(lbFmt(x.ms))}</td>${cells(x)}</tr>`).join("");
+  const list = board.slice(3).concat(lbObs ? obsolete : []).sort((a, b) => a.ms - b.ms);
+  const rows = list.map(e => {
+    const place = board.indexOf(e);
+    return `<tr${place < 0 ? ` class="lbobs"` : ""}><td class="mono lbrank">${place < 0 ? "" : place + 1}</td><td class="lbname"><span class="lbnamel"><span class="lbwho">${esc(e.player)}</span>${note(e)}</span><span class="lbsub">${meta(e)}</span></td><td class="mono lbtime">${esc(lbFmt(e.ms))}</td>${cells(e)}</tr>`;
   }).join("");
 
   // the runs added most recently (each runner's best)
@@ -71,11 +67,11 @@ function renderLeaderboard() {
 
   el.innerHTML = `
     <div class="lbhead"><h1>${esc(T.tabLeaderboard)}</h1>
-      <div class="lbcontrols">${lbOwner ? `<button type="button" class="lbadd" id="lbAdd">${svgPlus}${esc(T.lbAdd)}</button>` : ""}
+      <div class="lbcontrols">${obsolete.length ? `<label class="lbcheck lbobstoggle"><input type="checkbox" id="lbObs"${lbObs ? " checked" : ""}> ${esc(T.lbShowObsolete)}</label>` : ""}${lbOwner ? `<button type="button" class="lbadd" id="lbAdd">${svgPlus}${esc(T.lbAdd)}</button>` : ""}
         <div class="lbseg" role="group" aria-label="${esc(T.lbCategory)}">${[["all", T.lbThunderless], ["thunderful", T.lbThunderful]].map(([k, n]) => `<button type="button" aria-pressed="${k === cat}" data-lbcat="${k}">${esc(n)}</button>`).join("")}</div></div></div>
     ${board.length ? `<section class="lbpodium" aria-label="${esc(T.lbTop)}">${pod}</section>` : `<p class="muted">${esc(T.lbNone)}</p>`}
     ${board.length ? `<div class="lbbody">
-      ${board.length > 3 ? `<section class="lbcard lbtablecard"><table class="lbtable">
+      ${list.length ? `<section class="lbcard lbtablecard"><table class="lbtable">
         <thead><tr><th scope="col">#</th><th scope="col">${esc(T.lbRunner)}</th><th scope="col">${esc(T.lbTime)}</th><th scope="col" class="lbw">${esc(T.lbRun)}</th><th scope="col" class="lbw">${esc(T.lbDate)}</th><th scope="col" class="lbw">${esc(T.lbProof)}</th>${thunderless ? `<th scope="col" class="lbw">${esc(T.lbHundred)}</th>` : ""}${lbOwner ? `<th scope="col"><span class="sr">${esc(T.lbEdit)}</span></th>` : ""}</tr></thead>
         <tbody>${rows}</tbody></table></section>` : ""}
       <section class="lbcard lbrecent" aria-labelledby="lbRecentH"><h2 id="lbRecentH">${esc(T.lbRecent)}</h2><ol>${recent}</ol></section>
@@ -83,12 +79,8 @@ function renderLeaderboard() {
     ${lbOwner ? lbFormHtml() : ""}`;
 
   el.querySelectorAll("[data-lbcat]").forEach(b => b.addEventListener("click", () => { lbCat = b.dataset.lbcat; try { localStorage.setItem("aa-lb-cat", lbCat); } catch {} renderLeaderboard(); }));
-  el.querySelectorAll("[data-lbopen]").forEach(b => b.addEventListener("click", () => {
-    const k = b.dataset.lbopen, open = b.getAttribute("aria-expanded") !== "true";
-    if (open) lbOpen.add(cat + k); else lbOpen.delete(cat + k);
-    el.querySelectorAll(`[data-lbopen="${CSS.escape(k)}"]`).forEach(x => x.setAttribute("aria-expanded", String(open)));
-    el.querySelectorAll(`[data-lbof="${CSS.escape(k)}"]`).forEach(x => { x.hidden = !open; });
-  }));
+  const obsBox = $("#lbObs");
+  if (obsBox) obsBox.addEventListener("change", () => { lbObs = obsBox.checked; try { localStorage.setItem("aa-lb-obsolete", lbObs ? "1" : ""); } catch {} renderLeaderboard(); $("#lbObs").focus(); });
   if (lbOwner) {
     $("#lbAdd").addEventListener("click", () => lbForm(null));
     el.querySelectorAll("[data-lbedit]").forEach(b => b.addEventListener("click", () => lbForm(LB.entries[Number(b.dataset.lbedit)])));

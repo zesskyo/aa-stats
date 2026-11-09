@@ -14,7 +14,7 @@ Code for Minecraft 1.16 All Advancements stats websites, e.g. [Zesskyo's AA No R
 
 ## Leaderboard
 
-- Every site has a Leaderboard page: AA No Reset's leaderboard, the same everywhere, from `leaderboard/leaderboard.json`. Thunderless (every run) and Thunderful (100%) tabs: the top three, the rest of the board, each runner's obsolete times, and the runs added most recently.
+- Every site has a Leaderboard page: AA No Reset's leaderboard, the same everywhere, from `leaderboard/leaderboard.json`. Thunderless (every run) and Thunderful (100%) tabs: the top three, the rest of the board (with obsolete runs in among it by time, when shown), and the runs added most recently.
 - Only the leaderboard's owner edits it, on their stats site: signed in there with a GitHub key that can write to this repository, the page has *Add to leaderboard* and an edit button on every run, and a save commits the new `leaderboard/leaderboard.json` here. Other runners' keys are for their own sites only, so they don't get the buttons.
 - Every site loads the leaderboard's latest version when the page opens, so a change shows everywhere within minutes.
 - *World records* checks it every day against the runs themselves (`node leaderboard.mjs check`): a time, a date more than a day out, a faster run on a runner's stats site that isn't on it, or a record that isn't on it goes in a *Leaderboard checks* issue, which closes itself once they all match. It changes nothing on the leaderboard.

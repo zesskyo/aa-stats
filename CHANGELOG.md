@@ -4,7 +4,7 @@ Websites pick up changes on their next build (when the owner saves something, or
 
 ## 2026-11-09
 
-- Leaderboard page, new look: Thunderless and Thunderful tabs; the top three (1st, then 2nd, then 3rd tallest), with how long the record has stood; the rest of the board with run numbers, dates, proof links and (Thunderless) 100%; notes on hover; each runner's obsolete times; recently added runs. Square corners
+- Leaderboard page, new look: Thunderless and Thunderful tabs; the top three (1st, then 2nd, then 3rd tallest), with how long the record has stood; the rest of the board with run numbers, dates, proof links and (Thunderless) 100%; notes on hover; Show obsolete runs puts every runner's slower times in among the board by time (as on speedrun.com); recently added runs. Square corners
 - The leaderboard is edited on its owner's stats site (Add to leaderboard, and an edit button on every run, for the owner only) instead of the spreadsheet, and every site loads its latest version when the page opens
 - Leaderboard checks: against the leaderboard itself; an approved world record is added to it
 

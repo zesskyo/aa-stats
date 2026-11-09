@@ -14,16 +14,16 @@ Code for Minecraft 1.16 All Advancements stats websites, e.g. [Zesskyo's AA No R
 
 ## Leaderboard
 
-- Every site has a Leaderboard page: AA No Reset's leaderboard, the same everywhere, from `leaderboard/leaderboard.json`.
-- It's kept from the leaderboard spreadsheet (both tabs) every day by *World records* (`node leaderboard.mjs sync`): runs submitted and verified there show up on every site after its next build.
-- It keeps history: a time that leaves the spreadsheet stays as the runner's earlier time, and runners' earlier personal bests come from their stats sites and the records. The world record history is worked out from all of them.
-- Anything on the spreadsheet that doesn't match the runs themselves (a time, a date more than a day out, a faster run on a runner's stats site that isn't on it) goes in a *Leaderboard checks* issue, which closes itself once they all match.
+- Every site has a Leaderboard page: AA No Reset's leaderboard, the same everywhere, from `leaderboard/leaderboard.json`. Thunderless (every run) and Thunderful (100%) tabs: the top three, the rest of the board, each runner's obsolete times, and the runs added most recently.
+- Only the leaderboard's owner edits it, on their stats site: signed in there with a GitHub key that can write to this repository, the page has *Add to leaderboard* and an edit button on every run, and a save commits the new `leaderboard/leaderboard.json` here. Other runners' keys are for their own sites only, so they don't get the buttons.
+- Every site loads the leaderboard's latest version when the page opens, so a change shows everywhere within minutes.
+- *World records* checks it every day against the runs themselves (`node leaderboard.mjs check`): a time, a date more than a day out, a faster run on a runner's stats site that isn't on it, or a record that isn't on it goes in a *Leaderboard checks* issue, which closes itself once they all match. It changes nothing on the leaderboard.
 
 ## World records
 
 - The records are the same on every site, so they live here: `wr/` (the WR) and `wr/archive/<date runner>/` (former ones), each a run's `wr.log`, `wr.ghost`, `wr.stats.json`, and `wr.json` (`runner`, `date`, `seed`, `video`, `notes`, and `site` + `run`: the run on the runner's own stats site).
 - *World records* (daily at 04:41 UTC, or from the Actions tab) looks through the stats sites the leaderboard links to (and any in `wr/sites.json`) for a run faster than the WR, or than the Thunderful WR with Very Very Frightening. Each one found gets an issue.
-- To make it a record, comment `approve` on its issue: its files are copied in from its site (the WR before it moves to `wr/archive/`), and every site shows it from its next build. Only the repository's owner can approve; close the issue to leave it.
+- To make it a record, comment `approve` on its issue: its files are copied in from its site (the WR before it moves to `wr/archive/`) and it's added to the leaderboard; every site shows it from its next build. Only the repository's owner can approve; close the issue to leave it.
 - It also keeps each record's `video` and `notes` up to date from its stats site.
 - By hand: `node wr-watch.mjs scan`, `node wr-watch.mjs install <stats site url> <run number>`.
 

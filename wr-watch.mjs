@@ -4,15 +4,15 @@
 //            and fills in each record's video and notes from its stats site (wr.json "site" and "run")
 //   install  makes an approved run a record: from its stats site's repository, its log, ghost and stats files, into wr/
 //            (the WR before it moved to wr/archive/) or, for a Thunderful record that isn't the WR, into wr/archive/
-// The stats sites are the ones the leaderboard links to as proof (its "Stats" links), those the records link to, and any
-// listed in wr/sites.json (["https://someone.github.io/their-site/", ...]).
+//            and adds it to the leaderboard (leaderboard/leaderboard.json)
+// The stats sites are the ones the leaderboard links to as proof, those the records link to, and any listed in
+// wr/sites.json (["https://someone.github.io/their-site/", ...]).
 //
 // Usage: node wr-watch.mjs scan [--out candidates.json]
 //        node wr-watch.mjs install <stats site url> <run number>
 //        node wr-watch.mjs approve      (in the approval workflow: reads ISSUE_BODY and COMMENT from the environment)
 import fs from "node:fs";
 import path from "node:path";
-import {readSheet} from "./sheet.mjs";
 
 const code = path.dirname(new URL(import.meta.url).pathname);
 const inCode = p => path.join(code, p), read = p => fs.readFileSync(p, "utf8");
@@ -53,11 +53,18 @@ function records() {
   return out;
 }
 
-// The leaderboard's "Stats" proof links (both tabs)
-async function leaderboardSites() {
-  const urls = new Set();
-  for (const tab of await readSheet()) for (const row of tab.rows) for (const u of Object.values(row._links)) { const x = siteUrl(u); if (SITE_RE.test(x)) urls.add(x); }
-  return [...urls];
+// The leaderboard, and the stats sites its runs link to as proof
+const LB_FILE = inCode("leaderboard/leaderboard.json");
+const readLeaderboard = () => fs.existsSync(LB_FILE) ? JSON.parse(read(LB_FILE)) : {entries: []};
+const leaderboardSites = () => [...new Set(readLeaderboard().entries.map(e => e.site && siteUrl(e.site)).filter(u => u && SITE_RE.test(u)))];
+// A new record onto the leaderboard (unless it's there already)
+function addToLeaderboard(e) {
+  const lb = readLeaderboard();
+  if (lb.entries.some(x => x.player.toLowerCase() === e.player.toLowerCase() && Math.abs(x.ms - e.ms) <= 1500 && !!x.thunderful === e.thunderful)) return;
+  lb.entries.push(e);
+  lb.entries.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.ms - b.ms);
+  lb.updated = new Date().toISOString().slice(0, 10);
+  fs.writeFileSync(LB_FILE, JSON.stringify(lb, null, 1) + "\n");
 }
 
 async function scan(outFile) {
@@ -65,8 +72,7 @@ async function scan(outFile) {
   if (!wr) throw new Error("wr/ has no record");
   const tf = recs.filter(x => x.thunderful != null).sort((a, b) => a.thunderful - b.thunderful)[0] || null;
   console.log(`WR ${fmt(wr.time)} (${wr.json.runner || wr.run.player})` + (tf ? `, Thunderful WR ${fmt(tf.thunderful)} (${tf.json.runner || tf.run.player})` : ""));
-  let sites = [];
-  try { sites = await leaderboardSites(); } catch (e) { console.warn(`Couldn't read the leaderboard (${e.message})`); }
+  let sites = leaderboardSites();
   const extra = fs.existsSync(inCode("wr/sites.json")) ? JSON.parse(read(inCode("wr/sites.json"))) : [];
   sites = [...new Set([...sites, ...extra, ...recs.map(x => x.json.site).filter(Boolean)].map(siteUrl).filter(u => SITE_RE.test(u)))];
   console.log(`Stats sites: ${sites.join(", ") || "none"}`);
@@ -130,7 +136,10 @@ async function install(url, num) {
     if (stats) fs.writeFileSync(path.join(dir, "wr.stats.json"), stats);
     fs.writeFileSync(path.join(dir, "wr.json"), JSON.stringify(json, null, 2) + "\n");
   };
+  const onBoard = ms => addToLeaderboard({player: r.player, ms: Math.round(ms / 1000) * 1000, time: fmt(ms), thunderful: ms !== r.finalIgt || d.category === "Thunderful",
+    date: json.date || null, run: num, proof: "Stats", url: `${url}#/run/${num}`, site: url, note: null});
   if (!wr || r.finalIgt < wr.time) {
+    onBoard(r.finalIgt);
     // the new WR: the one before it goes to the archive
     if (wr) { const to = archiveDir(wr.json); fs.mkdirSync(to, {recursive: true}); for (const f of fs.readdirSync(inCode("wr"))) if (/^wr\./.test(f)) fs.renameSync(inCode("wr/" + f), path.join(to, f)); }
     write(inCode("wr"));
@@ -138,6 +147,7 @@ async function install(url, num) {
     return `${r.player} ${fmt(r.finalIgt)} is now the WR`;
   }
   write(archiveDir(json));
+  onBoard(thunderfulTime(r, d) ?? r.finalIgt);
   console.log(`${r.player} ${fmt(thunderfulTime(r, d) ?? r.finalIgt)} added to the records`);
   return `${r.player} ${fmt(thunderfulTime(r, d) ?? r.finalIgt)} is now a record (in wr/archive/)`;
 }

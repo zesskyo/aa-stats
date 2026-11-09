@@ -1,4 +1,5 @@
 {
+ "updated": "2026-11-09",
  "entries": [
   {
    "player": "GotApple",
@@ -10,9 +11,7 @@
    "proof": "speedrun.com",
    "url": "https://www.speedrun.com/mc/runs/y25kj8wy",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "Elysaku",
@@ -24,9 +23,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/0-uL0.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "LucPerecOgurec",
@@ -38,9 +35,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/xsq9U.jpeg",
    "site": null,
-   "note": "unverifiable",
-   "status": "current",
-   "added": "2026-11-04"
+   "note": "unverifiable"
   },
   {
    "player": "PodX12",
@@ -52,9 +47,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/agiEf.png",
    "site": null,
-   "note": "assumed to be one as a \"special\" run",
-   "status": "current",
-   "added": "2026-11-04"
+   "note": "assumed to be one as a \"special\" run"
   },
   {
    "player": "Fyroah",
@@ -66,9 +59,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/dL5BK.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "novadud",
@@ -80,9 +71,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/N8pl-.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "DCMii",
@@ -94,9 +83,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/L-i7i.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "fudge",
@@ -108,9 +95,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/L5Utk.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "DuncanRuns",
@@ -122,9 +107,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/f3mOS.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "lunelights",
@@ -136,9 +119,7 @@
    "proof": "Twitch VOD",
    "url": "https://www.twitch.tv/videos/2813017463",
    "site": null,
-   "note": "9:23:26 thunderful",
-   "status": "current",
-   "added": "2026-11-04"
+   "note": "9:23:26 thunderful"
   },
   {
    "player": "lunelights",
@@ -150,9 +131,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/agiEf.png",
    "site": null,
-   "note": "7:10:53 thunderless",
-   "status": "current",
-   "added": "2026-11-04"
+   "note": "7:10:53 thunderless"
   },
   {
    "player": "Snakezy",
@@ -164,9 +143,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/Y9lJz.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "magnissima",
@@ -178,9 +155,7 @@
    "proof": "Twitch VOD",
    "url": "https://www.twitch.tv/videos/2813848573",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "kittymmeow",
@@ -192,9 +167,7 @@
    "proof": "YouTube",
    "url": "https://youtu.be/ArgfqOXP3gU",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "The64thRealm",
@@ -206,9 +179,7 @@
    "proof": "YouTube",
    "url": "https://youtu.be/MdbAjZpw3_8",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "Krakes_LPS",
@@ -220,9 +191,7 @@
    "proof": null,
    "url": null,
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "Zesskyo",
@@ -234,10 +203,7 @@
    "proof": "Stats",
    "url": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/#/run/1",
    "site": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/",
-   "note": null,
-   "status": "replaced",
-   "added": "2026-11-04",
-   "from": "stats site"
+   "note": null
   },
   {
    "player": "maskers",
@@ -249,9 +215,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/_45U_.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "maskers",
@@ -263,9 +227,7 @@
    "proof": "Screenshot",
    "url": "https://i.nuuls.com/_45U_.png",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "Zesskyo",
@@ -277,10 +239,7 @@
    "proof": "Stats",
    "url": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/#/run/3",
    "site": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/",
-   "note": null,
-   "status": "replaced",
-   "added": "2026-11-04",
-   "from": "stats site"
+   "note": null
   },
   {
    "player": "dinonuggieboi",
@@ -292,11 +251,7 @@
    "proof": "YouTube",
    "url": "https://www.youtube.com/watch?v=TXRSzDSPfcU",
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04",
-   "record": "archive/2026-09-26 dinonuggieboi",
-   "video": "https://www.youtube.com/watch?v=TXRSzDSPfcU"
+   "note": null
   },
   {
    "player": "Jaykeycakey",
@@ -308,10 +263,7 @@
    "proof": "Stats",
    "url": "https://jaykeycakey.github.io/aanr-stats/#/run/1",
    "site": "https://jaykeycakey.github.io/aanr-stats/",
-   "note": null,
-   "status": "replaced",
-   "added": "2026-11-04",
-   "from": "stats site"
+   "note": null
   },
   {
    "player": "Zesskyo",
@@ -323,12 +275,7 @@
    "proof": "Stats",
    "url": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/#/run/12",
    "site": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/",
-   "note": null,
-   "status": "replaced",
-   "added": "2026-11-04",
-   "from": "stats site",
-   "record": "archive/2026-09-28 Zesskyo",
-   "video": "https://youtu.be/X7c3ThPhmRI"
+   "note": null
   },
   {
    "player": "Jaykeycakey",
@@ -340,10 +287,7 @@
    "proof": "Stats",
    "url": "https://jaykeycakey.github.io/aanr-stats/#/run/6",
    "site": "https://jaykeycakey.github.io/aanr-stats/",
-   "note": null,
-   "status": "replaced",
-   "added": "2026-11-04",
-   "from": "stats site"
+   "note": null
   },
   {
    "player": "SheepAreFine",
@@ -355,10 +299,7 @@
    "proof": "Stats",
    "url": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/#/run/1",
    "site": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/",
-   "note": null,
-   "status": "replaced",
-   "added": "2026-11-04",
-   "from": "stats site"
+   "note": null
   },
   {
    "player": "SheepAreFine",
@@ -370,9 +311,7 @@
    "proof": "Stats",
    "url": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/#/run/3",
    "site": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/",
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "Zesskyo",
@@ -384,9 +323,7 @@
    "proof": "Stats",
    "url": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/#/run/23",
    "site": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/",
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "Zesskyo",
@@ -398,11 +335,7 @@
    "proof": "Stats",
    "url": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/#/run/25",
    "site": "https://zesskyo.github.io/aa-stats-no-reset-zesskyo-log/",
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04",
-   "record": "wr",
-   "video": "https://youtu.be/zl_VrIEDA7s"
+   "note": null
   },
   {
    "player": "The64thRealm",
@@ -414,9 +347,19 @@
    "proof": "YouTube",
    "url": "https://youtu.be/mVo40EzkZxE",
    "site": null,
-   "note": "5:40 thunderful",
-   "status": "current",
-   "added": "2026-11-04"
+   "note": "5:40 thunderful"
+  },
+  {
+   "player": "SheepAreFine",
+   "ms": 16150000,
+   "time": "4:29:10",
+   "thunderful": true,
+   "date": "2026-10-24",
+   "run": 11,
+   "proof": "Stats",
+   "url": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/#/run/11",
+   "site": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/",
+   "note": null
   },
   {
    "player": "Jaykeycakey",
@@ -428,9 +371,7 @@
    "proof": "Stats",
    "url": "https://jaykeycakey.github.io/aanr-stats/#/run/11",
    "site": "https://jaykeycakey.github.io/aanr-stats/",
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "inoutoftherain",
@@ -442,9 +383,7 @@
    "proof": null,
    "url": null,
    "site": null,
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   },
   {
    "player": "SheepAreFine",
@@ -456,14 +395,7 @@
    "proof": "Stats",
    "url": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/#/run/20",
    "site": "https://sheeparefine.github.io/SheepAreFine-AA-No-Reset/",
-   "note": null,
-   "status": "current",
-   "added": "2026-11-04"
+   "note": null
   }
- ],
- "updated": "2026-11-04",
- "sheet": [
-  "Thunderless+Thunderful",
-  "Thunderful"
  ]
 }

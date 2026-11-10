@@ -1,7 +1,7 @@
 // Builds a stats website: <site folder>/dist/index.html
 //
 // The code lives here (src/, icons/). Each website keeps its own runs in its own folder (a "site folder"):
-//   logs/<N>.log           Hermes play.log for run N (the file name is the run number)
+//   logs/<N>.log           Hermes play.log (N: any number not taken; the site numbers runs by when they were played)
 //   logs/<N>.stats.json    optional: the world's stats/<uuid>.json, for elytra distance and the run's statistics screen
 //   logs/<N>.ghost         optional: Hermes' ghost file (position every tick), for the travel map
 //   runs/<N>.json          already-parsed runs (used when there is no log for that number)

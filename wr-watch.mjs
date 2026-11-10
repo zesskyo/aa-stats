@@ -9,7 +9,7 @@
 // wr/sites.json (["https://someone.github.io/their-site/", ...]).
 //
 // Usage: node wr-watch.mjs scan [--out candidates.json]
-//        node wr-watch.mjs install <stats site url> <run number>
+//        node wr-watch.mjs install <stats site url> <the number the run's files are saved under (logs/<N>.log)>
 //        node wr-watch.mjs approve      (in the approval workflow: reads ISSUE_BODY and COMMENT from the environment)
 import fs from "node:fs";
 import path from "node:path";
@@ -86,7 +86,7 @@ async function scan(outFile) {
       const d = s.derive(r), t = thunderfulTime(r, d), num = s.runNum(r), who = r.player;
       const what = r.finalIgt < wr.time ? ["WR", r.finalIgt] : tf && t != null && t < tf.thunderful ? ["Thunderful WR", t] : null;
       if (!what) continue;
-      const marker = `<!-- wr-candidate ${url} ${num} -->`;
+      const marker = `<!-- wr-candidate ${url} ${(r.meta && r.meta.num) || num} -->`;   // (the number its files are saved under)
       cands.push({marker, title: `Possible new ${what[0]}: ${who} ${fmt(what[1])}`, body: [
         `**${who}** finished a run in **${fmt(what[1])}** (${d.category}), faster than the ${what[0]} (${fmt(what[0] === "WR" ? wr.time : tf.thunderful)}).`, "",
         `- Run: ${url}#/run/${num} (run ${num} on ${data.repo && data.repo.full || url})`,
@@ -125,8 +125,10 @@ async function install(url, num) {
   const r = api.parseLog(log, logName), d = api.derive(r);
   if (d.category === "Invalid") throw new Error(`run ${num} isn't a finished run`);
   const recs = records(), wr = recs.find(x => x.dir === "");
+  // (the number the site shows for it: runs are numbered by when they were played)
+  const s = siteApi(data), onSite = s.RUNS.find(x => x.meta && x.meta.num === num), shown = onSite ? s.runNum(onSite) : num;
   const json = {runner: r.player, date: details.date || new Date(r.start).toISOString().slice(0, 10), seed: details.seed || (r.seed != null ? String(r.seed) : undefined),
-    video: details.video, notes: details.notes, site: url, run: num};
+    video: details.video, notes: details.notes, site: url, run: shown};
   for (const k of Object.keys(json)) if (json[k] == null || json[k] === "") delete json[k];
   const archiveDir = j => { const base = inCode(path.join("wr/archive", `${j.date || "undated"} ${j.runner || "unknown"}`)); let p = base, i = 2; while (fs.existsSync(p)) p = `${base} ${i++}`; return p; };
   const write = dir => {
@@ -137,7 +139,7 @@ async function install(url, num) {
     fs.writeFileSync(path.join(dir, "wr.json"), JSON.stringify(json, null, 2) + "\n");
   };
   const onBoard = ms => addToLeaderboard({player: r.player, ms: Math.round(ms / 1000) * 1000, time: fmt(ms), thunderful: ms !== r.finalIgt || d.category === "Thunderful",
-    date: json.date || null, run: num, proof: "Stats", url: `${url}#/run/${num}`, site: url, note: null});
+    date: json.date || null, run: shown, proof: "Stats", url: `${url}#/run/${shown}`, site: url, note: null});
   if (!wr || r.finalIgt < wr.time) {
     onBoard(r.finalIgt);
     // the new WR: the one before it goes to the archive

@@ -147,9 +147,10 @@ let ED = null;   // what the form is working on
 function openEditor(run) {
   if (!signedIn()) return openSignIn(() => openEditor(run));
   const meta = (run && run.meta) || {};
-  const nextNum = RUNS.reduce((a, r) => Math.max(a, runNum(r)), 0) + 1;
+  // (num: the number its files are saved under; a new run takes the next one. The number the site shows is runNum.)
+  const nextNum = RUNS.reduce((a, r) => Math.max(a, (r.meta && r.meta.num) || 0), 0) + 1;
   ED = {
-    run, num: run ? runNum(run) : nextNum, isNew: !run,
+    run, num: run ? (meta.num || runNum(run)) : nextNum, isNew: !run,
     mode: run && run.manual ? "manual" : "files",   // "files": everything read from the files; "manual": typed in
     log: null,                              // {file, run} when a log was picked
     countAnyway: !!meta.countAnyway,        // count it as Thunderless though there was never a channeling trident
@@ -198,7 +199,7 @@ function renderEditor() {
 
   el.innerHTML = `
     <div class="head-row" style="align-items:center">
-      <h1>${esc(ED.isNew ? T.edAddRun + (manual ? "" : " " + ED.num) : T.edEditRun(ED.num))}</h1>
+      <h1>${esc(ED.isNew ? T.edAddRun : T.edEditRun(runNum(ED.run)))}</h1>
       <label class="fld edpick"><span class="label">${esc(T.edPickRun)}</span><select class="field" id="edPick">
         <option value=""${ED.isNew ? " selected" : ""}>${esc(T.edNewRun)}</option>
         ${byNumber().slice().reverse().map(r => `<option value="${esc(r.id)}"${run === r ? " selected" : ""}>${esc(runTitle(r))} · ${r.finalIgt != null ? fmt(r.finalIgt, 0) : "—"}</option>`).join("")}
@@ -231,9 +232,7 @@ function renderEditor() {
 
       ${askSeed ? `<p class="note seedasknote" style="margin:0">${esc(T.edSeedAsk)}</p>` : ""}
       ${manual || showDate || showSeed ? `<div class="edgrid">
-        ${manual ? `<label class="fld"><span class="label">${esc(T.edRunNumber)}</span>
-          <input class="field mono" type="number" min="1" step="1" id="edNum" value="${esc(ED.num)}"${ED.isNew ? "" : " disabled"}></label>
-        <label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run && run.manual ? tIn(run.finalIgt) : "")}"></label>
+        ${manual ? `<label class="fld"><span class="label">${esc(T.timeLabel)}</span><input class="field mono" type="text" id="edTime" value="${esc(run && run.manual ? tIn(run.finalIgt) : "")}"></label>
         <label class="fld"><span class="label">${esc(T.colHundred)}</span><select class="field" id="edHundred">
           <option value="yes"${meta.hundred === true ? " selected" : ""}>${esc(T.hundredYes)}</option>
           <option value="no"${meta.hundred !== true ? " selected" : ""}>${esc(T.hundredNo)}</option></select></label>` : ""}
@@ -242,7 +241,6 @@ function renderEditor() {
         ${showSeed ? `<label class="fld"><span class="label">${esc(T.seedLabel.replace(/:$/, ""))}</span>
           <input class="field mono${askSeed ? " ask" : ""}" type="text" id="edSeed" value="${esc(seedNow)}" autocomplete="off"></label>` : ""}
       </div>` : ""}
-      ${manual ? "" : `<input type="hidden" id="edNum" value="${esc(ED.num)}">`}
       ${showDate ? "" : `<input type="hidden" id="edDate" value="${esc(meta.date || logDate)}">`}
       ${showSeed ? "" : `<input type="hidden" id="edSeed" value="${esc(seedNow)}">`}
 
@@ -319,13 +317,13 @@ function renderEditor() {
 // What's in the form right now
 function edRead() {
   const v = id => { const x = $(id); return x ? x.value.trim() : null; };
-  return {num: v("#edNum"), date: v("#edDate"), seed: v("#edSeed"), video: v("#edVideo"), notes: $("#edNotes") ? $("#edNotes").value.replace(/\s+$/, "") : "",
+  return {date: v("#edDate"), seed: v("#edSeed"), video: v("#edVideo"), notes: $("#edNotes") ? $("#edNotes").value.replace(/\s+$/, "") : "",
     time: v("#edTime"), hundred: v("#edHundred"), shotLink: v("#edShotLink")};
 }
 function edRestore() {
   const d = ED.draft; if (!d) return;
   const set = (id, val) => { const x = $(id); if (x && val != null) x.value = val; };
-  set("#edNum", d.num); if (d.seed) set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink);
+  if (d.seed) set("#edSeed", d.seed); set("#edVideo", d.video); set("#edNotes", d.notes); set("#edTime", d.time); set("#edHundred", d.hundred); set("#edShotLink", d.shotLink);
   if (d.date || !ED.log) set("#edDate", d.date);
 }
 const edMsg = (html, bad) => { ED.msg = html; ED.msgBad = !!bad; const m = $("#edMsg"); if (m) { m.innerHTML = html; m.classList.toggle("bad", !!bad); } };
@@ -387,10 +385,8 @@ async function edPickStats(file) {
 // ---------- Save ----------
 async function edSave() {
   if (ED.busy) return;
-  const f = edRead(), num = ED.isNew ? parseInt(f.num, 10) : ED.num;
+  const f = edRead(), num = ED.num;
   const err = m => edMsg(esc(m), true);
-  if (!(num >= 1)) return err(T.edBadNumber);
-  if (ED.isNew && RUNS.some(r => runNum(r) === num)) return err(T.edNumberTaken(num));
   const isLink = s => /^https?:\/\/\S+$/i.test(s);
   if (ED.proof === "video" && f.video && !isLink(f.video)) return err(T.edBadVideo);
   if (ED.proof === "shot" && f.shotLink && !isLink(f.shotLink)) return err(T.edBadShotLink);
@@ -466,7 +462,7 @@ async function edSave() {
 const sortRuns = d => Object.fromEntries(Object.entries(d).sort((a, b) => Number(a[0]) - Number(b[0])));
 
 async function edDelete() {
-  if (ED.busy || !confirm(T.edDeleteConfirm(ED.num))) return;
+  if (ED.busy || !confirm(T.edDeleteConfirm(runNum(ED.run)))) return;
   const num = ED.num;
   ED.busy = true; edMsg(esc(T.edSaving));
   try {

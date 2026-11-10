@@ -25,7 +25,7 @@ Code for Minecraft 1.16 All Advancements stats websites, e.g. [Zesskyo's AA No R
 - *World records* (daily at 04:41 UTC, or from the Actions tab) looks through the stats sites the leaderboard links to (and any in `wr/sites.json`) for a run faster than the WR, or than the Thunderful WR with Very Very Frightening. Each one found gets an issue.
 - To make it a record, comment `approve` on its issue: its files are copied in from its site (the WR before it moves to `wr/archive/`) and it's added to the leaderboard; every site shows it from its next build. Only the repository's owner can approve; close the issue to leave it.
 - It also keeps each record's `video` and `notes` up to date from its stats site.
-- By hand: `node wr-watch.mjs scan`, `node wr-watch.mjs install <stats site url> <run number>`.
+- By hand: `node wr-watch.mjs scan`, `node wr-watch.mjs install <stats site url> <N>` (the run's `logs/<N>.log` there).
 
 ## Development
 

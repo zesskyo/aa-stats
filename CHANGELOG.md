@@ -2,6 +2,10 @@
 
 Websites pick up changes on their next build (when the owner saves something, or daily at 05:23 UTC). Older changes: the commit history.
 
+## 2026-11-10
+
+- Runs are numbered by when they were played (when the log started; a run without a log, its date), so the numbers always go in order. The files keep the number they were saved under; adding a run no longer asks for a number
+
 ## 2026-11-09
 
 - Leaderboard page, new look: Thunderless and Thunderful tabs; the top three (1st, then 2nd, then 3rd tallest), with how long the record has stood; the rest of the board with run numbers, dates, proof links and (Thunderless) 100%; notes on hover; Show obsolete runs puts every runner's slower times in among the board by time (as on speedrun.com); recently added runs. Square corners

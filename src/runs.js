@@ -79,7 +79,18 @@ const splitIcon = (v, size = 20, runs = RUNS) => SPLIT_VIEWS[v].icon ? ic(SPLIT_
 const icAt = (key, x, y, size) => okIcon(ICONS[key]) ? `<image href="${ICONS[key]}" x="${x}" y="${y}" width="${size}" height="${size}" style="image-rendering:pixelated"/>` : "";
 
 // ---------- About a run ----------
-const runNum = r => r.meta && r.meta.num ? r.meta.num : RUNS.slice().sort((a, b) => a.start - b.start).indexOf(r) + 1;
+// A run's number: its place among this site's runs by when each was played (when its log started; a run without a log,
+// its date), so the numbers always go in order. (Its files keep the number they were saved under: r.meta.num.)
+let numCache = null;
+const numKey = r => r.start || (r.meta && r.meta.date ? Date.parse(r.meta.date + "T12:00:00Z") : Infinity);
+function runNum(r) {
+  if (!numCache || numCache.list.length !== RUNS.length || numCache.list.some((x, i) => x !== RUNS[i])) {
+    const file = x => (x.meta && x.meta.num) || 0, by = (a, b) => { const ka = numKey(a), kb = numKey(b); return (ka === kb ? 0 : ka - kb) || file(a) - file(b); };
+    const own = RUNS.filter(x => !isWr(x) && !isViewed(x)).sort(by);
+    numCache = {list: RUNS.slice(), map: new Map(own.map((x, i) => [x, i + 1]))};
+  }
+  return numCache.map.get(r) || (r.meta && r.meta.num) || 0;
+}
 const isWr = r => !!(r && r.meta && r.meta.wr);
 // a run looked at on its own (read from files on the Compare page; only in this tab, never saved)
 let VIEWED = null;

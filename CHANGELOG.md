@@ -4,6 +4,8 @@ Websites pick up changes on their next build (when the owner saves something, or
 
 ## 2026-11-10
 
+- Timer: a bastion or fortress counts as soon as you're in it (taken back if you leave within 20 seconds), instead of after 20 seconds there
+
 - Runs are numbered by when they were played (when the log started; a run without a log, its date), so the numbers always go in order. The files keep the number they were saved under; adding a run no longer asks for a number
 
 ## 2026-11-09

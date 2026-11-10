@@ -234,7 +234,9 @@ function findSubSplits(run, splits, {anyEnd, endgameStart, now}) {
   // (a structure counts once they've spent structStay in it, on a visit with no more than structGap out of it at a time:
   // passing through a corner of a bastion on the way to a fortress doesn't make the bastion the first. It counts from
   // when it was found, if that was shortly before (structFound), else from when that visit started. Without that in the
-  // log, when it was found)
+  // log, when it was found. On the timer, while they're in one, it counts straight away: it's taken back if they leave
+  // before structStay)
+  const live = (run.dims[run.dims.length - 1] || [])[2] === "live";
   const found = (area, id) => {
     const A = (run.st || {}).areas || [], now = run.finalIgt, adv = advTime(run, id);
     if (!A.length) return adv;
@@ -245,7 +247,7 @@ function findSubSplits(run, splits, {anyEnd, endgameStart, now}) {
       const a = A[k][0], b = k + 1 < A.length ? A[k + 1][0] : now;
       if (start == null || a - lastOut > RULES.structGap) { start = a; inside = 0; }
       inside += b - a; lastOut = b;
-      if (inside >= RULES.structStay) return at(start);
+      if (inside >= RULES.structStay || live && k === A.length - 1) return at(start);
     }
     return null;
   };

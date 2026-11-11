@@ -2,6 +2,10 @@
 
 Websites pick up changes on their next build (when the owner saves something, or daily at 05:23 UTC). Older changes: the commit history.
 
+## 2026-11-11
+
+- Timer: Debris starts as soon as you're below y 20 in the Nether (after Enchanting), instead of after a minute down there or a few debris
+
 ## 2026-11-10
 
 - Timer: a bastion or fortress counts as soon as you're in it (taken back if you leave within 20 seconds), instead of after 20 seconds there

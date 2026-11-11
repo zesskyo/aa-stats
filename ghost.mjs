@@ -149,10 +149,25 @@ export function enchLeaves(path, times) {
   return out;
 }
 
-// What the splits use from the ghost file, for a run's st: when they were deep in the Nether, when they got to the outer
-// End, when they got to where each campfire was placed, and when they left each enchanting table (st: the run's, for its campfires)
-export function ghostFacts(path, st) {
+// When the player was down below y 20 in the Nether, every 2 seconds or so while there (on the timer: digging for debris,
+// as nothing else takes them that deep)
+const DIG = 20;
+export function digTimes(path) {
+  const out = [];
+  if (!path || !path.t) return out;
+  for (let i = 0; i < path.t.length; i++) if (path.d[i] === "n" && path.y && path.y[i] < DIG) {
+    const t = path.t[i] * 100;
+    if (!out.length || t - out[out.length - 1] >= 2000) out.push(t);
+  }
+  return out;
+}
+
+// What the splits use from the ghost file, for a run's st: when they were deep in the Nether (and on the timer, live,
+// below y 20), when they got to the outer End, when they got to where each campfire was placed, and when they left
+// each enchanting table (st: the run's, for its campfires)
+export function ghostFacts(path, st, {live = false} = {}) {
   const out = {deep: deepTimes(path)}, oe = outerEndTime(path);
+  if (live) out.dig = digTimes(path);
   if (oe != null) out.outerEnd = oe;
   if (st && st.campfire && st.campfire.length) out.campArrive = baseArrivals(path, st.campfire);
   out.enchLeave = enchLeaves(path, st && st.ench);

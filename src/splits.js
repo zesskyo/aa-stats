@@ -61,10 +61,14 @@ function findSplits(run, comp, liveCamp) {
   // nothing's Debris until Enchanting's done)
   const after = enchDone ?? Infinity;
   const bursts = (st.debris || []).length ? clusters(st.debris.filter(t => t >= after), RULES.debrisSessionGap) : [];
+  // (on the timer: down below y 20 in the Nether now, st.digging from the ghost file, is Debris straight away: nothing
+  // else takes them that deep)
+  const digTrip = live && st.digging != null && st.digging >= after ? tripOf(Math.min(st.digging, run.finalIgt - 1)) : null;
+  const digging = tr => digTrip != null && tr[0] === digTrip[0];
   const deepTrip = run.dims.map((x, i) => x[1] === "n" && x[0] >= after ? [x[0], i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt] : null)
-    .find(tr => tr && deepIn(tr[0], tr[1]).length * 5000 >= RULES.debrisDeepMin);
+    .find(tr => tr && (deepIn(tr[0], tr[1]).length * 5000 >= RULES.debrisDeepMin || digging(tr)));
   let debrisSession = bursts.find(b => b.length >= 3) || null;
-  if (deepTrip && (!debrisSession || deepTrip[0] < debrisSession[0])) debrisSession = (st.debris || []).filter(t => t >= deepTrip[0] && t <= deepTrip[1]).concat(deepIn(deepTrip[0], deepTrip[1])).sort((a, b) => a - b);
+  if (deepTrip && (!debrisSession || deepTrip[0] < debrisSession[0])) debrisSession = (st.debris || []).filter(t => t >= deepTrip[0] && t <= deepTrip[1]).concat(deepIn(deepTrip[0], deepTrip[1]), digging(deepTrip) ? [st.digging] : []).sort((a, b) => a - b);
   const debrisAfter = (st.debris || []).filter(t => t >= after);
   // (the biggest only once the run's over: on the timer, a small trip now could be beaten by the real one later)
   if (!debrisSession && debrisAfter.length && !live) debrisSession = clusters(debrisAfter, RULES.debrisSessionGap).sort((a, b) => b.length - a.length)[0];
@@ -87,13 +91,13 @@ function findSplits(run, comp, liveCamp) {
     if (x[1] !== "n" || x[0] < debrisEnd) return;
     const out = i + 1 < run.dims.length ? run.dims[i + 1][0] : run.finalIgt;
     // (or a minute spent deep down mining, before any debris turns up)
-    if ((st.debris || []).some(t => t >= x[0] && t <= out) || deepIn(x[0], out).length * 5000 >= RULES.debrisDeepMin) moreDebris.push([x[0], out]);
+    if ((st.debris || []).some(t => t >= x[0] && t <= out) || deepIn(x[0], out).length * 5000 >= RULES.debrisDeepMin || digging([x[0], out])) moreDebris.push([x[0], out]);
   });
   // (a quick stop in the Overworld between trips, to restock beds or TNT, is still Debris: one stretch, not several)
   // (and each trip ends at most a few minutes after the last debris, or the last time deep down: the way back to the
   // portal; staying on in the Nether after that, smelting it or getting gold for the netherite, isn't Debris)
   const tripEnd = ([a, b]) => {
-    const last = Math.max(-Infinity, ...(st.debris || []).filter(t => t >= a && t <= b), ...deepIn(a, b));
+    const last = Math.max(-Infinity, ...(st.debris || []).filter(t => t >= a && t <= b), ...deepIn(a, b), ...(digTrip && digTrip[0] === a ? [st.digging] : []));
     return [a, last > -Infinity ? Math.min(b, Math.max(a, last) + RULES.debrisReturnMax) : b];
   };
   const debrisSegs = (debrisStart != null && debrisEnd != null ? [[debrisStart, debrisEnd], ...moreDebris] : []).map(tripEnd)
